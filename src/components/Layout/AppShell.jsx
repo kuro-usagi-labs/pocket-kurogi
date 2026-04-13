@@ -207,7 +207,7 @@ export default function AppShell() {
     <div className="bg-champagne font-inter text-midnight overflow-hidden h-[100dvh] flex selection:bg-gold/20 selection:text-midnight">
       <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
-      <main className="flex-1 md:ml-64 flex flex-col h-[100dvh] overflow-hidden">
+      <main className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden">
         <DesktopHeader />
 
         <div className="flex-1 flex overflow-hidden">

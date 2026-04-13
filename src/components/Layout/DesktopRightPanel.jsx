@@ -31,7 +31,7 @@ export default function DesktopRightPanel() {
   }
 
   return (
-    <aside className="hidden xl:flex w-80 bg-[#faf9f4] flex-col p-8 space-y-8 border-l border-black/5 overflow-y-auto overflow-x-hidden relative h-screen">
+    <aside className="hidden xl:flex shrink-0 w-80 bg-[#faf9f4] flex-col p-8 space-y-8 border-l border-black/5 overflow-y-auto overflow-x-hidden relative h-full">
       <div>
         <h3 className="text-[10px] font-extrabold text-midnight/40 tracking-[0.2em] uppercase mb-6">Asset Intelligence</h3>
         <div className="space-y-4">

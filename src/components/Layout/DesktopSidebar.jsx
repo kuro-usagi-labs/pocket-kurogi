@@ -12,7 +12,7 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
   ]
 
   return (
-    <aside className="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-[#faf9f4] py-8 z-40 border-r border-midnight/5 font-jakarta tracking-tight">
+    <aside className="hidden md:flex flex-col shrink-0 h-full w-64 bg-[#faf9f4] py-8 z-40 border-r border-midnight/5 font-jakarta tracking-tight">
       <div className="mb-12 px-8">
         <h1 className="text-xl font-bold tracking-tighter text-midnight">The Vault</h1>
         <p className="text-[10px] text-midnight/50 font-bold tracking-[0.2em] uppercase mt-1">Pocket Kurogi</p>
