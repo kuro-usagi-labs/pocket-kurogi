@@ -165,6 +165,7 @@ export default function ChatInput({ onSend, isTyping }) {
             <ArrowUp size={20} strokeWidth={2.5} />
           </button>
         </form>
+        </div>
       </div>
     </div>
   )
