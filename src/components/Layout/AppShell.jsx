@@ -96,6 +96,15 @@ export default function AppShell() {
               desc: analysis.desc,
             },
           }
+        } else if (analysis.type === 'create_wallet') {
+          const { data: newWallet } = await addWallet(analysis.name, analysis.initial_balance || 0);
+          
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: `Dompet **${analysis.name}** berhasil dibuat dengan saldo awal ${formatRupiah(analysis.initial_balance || 0)}. Anda dapat melihatnya di menu Wallets.`,
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          }
         } else {
           botResponse = {
             id: Date.now() + 1,

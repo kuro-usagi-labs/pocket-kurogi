@@ -13,7 +13,9 @@ export async function analyzeTransaction(text, walletNames = []) {
 Ekstrak informasi dari teks berikut: "${text}"
 Daftar dompet yang tersedia: ${walletList}. (pilih yang paling cocok, default: Tunai).
 
-Kembalikan HANYA dalam format JSON valid seperti ini tanpa markdown:
+Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini:
+
+1. Transaksi Biasa:
 {
   "type": "transaction",
   "transactionType": "expense",
@@ -24,7 +26,16 @@ Kembalikan HANYA dalam format JSON valid seperti ini tanpa markdown:
   "reply": ""
 }
 
-Jika teks bukan transaksi (sapaan, pertanyaan, dll), kembalikan:
+2. Pembuatan Dompet Baru (jika user minta buat dompet/rekening):
+{
+  "type": "create_wallet",
+  "name": "Nama dompet (misal: BCA, Gopay)",
+  "initial_balance": 500000,
+  "wallet_type": "bank",
+  "reply": "Komentar ramah"
+}
+
+3. Lainnya (Sapaan/Belum Jelas/Informasi):
 {
   "type": "greeting" atau "unknown" atau "help",
   "reply": "Balasan ramah singkat"
@@ -66,6 +77,36 @@ function analyzeWithRegex(text, walletNames) {
     return {
       type: 'greeting',
       reply: 'Sistem aktif. Silakan instruksikan pencatatan pengeluaran atau pemasukan Anda hari ini.',
+    }
+  }
+
+  // Create Wallet Intent
+  if (/^(buat|bikin|tambah|create)\s+(dompet|rekening|wallet)/i.test(normalizedText)) {
+    const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i);
+    let initialBalance = 0;
+    if (moneyMatch) {
+      let temp = parseFloat(moneyMatch[1].replace(',', '.'));
+      const multiplier = moneyMatch[2];
+      if (['k', 'rb', 'ribu'].includes(multiplier)) temp *= 1000;
+      else if (['jt', 'juta'].includes(multiplier)) temp *= 1000000;
+      else if (temp > 0 && temp < 1000) temp *= 1000;
+      initialBalance = temp;
+    }
+
+    const nameMatch = text.match(/(?:dompet|rekening|wallet)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:isi|saldo|dengan|sebesar)\s*|\s*$|\s+(?:rp\s*)?(?:\d+))/i);
+    let name = 'Dompet Baru';
+    if (nameMatch && nameMatch[1]) {
+      name = nameMatch[1].replace(/^(isi|saldo|sebesar|rp|dengan)\s+/i, '').trim();
+      name = name.replace(/\s+\d.*/, '').trim();
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+    }
+
+    return {
+      type: 'create_wallet',
+      name: name,
+      initial_balance: initialBalance,
+      wallet_type: 'bank',
+      reply: `Siap, dompet ${name} akan segera dibuat dengan saldo awal.`
     }
   }
 

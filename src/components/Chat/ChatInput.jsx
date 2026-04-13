@@ -9,6 +9,7 @@ const quickSuggestions = [
 
 export default function ChatInput({ onSend, isTyping }) {
   const [inputValue, setInputValue] = useState('')
+  const [isListening, setIsListening] = useState(false)
 
   const handleSubmit = (e) => {
     e?.preventDefault()
@@ -20,6 +21,47 @@ export default function ChatInput({ onSend, isTyping }) {
   const handleQuickSend = (text) => {
     if (isTyping) return
     onSend(text)
+  }
+
+  const handleMicClick = () => {
+    // Check support for speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Maaf, browser Anda tidak mendukung fitur input suara.');
+      return;
+    }
+
+    if (isListening) return; // Prevent multiple instances
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInputValue(transcript);
+      // Auto send if confident
+      if (transcript.trim() && !isTyping) {
+        onSend(transcript.trim());
+        setInputValue('');
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
   }
 
   return (
@@ -57,13 +99,20 @@ export default function ChatInput({ onSend, isTyping }) {
           <input
             type="text"
             className="w-full bg-transparent border-none focus:ring-0 text-midnight font-inter placeholder:text-midnight/30 px-2 text-[14.5px] outline-none font-medium"
-            placeholder="Instruksikan transaksi..."
+            placeholder={isListening ? "Mendengarkan..." : "Instruksikan transaksi..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            disabled={isListening}
             autoComplete="off"
           />
-          <button type="button" className="mr-2 text-midnight/30 hover:text-midnight/70 transition-colors p-1">
-            <Mic size={20} strokeWidth={2.5} />
+          <button 
+            type="button" 
+            onClick={handleMicClick}
+            className={`mr-2 p-1 transition-all rounded-full ${
+              isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-midnight/30 hover:text-midnight/70'
+            }`}
+          >
+            <Mic size={20} strokeWidth={isListening ? 3 : 2.5} />
           </button>
           <button
             type="submit"
