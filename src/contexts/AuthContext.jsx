@@ -28,6 +28,16 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  const signUp = async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    return { data, error }
+  }
+
+  const signInWithPassword = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    return { data, error }
+  }
+
   const signInWithMagicLink = async (email) => {
     const { error } = await supabase.auth.signInWithOtp({ email })
     return { error }
@@ -42,6 +52,8 @@ export function AuthProvider({ children }) {
     user,
     session,
     loading,
+    signUp,
+    signInWithPassword,
     signInWithMagicLink,
     signOut,
   }
