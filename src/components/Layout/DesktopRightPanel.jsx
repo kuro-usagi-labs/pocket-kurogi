@@ -1,7 +1,7 @@
 import { DollarSign, Landmark, ChevronRight, ReceiptText } from 'lucide-react'
 import { useTransactions } from '../../hooks/useTransactions'
 
-export default function DesktopRightPanel() {
+export default function DesktopRightPanel({ onExecuteStrategy }) {
   const { transactions, totalIncome, totalExpense } = useTransactions()
 
   // Calculate Health Score (0-100) based on savings rate
@@ -86,7 +86,10 @@ export default function DesktopRightPanel() {
                 {sortedCategories[0]?.[1] ? formatRupiah(sortedCategories[0][1] * 0.2) : 'Rp0'}
               </span> this month.
             </p>
-            <button className="w-full py-2.5 bg-gold text-white text-[10px] font-extrabold uppercase tracking-widest rounded-lg hover:brightness-110 transition-all">
+            <button 
+              onClick={() => onExecuteStrategy('Melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?')}
+              className="w-full py-2.5 bg-gold text-white text-[10px] font-extrabold uppercase tracking-widest rounded-lg hover:brightness-110 transition-all active:scale-[0.98]"
+            >
               Execute Strategy
             </button>
           </div>

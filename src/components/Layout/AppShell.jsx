@@ -14,11 +14,14 @@ import DesktopSidebar from './DesktopSidebar'
 import DesktopHeader from './DesktopHeader'
 import DesktopRightPanel from './DesktopRightPanel'
 
+import { useAdvisor } from '../../hooks/useAdvisor'
+
 export default function AppShell() {
   const { signOut } = useAuth()
   const { wallets, totalBalance, addWallet, deleteWallet, hardDeleteWallet, clearAllWallets, updateBalance } = useWallets()
   const { transactions, totalIncome, totalExpense, addTransaction, deleteTransaction, clearTransactionsInRange, clearAllTransactions } = useTransactions()
   const { findCategory } = useCategories()
+  const { getContextString } = useAdvisor()
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
@@ -64,7 +67,8 @@ export default function AppShell() {
 
       try {
         const walletNames = wallets.map((w) => w.name)
-        const analysis = await analyzeTransaction(text, image, walletNames)
+        const financialContext = getContextString()
+        const analysis = await analyzeTransaction(text, image, walletNames, financialContext)
         let botResponse
 
         // 1. Handle Pending Confirmation
@@ -141,6 +145,13 @@ export default function AppShell() {
             time: currentTime,
             card: { type: analysis.transactionType, amount: analysis.amount, category: analysis.category || 'Lainnya', wallet: analysis.wallet || 'Tunai', desc: analysis.desc },
           }
+        } else if (analysis.type === 'advice') {
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: analysis.reply || "Analisa finansial tidak tersedia saat ini.",
+            time: currentTime
+          };
         } else if (analysis.type === 'undo_transaction') {
           if (transactions.length === 0) throw new Error('Tidak ada transaksi yang bisa dibatalkan.');
           const lastTx = transactions[0];
@@ -248,7 +259,7 @@ export default function AppShell() {
         setIsTyping(false);
       }
     },
-    [wallets, transactions, totalBalance, findCategory, addTransaction, updateBalance, hardDeleteWallet, clearAllWallets, clearTransactionsInRange, clearAllTransactions, addWallet, formatRupiah, pendingAction, isTyping, deleteTransaction]
+    [wallets, transactions, totalBalance, findCategory, addTransaction, updateBalance, hardDeleteWallet, clearAllWallets, clearTransactionsInRange, clearAllTransactions, addWallet, formatRupiah, pendingAction, isTyping, deleteTransaction, getContextString]
   )
 
   const handleAddWallet = async (name, balance) => {
@@ -342,7 +353,10 @@ export default function AppShell() {
             </div>
           </section>
 
-          <DesktopRightPanel />
+          <DesktopRightPanel onExecuteStrategy={(msg) => {
+            setActiveTab('chat');
+            handleSend(msg);
+          }} />
         </div>
       </main>
     </div>

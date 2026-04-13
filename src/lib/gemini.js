@@ -4,24 +4,24 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
  * Analyze user text using Gemini 2.5 Flash API to extract transaction data.
  * Falls back to local regex parsing if API key is not set or request fails.
  */
-export async function analyzeTransaction(text, imageBase64 = null, walletNames = []) {
+export async function analyzeTransaction(text, imageBase64 = null, walletNames = [], financialContext = '') {
   // 1. If there's an attached image, MUST use Gemini Vision
   if (imageBase64) {
-    return await callGeminiAPI(text, imageBase64, walletNames);
+    return await callGeminiAPI(text, imageBase64, walletNames, financialContext);
   }
 
   // 2. Fast Path: Use local Regex for simple text commands
   const regexResult = analyzeWithRegex(text || '', walletNames);
   
-  // If regex successfully understood the intent, return instantly to save tokens/time
+  // If regex successfully understood the intent, return instantly 
   if (regexResult.type !== 'unknown') {
     return regexResult;
   }
 
-  // 3. Fallback: Regex failed (complex text). Try Gemini AI NLP.
+  // 3. Fallback: Complex text. Use Gemini Advisor.
   if (GEMINI_API_KEY) {
     try {
-      return await callGeminiAPI(text, null, walletNames);
+      return await callGeminiAPI(text, null, walletNames, financialContext);
     } catch (err) {
       console.error('Gemini API Error:', err);
       return regexResult;
@@ -31,72 +31,23 @@ export async function analyzeTransaction(text, imageBase64 = null, walletNames =
   return regexResult;
 }
 
-async function callGeminiAPI(text, imageBase64, walletNames) {
+async function callGeminiAPI(text, imageBase64, walletNames, financialContext = '') {
   const walletList = [...walletNames, 'Tunai'].join(', ')
-  const prompt = `Kamu adalah AI asisten keuangan yang cerdas, elegan, dan minimalis.
-Ekstrak informasi dari teks atau gambar: "${text || 'Berkas Terlampir'}"
-Daftar dompet: ${walletList}. 
+  const prompt = `Kamu adalah AI Financial Advisor yang cerdas, minimalis, dan berkelas.
+Ekstrak informasi atau berikan analisa keuangan dari: "${text || 'Berkas Terlampir'}"
+
+${financialContext}
 
 PANDUAN:
-1. Balaslah dengan bahasa yang alami, SANGAT SINGKAT, dan profesional.
-2. Jangan memberikan daftar contoh perintah kecuali ditanya.
-3. Fokus hanya pada konfirmasi transaksi atau aksi yang diminta.
-4. Jika transaksi berhasil, field "reply" bisa dikosongkan (Sistem akan menghandle).
+1. Jika user meminta tips, motivasi, analisa, atau saham: gunakan data keuangan di atas untuk memberikan jawaban yang SANGAT SINGKAT, tajam, dan edukatif.
+2. Jika transaksi: ekstrak data seperti biasa.
+3. Gunakan bahasa Indonesia yang profesional namun modern.
+4. Hindari daftar contoh perintah.
 
-Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 tipe:
-
-1. Transaksi Biasa:
-{
-  "type": "transaction",
-  "transactionType": "expense",
-  "amount": 50000,
-  "desc": "Nama transaksi bersih",
-  "category": "Kategori singkat",
-  "wallet": "Nama dompet",
-  "reply": ""
-}
-
-2. Pembuangan/Penghapusan Dompet:
-{
-  "type": "delete_wallet",
-  "wallet": "Nama dompet yang ingin dihapus",
-  "reply": "Konfirmasi penghapusan"
-}
-
-3. Pembatalan/Undo Transaksi Terakhir:
-{
-  "type": "undo_transaction",
-  "reply": "Konfirmasi pembatalan"
-}
-
-4. Pembuatan Dompet Baru:
-{
-  "type": "create_wallet",
-  "name": "Nama dompet",
-  "initial_balance": 0,
-  "wallet_type": "bank",
-  "reply": ""
-}
-
-5. Konfirmasi/Pembatalan (untuk menjawab pertanyaan asisten):
-{
-  "type": "confirm" atau "cancel",
-  "reply": "Pesan singkat"
-}
-
-6. Pembersihan Massal (Hapus semua atau range):
-{
-  "type": "bulk_delete_wallets" atau "bulk_delete_transactions",
-  "startDate": "YYYY-MM-DD (jika range)",
-  "endDate": "YYYY-MM-DD (jika range)",
-  "reply": "Pesan konfirmasi awal"
-}
-
-7. Lainnya:
-{
-  "type": "greeting" atau "unknown",
-  "reply": "Balasan ramah"
-}`
+Kembalikan HANYA JSON tanpa markdown. Tipe:
+- "transaction": { transactionType, amount, desc, category, wallet, reply }
+- "advice": { reply } // Untuk motivasi, tips saham, analisa keuangan, atau saran menabung.
+- "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".``
 
   const parts = [{ text: prompt }];
 
