@@ -56,16 +56,21 @@ export function useAdvisor() {
       topCategories,
       activeWallets: wallets.map(w => `${w.name}: ${w.current_balance}`).join(', '),
       goals: goals.map(g => `${g.name} (${Math.round((g.current_amount / g.target_amount) * 100)}% tercapai)`),
+      totalGoalsBalance: goals.reduce((acc, g) => acc + Number(g.current_amount), 0),
       budgetAlerts,
       subscriptions: potentialSubscriptions,
       activeGoals: goals.map(g => ({ id: g.id, name: g.name }))
     }
   }, [wallets, transactions, totalBalance, totalIncome, totalExpense, goals, budgets])
 
+  const grandTotalBalance = financialStats.totalBalance + financialStats.totalGoalsBalance
+
   const getFinancialContextString = () => {
     return `
 STATUS KEUANGAN USER SAAT INI:
-- Saldo: Rp ${financialStats.totalBalance}
+- Total Kekayaan (Wallet + Tabungan): Rp ${grandTotalBalance}
+- Saldo Likuid (Dompet): Rp ${financialStats.totalBalance}
+- Saldo Milestone (Goals): Rp ${financialStats.totalGoalsBalance}
 - Rasio Tabungan: ${financialStats.savingsRate.toFixed(1)}%
 - Dompet: ${financialStats.activeWallets}
 - Target Tabungan (Goals): ${financialStats.goals.join(', ') || 'Belum ada'}

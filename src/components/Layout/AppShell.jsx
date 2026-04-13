@@ -24,7 +24,7 @@ export default function AppShell() {
   const { transactions, totalIncome, totalExpense, addTransaction, deleteTransaction, clearTransactionsInRange, clearAllTransactions } = useTransactions()
   const { findCategory } = useCategories()
   const advisor = useAdvisor()
-  const { getContextString } = advisor
+  const { getContextString, totalGoalsBalance, grandTotalBalance } = advisor
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
@@ -402,7 +402,7 @@ export default function AppShell() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-midnight font-jakarta tracking-tight font-bold">
-                    {formatRupiah(totalBalance)}
+                    {formatRupiah(grandTotalBalance)}
                   </span>
                 </div>
               </header>
@@ -436,7 +436,7 @@ export default function AppShell() {
                 >
                   <WalletsView
                     wallets={wallets}
-                    totalBalance={totalBalance}
+                    totalBalance={grandTotalBalance}
                     goals={goals}
                     onAddWallet={handleAddWallet}
                     onDeleteWallet={handleDeleteWallet}

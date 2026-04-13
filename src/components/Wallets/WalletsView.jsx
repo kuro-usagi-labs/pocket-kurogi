@@ -22,7 +22,7 @@ export default function WalletsView({
       {/* Total Balance */}
       <div className="mb-8 pl-1">
         <h2 className="text-[10px] font-extrabold text-muted uppercase tracking-[0.25em] mb-2 font-jakarta opacity-80">
-          Total Likuiditas
+          Akumulasi Saldo
         </h2>
         <div className="flex items-baseline gap-2">
           <span className="text-[38px] font-extrabold text-midnight font-jakarta tracking-tighter leading-tight drop-shadow-sm">
