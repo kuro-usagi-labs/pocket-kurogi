@@ -77,7 +77,21 @@ Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini
   "reply": ""
 }
 
-5. Lainnya:
+5. Konfirmasi/Pembatalan (untuk menjawab pertanyaan asisten):
+{
+  "type": "confirm" atau "cancel",
+  "reply": "Pesan singkat"
+}
+
+6. Pembersihan Massal (Hapus semua atau range):
+{
+  "type": "bulk_delete_wallets" atau "bulk_delete_transactions",
+  "startDate": "YYYY-MM-DD (jika range)",
+  "endDate": "YYYY-MM-DD (jika range)",
+  "reply": "Pesan konfirmasi awal"
+}
+
+7. Lainnya:
 {
   "type": "greeting" atau "unknown",
   "reply": "Balasan ramah"
@@ -128,9 +142,20 @@ function analyzeWithRegex(text, walletNames) {
     }
   }
 
-  // Undo Transaction Intent
-  if (/^(hapus|undo|batalkan|batal|delete)\s+(transaksi|pengeluaran|pemasukan|terakhir|tadi)/i.test(normalizedText) || normalizedText === 'undo') {
-    return { type: 'undo_transaction' };
+  // Confirmation Intent
+  if (/^(ya|iy|yes|ok|siap|betul|benar)$/i.test(normalizedText)) {
+    return { type: 'confirm' };
+  }
+  if (/^(tidak|gak|no|batal|cancel|nggak)$/i.test(normalizedText)) {
+    return { type: 'cancel' };
+  }
+
+  // Bulk Delete Intent
+  if (/hapus semua (wallet|dompet|rekening)/i.test(normalizedText)) {
+    return { type: 'bulk_delete_wallets' };
+  }
+  if (/hapus (semua )?riwayat/i.test(normalizedText)) {
+    return { type: 'bulk_delete_transactions' };
   }
 
   // Delete Wallet Intent

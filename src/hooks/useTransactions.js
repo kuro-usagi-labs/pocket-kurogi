@@ -116,6 +116,30 @@ export function useTransactions() {
     return { error: null }
   }
 
+  const clearTransactionsInRange = async (startDate, endDate) => {
+    if (!user) return { error: 'Not authenticated' }
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', user.id)
+      .gte('occurred_at', startDate)
+      .lte('occurred_at', endDate)
+    
+    if (!error) fetchTransactions()
+    return { error }
+  }
+
+  const clearAllTransactions = async () => {
+    if (!user) return { error: 'Not authenticated' }
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', user.id)
+    
+    if (!error) setTransactions([])
+    return { error }
+  }
+
   return { transactions, loading, totalIncome, totalExpense, addTransaction, deleteTransaction, refetch: fetchTransactions }
 }
 

@@ -59,6 +59,23 @@ export function useWallets() {
     return { error }
   }
 
+  const hardDeleteWallet = async (id) => {
+    const { error } = await supabase.from('wallets').delete().eq('id', id)
+    if (!error) {
+      setWallets((prev) => prev.filter((w) => w.id !== id))
+    }
+    return { error }
+  }
+
+  const clearAllWallets = async () => {
+    if (!user) return
+    const { error } = await supabase.from('wallets').delete().eq('user_id', user.id)
+    if (!error) {
+      setWallets([])
+    }
+    return { error }
+  }
+
   const updateBalance = async (walletId, amount, type) => {
     // Fetch latest balance from DB to avoid staleness (especially for new wallets)
     const { data: currentWallet, error: fetchError } = await supabase
