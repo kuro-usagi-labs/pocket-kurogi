@@ -60,23 +60,32 @@ export function useWallets() {
   }
 
   const updateBalance = async (walletId, amount, type) => {
-    const wallet = wallets.find((w) => w.id === walletId)
-    if (!wallet) return
+    // Fetch latest balance from DB to avoid staleness (especially for new wallets)
+    const { data: currentWallet, error: fetchError } = await supabase
+      .from('wallets')
+      .select('current_balance')
+      .eq('id', walletId)
+      .single()
 
-    const newBalance =
-      type === 'income' ? Number(wallet.current_balance) + amount : Number(wallet.current_balance) - amount
+    if (fetchError || !currentWallet) {
+      console.error('Error fetching latest balance:', fetchError)
+      return { error: fetchError }
+    }
 
-    const { error } = await supabase
+    const currentBalance = Number(currentWallet.current_balance)
+    const newBalance = type === 'income' ? currentBalance + amount : currentBalance - amount
+
+    const { error: updateError } = await supabase
       .from('wallets')
       .update({ current_balance: newBalance })
       .eq('id', walletId)
 
-    if (!error) {
+    if (!updateError) {
       setWallets((prev) =>
         prev.map((w) => (w.id === walletId ? { ...w, current_balance: newBalance } : w))
       )
     }
-    return { error }
+    return { error: updateError }
   }
 
   const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance), 0)
