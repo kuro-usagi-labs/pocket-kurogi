@@ -1,4 +1,4 @@
-import { MessageSquare, LineChart, Wallet, Settings, HelpCircle, LogOut } from 'lucide-react'
+import { MessageSquare, LineChart, Wallet, Clock, HelpCircle, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 export default function DesktopSidebar({ activeTab, setActiveTab }) {
@@ -6,9 +6,9 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
 
   const navItems = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
-    { id: 'stats', label: 'Insights', icon: LineChart },
-    { id: 'wallets', label: 'Budgets', icon: Wallet },
-    { id: 'profile', label: 'Settings', icon: Settings },
+    { id: 'history', label: 'History', icon: Clock },
+    { id: 'wallets', label: 'Wallets', icon: Wallet },
+    { id: 'analytics', label: 'Analytics', icon: LineChart },
   ]
 
   return (
