@@ -49,7 +49,14 @@ Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, wallet, reply }
 - "advice": { reply } 
 - "goal_contribution": { goalId, amount, reply } 
-- "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".`
+- "goal_creation_pending": { name, amount, reply } 
+- "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".
+
+INSTRUKSI KHUSUS TABUNGAN (GOALS):
+1. Jika user ingin menabung/menyisihkan uang ke target tertentu (misal: "tabungan nikah"), periksa daftar "activeGoals" di konteks.
+2. Jika nama target ADA di daftar: kembalikan "goal_contribution" dengan goalId yang sesuai.
+3. Jika nama target TIDAK ADA: kembalikan "goal_creation_pending", simpan "name" dan "amount", lalu berikan "reply" yang menanyakan berapa target nominal tabungan tersebut.
+`
 
   const parts = [{ text: prompt }];
 

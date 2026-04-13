@@ -100,6 +100,38 @@ export default function AppShell() {
               text: `Selesai. ${pendingAction.successMessage}`,
               time: currentTime
             };
+          } else if (pendingAction.type === 'create_goal') {
+            const amountMatch = text.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i);
+            if (amountMatch) {
+              let targetMatch = parseFloat(amountMatch[1].replace(',', '.'));
+              const multiplier = amountMatch[2];
+              if (['k', 'rb', 'ribu'].includes(multiplier)) targetMatch *= 1000;
+              if (['jt', 'juta'].includes(multiplier)) targetMatch *= 1000000;
+              if (multiplier === 'm') targetMatch *= 1000000000;
+
+              const { data: newGoal, error } = await addGoal({
+                name: pendingAction.payload.name,
+                targetAmount: targetMatch,
+                initialAmount: pendingAction.payload.amount
+              });
+
+              if (error) throw error;
+
+              botResponse = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                text: `Sip! Tabungan **${newGoal.name}** berhasil dibuat dengan target **${formatRupiah(targetMatch)}**. Setoran awal **${formatRupiah(pendingAction.payload.amount)}** sudah dimasukkan.`,
+                time: currentTime
+              };
+            } else {
+              botResponse = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                text: "Berapa target nominalnya? (Contoh: 50jt atau 1000000)",
+                time: currentTime
+              };
+              return; // Keep pending action
+            }
           } else {
             botResponse = {
               id: Date.now() + 1,
@@ -247,6 +279,17 @@ export default function AppShell() {
             text: reply || `Berhasil menambahkan Rp ${formatRupiah(amount)} ke target Anda. Milestone semakin dekat!`,
             time: currentTime
           }
+        } else if (analysis.type === 'goal_creation_pending') {
+          setPendingAction({
+            type: 'create_goal',
+            payload: { name: analysis.name, amount: analysis.amount }
+          });
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: analysis.reply || `Wah, tabungan baru ya? Target tabungan **${analysis.name}** ini mau di-set berapa nominalnya?`,
+            time: currentTime
+          };
         } else {
           botResponse = {
             id: Date.now() + 1,

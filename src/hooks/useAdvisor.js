@@ -57,7 +57,8 @@ export function useAdvisor() {
       activeWallets: wallets.map(w => `${w.name}: ${w.current_balance}`).join(', '),
       goals: goals.map(g => `${g.name} (${Math.round((g.current_amount / g.target_amount) * 100)}% tercapai)`),
       budgetAlerts,
-      subscriptions: potentialSubscriptions
+      subscriptions: potentialSubscriptions,
+      activeGoals: goals.map(g => ({ id: g.id, name: g.name }))
     }
   }, [wallets, transactions, totalBalance, totalIncome, totalExpense, goals, budgets])
 

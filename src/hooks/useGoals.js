@@ -26,7 +26,7 @@ export function useGoals() {
     fetchGoals()
   }, [fetchGoals])
 
-  const addGoal = async ({ name, targetAmount, deadline, icon }) => {
+  const addGoal = async ({ name, targetAmount, deadline, icon, initialAmount = 0 }) => {
     if (!user) return { error: 'Not authenticated' }
     const { data, error } = await supabase
       .from('goals')
@@ -34,8 +34,9 @@ export function useGoals() {
         user_id: user.id,
         name,
         target_amount: targetAmount,
+        current_amount: initialAmount,
         deadline,
-        icon,
+        icon: icon || '🎯',
       })
       .select()
       .single()
