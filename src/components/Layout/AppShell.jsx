@@ -227,6 +227,15 @@ export default function AppShell() {
               botResponse = { id: Date.now() + 1, sender: 'bot', text: `Dompet "${analysis.target}" tidak ditemukan.`, time: currentTime };
             }
           }
+        } else if (analysis.type === 'create_wallet') {
+          const { data: newWallet, error: wError } = await addWallet(analysis.name, analysis.initial_balance, analysis.wallet_type);
+          if (wError) throw wError;
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: `Dompet **${newWallet.name}** berhasil dibuat dengan saldo awal **${formatRupiah(newWallet.current_balance)}**.`,
+            time: currentTime,
+          };
         } else if (analysis.type === 'goal_contribution') {
           const { goalId, amount, reply } = analysis
           const { error } = await updateGoalProgress(goalId, amount)
