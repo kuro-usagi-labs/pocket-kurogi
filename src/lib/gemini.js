@@ -79,7 +79,18 @@ Kembalikan HANYA JSON tanpa markdown. Tipe:
   )
 
   const data = await response.json()
-  return JSON.parse(data.candidates[0].content.parts[0].text)
+  const text = data.candidates[0].content.parts[0].text
+  
+  // Robust parsing: extract JSON block if wrapped in markdown or has preamble
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  const cleanJson = jsonMatch ? jsonMatch[0] : text
+  
+  try {
+    return JSON.parse(cleanJson)
+  } catch (e) {
+    console.error("Gemini JSON Parse Error:", e, "Raw text:", text)
+    throw new Error("Gagal memproses jawaban AI. Silakan coba lagi.")
+  }
 }
 
 /**

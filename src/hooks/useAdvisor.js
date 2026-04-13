@@ -34,17 +34,19 @@ export function useAdvisor() {
         percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0
       }))
 
-    // 3. Subscription Audit
+    // 3. Subscription Audit: Flag items with consistent amount recurrence
     const potentialSubscriptions = []
-    const txByDesc = {}
-    transactions.forEach(t => {
-      if (t.type === 'expense') {
-        txByDesc[t.desc] = (txByDesc[t.desc] || 0) + 1
-      }
-    })
-    Object.entries(txByDesc).forEach(([desc, count]) => {
-      if (count >= 2) potentialSubscriptions.push(desc)
-    })
+    const txByFrequency = {} // Key: "desc-amount"
+    
+    transactions
+      .filter(t => t.type === 'expense')
+      .forEach(t => {
+        const key = `${t.desc.toLowerCase()}-${t.amount}`
+        txByFrequency[key] = (txByFrequency[key] || 0) + 1
+        if (txByFrequency[key] === 2) {
+          potentialSubscriptions.push(t.desc)
+        }
+      })
 
     return {
       totalBalance,

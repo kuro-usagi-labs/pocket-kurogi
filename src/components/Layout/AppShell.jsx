@@ -23,7 +23,8 @@ export default function AppShell() {
   const { wallets, totalBalance, addWallet, deleteWallet, hardDeleteWallet, clearAllWallets, updateBalance } = useWallets()
   const { transactions, totalIncome, totalExpense, addTransaction, deleteTransaction, clearTransactionsInRange, clearAllTransactions } = useTransactions()
   const { findCategory } = useCategories()
-  const { getContextString } = useAdvisor()
+  const advisor = useAdvisor()
+  const { getContextString } = advisor
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
@@ -278,7 +279,6 @@ export default function AppShell() {
 
   const { goals, addGoal, deleteGoal, updateGoalProgress } = useGoals()
   const { budgets } = useBudgets()
-  const advisor = useAdvisor()
 
   const handleAddGoal = async (goalData) => {
     const { error } = await addGoal(goalData)
