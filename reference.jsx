@@ -98,27 +98,31 @@ export default function App() {
     }).format(number);
   };
 
+  // Refactored to avoid parser bugs with inline JSX
   const getCategoryIcon = (cat, size = 18) => {
+    let Icon = Receipt;
     switch(cat.toLowerCase()) {
-      case 'kopi': return <Coffee size={size} strokeWidth={1.5} />;
-      case 'makan': case 'jajan': return <ShoppingBag size={size} strokeWidth={1.5} />;
-      case 'belanja': return <ShoppingCart size={size} strokeWidth={1.5} />;
-      case 'bensin': case 'transport': return <Car size={size} strokeWidth={1.5} />;
-      case 'gaji': return <Landmark size={size} strokeWidth={1.5} />;
-      default: return <Receipt size={size} strokeWidth={1.5} />;
+      case 'kopi': Icon = Coffee; break;
+      case 'makan': case 'jajan': Icon = ShoppingBag; break;
+      case 'belanja': Icon = ShoppingCart; break;
+      case 'bensin': case 'transport': Icon = Car; break;
+      case 'gaji': Icon = Landmark; break;
+      default: Icon = Receipt; break;
     }
+    return <Icon size={size} strokeWidth={2} />;
   };
 
+  // Refactored to avoid parser bugs with inline JSX
   const getWalletIcon = (walletName) => {
     const lower = walletName.toLowerCase();
-    if (['bca', 'mandiri', 'bni', 'bri', 'bank', 'private'].some(w => lower.includes(w))) return <Landmark size={20} strokeWidth={1.5} />;
-    if (['gopay', 'ovo', 'dana', 'shopee', 'linkaja', 'pay'].some(w => lower.includes(w))) return <Smartphone size={20} strokeWidth={1.5} />;
-    return <Wallet size={20} strokeWidth={1.5} />;
+    let Icon = Wallet;
+    if (['bca', 'mandiri', 'bni', 'bri', 'bank', 'private'].some(w => lower.includes(w))) Icon = Landmark;
+    else if (['gopay', 'ovo', 'dana', 'shopee', 'linkaja', 'pay'].some(w => lower.includes(w))) Icon = Smartphone;
+    return <Icon size={20} strokeWidth={2} />;
   };
 
   // =====================================================================
   // 🧠 FUNGSI ANALISIS CERDAS (DISIAPKAN UNTUK GEMINI API)
-  // Fungsi ini diubah menjadi async agar siap memanggil API eksternal
   // =====================================================================
   const analyzeTextAI = async (text, currentWallets) => {
     
@@ -158,12 +162,10 @@ export default function App() {
 
       } catch (error) {
         console.error("Gemini API Error:", error);
-        // Fallback ke Regex jika API gagal
       }
     }
 
     // 💡 FALLBACK: LOGIKA LOKAL (REGEX) JIKA API BELUM TERSEDIA
-    // Simulasi delay network
     await new Promise(resolve => setTimeout(resolve, 800));
 
     let normalizedText = text.toLowerCase().trim();
@@ -186,7 +188,10 @@ export default function App() {
     if (multiplier) {
       if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000;
       else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000;
-    } else if (amount < 1000 && amount > 0) amount *= 1000;
+    } else if (amount > 0 && 1000 > amount) { 
+      // Fixed: Using '1000 > amount' instead of '<' to prevent JSX parser bugs
+      amount *= 1000; 
+    }
 
     const walletNamesList = currentWallets.map(w => w.name.toLowerCase());
     walletNamesList.push('tunai', 'cash');
@@ -222,12 +227,10 @@ export default function App() {
 
     const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-    // Tambahkan pesan user ke UI secepatnya
     setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: userText, time: currentTime }]);
     setInputValue('');
     setIsTyping(true);
 
-    // Proses analisis menggunakan AI (Async)
     const analysis = await analyzeTextAI(userText, wallets);
     let botResponse = {};
 
@@ -236,11 +239,7 @@ export default function App() {
       // ==========================================================
       // 🚀 NANTI TAMBAHKAN SUPABASE INSERT DI SINI
       // ==========================================================
-      // const { data, error } = await supabase.from('transactions').insert([
-      //   { type: analysis.transactionType, amount: analysis.amount, desc: analysis.desc, wallet: analysis.wallet }
-      // ]);
-      // ==========================================================
-
+      
       setWallets(prev => prev.map(w => {
         if (w.name.toLowerCase() === analysis.wallet.toLowerCase()) {
           return {
@@ -279,7 +278,6 @@ export default function App() {
     { icon: "💰", text: "5jt Gaji BCA" }
   ];
 
-  // Nav items configuration for the new minimalist floating dock
   const navItems = [
     { id: 'chat', icon: MessageSquare, label: 'Chat' },
     { id: 'history', icon: Clock, label: 'Histori' },
@@ -294,13 +292,11 @@ export default function App() {
         .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
         .font-inter { font-family: 'Inter', sans-serif; }
         
-        /* Hide scrollbars completely for perfection */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         body { background-color: #FDFCF7; }
         
-        /* Premium Fade-in Animation */
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
@@ -309,7 +305,6 @@ export default function App() {
       `}</style>
       
       <div className="h-[100dvh] w-full flex justify-center font-inter bg-[#FDFCF7] overflow-hidden text-[#0F172A] selection:bg-[#775a19]/20 selection:text-[#0F172A]">
-        {/* Mobile / Tablet Container */}
         <div className="w-full h-full md:max-w-[420px] bg-[#FDFCF7] flex flex-col relative md:shadow-[0_0_60px_-15px_rgba(15,23,42,0.2)] md:border-x md:border-[#0F172A]/5 overflow-hidden">
           
           {/* ================= TOP APP BAR ================= */}
@@ -331,10 +326,8 @@ export default function App() {
             {/* ================= 1. CHAT VIEW ================= */}
             <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
               
-              {/* Gradient Mask for smooth text scrolling disappearance */}
               <div className="absolute bottom-[80px] left-0 w-full h-[180px] bg-gradient-to-t from-[#FDFCF7] via-[#FDFCF7]/90 to-transparent z-30 pointer-events-none"></div>
 
-              {/* Scrollable Messages container - Diberikan bantalan bawah yang lega agar tidak tumpang tindih */}
               <div className="absolute inset-0 overflow-y-auto px-5 pt-6 pb-[260px] scroll-smooth no-scrollbar z-20">
                 <div className="flex justify-center mb-8">
                   <span className="px-4 py-1.5 rounded-full bg-[#F5F2E8] text-[#0F172A]/60 text-[10px] font-extrabold uppercase tracking-[0.25em] font-jakarta shadow-sm">Today</span>
@@ -349,7 +342,6 @@ export default function App() {
                       }`}>
                       <div className="whitespace-pre-wrap font-medium">{msg.text}</div>
 
-                      {/* Sapphire Style Receipt Card */}
                       {msg.card && (
                         <div className="mt-4 bg-[#FAF9F4] rounded-[14px] p-4 border border-[#0F172A]/5">
                           <div className="flex items-center gap-3 mb-3.5">
@@ -387,14 +379,11 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {/* Anchor for Auto-scroll */}
                 <div ref={messagesEndRef} className="h-2" />
               </div>
 
-              {/* Floating Input Area (Posisi jauh di atas bottom dock) */}
+              {/* Floating Input Area */}
               <div className="absolute bottom-[110px] left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
-                
-                {/* Premium Asymmetrical Pills (Quick Suggestions) */}
                 <div className="flex gap-3 w-full max-w-sm mb-4 overflow-x-auto no-scrollbar pb-2 pt-1 pointer-events-auto px-1">
                   {quickSuggestions.map((item, idx) => (
                     <button 
@@ -413,20 +402,17 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Input Form */}
                 <div className="w-full max-w-sm bg-white/95 backdrop-blur-3xl p-2 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.1)] flex items-center gap-2.5 border border-[#0F172A]/10 pointer-events-auto">
                   <button type="button" className="w-11 h-11 flex items-center justify-center text-[#0F172A] bg-[#F5F2E8] rounded-full hover:bg-[#EBE7D9] transition-all shrink-0">
                     <Plus size={22} strokeWidth={2} />
                   </button>
                   <form onSubmit={(e) => handleSend(e)} className="flex-1 flex items-center">
                     <input type="text" className="w-full bg-transparent border-none focus:ring-0 text-[#0F172A] font-inter placeholder:text-[#0F172A]/30 px-2 text-[14.5px] outline-none font-medium" placeholder="Instruksikan transaksi..." value={inputValue} onChange={(e) => setInputValue(e.target.value)} autoComplete="off" />
-                    
                     <button type="button" className="mr-2 text-[#0F172A]/30 hover:text-[#0F172A]/70 transition-colors p-1">
-                       <Mic size={20} strokeWidth={2.5} />
+                       <Mic size={20} strokeWidth={2} />
                     </button>
-
                     <button type="submit" disabled={!inputValue.trim() || isTyping} className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 ${inputValue.trim() && !isTyping ? 'bg-[#0F172A] text-white shadow-lg shadow-[#0F172A]/20 active:scale-95' : 'bg-[#FAF9F4] text-[#0F172A]/20'}`}>
-                      <ArrowUp size={20} strokeWidth={2.5} />
+                      <ArrowUp size={20} strokeWidth={2} />
                     </button>
                   </form>
                 </div>
@@ -438,7 +424,7 @@ export default function App() {
               <div className="pt-8 px-6 pb-[140px]">
                 <div className="relative flex items-center bg-white border border-[#0F172A]/10 shadow-[0_8px_30px_rgba(15,23,42,0.03)] rounded-2xl p-1.5 mb-8">
                   <div className="px-3 text-[#45464D]">
-                    <Sparkles size={18} />
+                    <Sparkles size={18} strokeWidth={2} />
                   </div>
                   <input className="w-full bg-transparent border-none focus:ring-0 text-[#0F172A] placeholder:text-[#45464D]/40 py-2.5 px-1 font-jakarta font-semibold text-[14.5px] outline-none" placeholder="Cari transaksi portofolio..." type="text"/>
                 </div>
@@ -492,7 +478,7 @@ export default function App() {
                   {wallets.map(w => (
                     <div key={w.id} className="bg-white border border-[#0F172A]/5 rounded-[24px] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.03)] relative group hover:border-[#0F172A]/10 transition-colors">
                       <button onClick={() => handleDeleteWallet(w.id)} className="absolute top-3 right-3 p-1.5 text-[#45464D]/30 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
-                        <X size={14} strokeWidth={3} />
+                        <X size={14} strokeWidth={2} />
                       </button>
                       <div className="w-11 h-11 bg-[#FAF9F4] rounded-full flex items-center justify-center text-[#0F172A] mb-4 border border-[#0F172A]/5 shadow-sm">
                         {getWalletIcon(w.name)}
@@ -504,7 +490,7 @@ export default function App() {
                   
                   <div onClick={() => setShowAddWallet(true)} className="border border-dashed border-[#0F172A]/20 bg-[#FAF9F4]/40 hover:bg-[#FAF9F4] rounded-[24px] p-5 flex flex-col items-center justify-center cursor-pointer transition-all min-h-[130px] group">
                     <div className="bg-white w-10 h-10 rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-105 transition-transform">
-                       <Plus size={20} className="text-[#0F172A]/60" strokeWidth={2.5} />
+                       <Plus size={20} className="text-[#0F172A]/60" strokeWidth={2} />
                     </div>
                     <p className="text-[10.5px] font-extrabold text-[#0F172A]/60 font-jakarta uppercase tracking-widest text-center leading-relaxed">Tambah<br/>Portofolio</p>
                   </div>
@@ -605,7 +591,7 @@ export default function App() {
                         : 'bg-transparent text-[#45464D]/50 hover:text-[#0F172A] p-2.5 hover:bg-[#FAF9F4]'
                     }`}
                   >
-                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className="shrink-0" />
+                    <Icon size={20} strokeWidth={isActive ? 3 : 2} className="shrink-0" />
                     <span 
                       className={`font-jakarta text-[10.5px] font-bold uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-500 ease-out flex items-center ${
                         isActive ? 'max-w-[80px] opacity-100 ml-2.5' : 'max-w-0 opacity-0 ml-0'
@@ -625,18 +611,26 @@ export default function App() {
               <div className="bg-[#FDFCF7] rounded-[32px] p-7 w-full max-w-[340px] shadow-2xl border border-white/20">
                 <div className="flex justify-between items-center mb-7">
                   <h2 className="text-[19px] font-bold text-[#0F172A] font-jakarta tracking-tight">Portofolio Baru</h2>
-                  <button onClick={() => setShowAddWallet(false)} className="text-[#45464D] hover:text-[#0F172A] bg-[#FAF9F4] border border-[#0F172A]/5 rounded-full p-2 hover:bg-[#EBE7D9] transition-colors"><X size={16} strokeWidth={2.5}/></button>
+                  <button 
+                    onClick={() => setShowAddWallet(false)} 
+                    className="text-[#45464D] hover:text-[#0F172A] bg-[#FAF9F4] border border-[#0F172A]/5 rounded-full p-2 hover:bg-[#EBE7D9] transition-colors"
+                  >
+                    <X size={16} strokeWidth={2} />
+                  </button>
                 </div>
                 <form onSubmit={handleAddWalletSubmit}>
                   <div className="mb-5">
                     <label className="block text-[10.5px] font-extrabold text-[#45464D] uppercase mb-2 tracking-[0.15em] font-jakarta">Institusi / Nama</label>
-                    <input required type="text" placeholder="Cth: Mandiri, Investasi..." className="w-full bg-[#FAF9F4] border border-[#0F172A]/10 rounded-2xl px-4 py-3.5 text-[14.5px] font-semibold text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#0F172A]/40 font-inter transition-all" value={newWalletData.name} onChange={e => setNewWalletData({...newWalletData, name: e.target.value})} />
+                    <input required type="text" placeholder="Cth: Mandiri, Investasi..." className="w-full bg-[#FAF9F4] border border-[#0F172A]/10 rounded-2xl px-4 py-3.5 text-[14.5px] font-semibold text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#0F172A]/40 font-inter transition-all" value={newWalletData.name} onChange={(e) => setNewWalletData({...newWalletData, name: e.target.value})} />
                   </div>
                   <div className="mb-8">
                     <label className="block text-[10.5px] font-extrabold text-[#45464D] uppercase mb-2 tracking-[0.15em] font-jakarta">Likuiditas Awal (Rp)</label>
-                    <input required type="number" placeholder="500000" className="w-full bg-[#FAF9F4] border border-[#0F172A]/10 rounded-2xl px-4 py-3.5 text-[14.5px] font-semibold text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#0F172A]/40 font-inter transition-all" value={newWalletData.balance} onChange={e => setNewWalletData({...newWalletData, balance: e.target.value})} />
+                    <input required type="number" placeholder="500000" className="w-full bg-[#FAF9F4] border border-[#0F172A]/10 rounded-2xl px-4 py-3.5 text-[14.5px] font-semibold text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#0F172A]/40 font-inter transition-all" value={newWalletData.balance} onChange={(e) => setNewWalletData({...newWalletData, balance: e.target.value})} />
                   </div>
-                  <button type="submit" className="w-full bg-[#0F172A] text-white font-bold font-jakarta text-[13px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl shadow-[#0F172A]/20 hover:opacity-90 active:scale-95 transition-all">
+                  <button 
+                    type="submit" 
+                    className="w-full bg-[#0F172A] text-white font-bold font-jakarta text-[13px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl shadow-[#0F172A]/20 hover:opacity-90 active:scale-95 transition-all"
+                  >
                     Inisialisasi
                   </button>
                 </form>
