@@ -35,7 +35,12 @@ async function callGeminiAPI(text, imageBase64, walletNames) {
   const walletList = [...walletNames, 'Tunai'].join(', ')
   const prompt = `Kamu adalah AI asisten keuangan pencatat pengeluaran dan pemasukan.
 Ekstrak informasi dari teks atau gambar struk berikut: "${text || 'Berkas Struk Terlampir'}"
-Daftar dompet yang tersedia: ${walletList}. (pilih yang paling cocok, default: Tunai).
+Daftar dompet yang tersedia: ${walletList}. 
+
+PANDUAN DOMPET:
+- Jika user menyebutkan nama dompet yang ADA di daftar, gunakan nama tersebut.
+- Jika user menyebutkan nama dompet yang TIDAK ADA di daftar (misal: "BCA", "Gopay", "Mandiri"), tetap masukkan nama dompet tersebut di field "wallet". Sistem akan membuatnya otomatis.
+- Default: "Tunai".
 
 Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini:
 
@@ -182,7 +187,24 @@ function analyzeWithRegex(text, walletNames) {
   const allWallets = [...walletNames.map((w) => w.toLowerCase()), 'tunai', 'cash']
   const walletRegex = new RegExp(`\\b(${allWallets.join('|')})\\b`, 'i')
   let walletMatch = normalizedText.match(walletRegex)?.[1]?.toLowerCase()
+  
   if (walletMatch === 'cash') walletMatch = 'tunai'
+
+  // If still no wallet match, try to find a word after "ke", "di", "pakai", or a trailing word
+  if (!walletMatch) {
+    const prepositionMatch = normalizedText.match(/(?:ke|di|dari|pakai|pake|bank)\s+([a-z0-9]+)/i);
+    if (prepositionMatch) {
+      walletMatch = prepositionMatch[1];
+    } else {
+      // Fallback: try to see if the last word is a potential wallet (but not a category)
+      const words = normalizedText.split(/\s+/);
+      const lastWord = words[words.length - 1];
+      const categories = ['makan', 'minum', 'kopi', 'bensin', 'transport', 'belanja', 'gaji', 'bonus', 'jajan', 'listrik'];
+      if (lastWord && lastWord.length > 2 && !categories.includes(lastWord) && !lastWord.match(/\d/)) {
+        walletMatch = lastWord;
+      }
+    }
+  }
 
   const wallet = walletMatch || (walletNames.length > 0 ? walletNames[0].toLowerCase() : 'tunai')
 

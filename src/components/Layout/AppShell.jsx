@@ -78,10 +78,25 @@ export default function AppShell() {
           // Find matching category
           const matchedCategory = findCategory(analysis.category)
 
-          const finalWalletId = matchedWallet?.id || wallets[0]?.id;
+          let finalWalletId = matchedWallet?.id;
+          let isNewWallet = false;
+
+          // Auto-create wallet if mentioned but doesn't exist
+          if (!finalWalletId && analysis.wallet && analysis.wallet.toLowerCase() !== 'tunai') {
+            const { data: newWallet, error: wError } = await addWallet(analysis.wallet.toUpperCase(), 0, 'bank');
+            if (!wError && newWallet) {
+              finalWalletId = newWallet.id;
+              isNewWallet = true;
+            }
+          }
+
+          // Last fallback to first existing wallet
+          if (!finalWalletId) {
+            finalWalletId = wallets[0]?.id;
+          }
 
           if (!finalWalletId) {
-            throw new Error("Sistem tidak menemukan dompet di akun Anda. Pastikan Anda memiliki setidaknya satu dompet aktif.")
+            throw new Error("Sistem tidak menemukan dompet di akun Anda. Silakan sebutkan nama dompet (misal: BCA) agar sistem bisa membuatnya otomatis.")
           }
 
           // Insert transaction to Supabase
@@ -101,13 +116,16 @@ export default function AppShell() {
           // Update wallet balance
           await updateBalance(finalWalletId, analysis.amount, analysis.transactionType)
 
+          const walletDisplayName = (analysis.wallet || 'Dompet').toUpperCase();
+          const autoWalletNotice = isNewWallet ? `\n\n*(Catatan: Dompet **${walletDisplayName}** baru saja dibuat otomatis)*` : '';
+
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
             text:
-              analysis.transactionType === 'income'
-                ? `Pemasukan divalidasi. Dana sebesar ${formatRupiah(analysis.amount)} dialokasikan ke ${(analysis.wallet || 'dompet').toUpperCase()}.`
-                : `Alokasi dana diproses. ${formatRupiah(analysis.amount)} ditarik dari ${(analysis.wallet || 'dompet').toUpperCase()}.`,
+              (analysis.transactionType === 'income'
+                ? `Pemasukan divalidasi. Dana sebesar ${formatRupiah(analysis.amount)} dialokasikan ke ${walletDisplayName}.`
+                : `Alokasi dana diproses. ${formatRupiah(analysis.amount)} ditarik dari ${walletDisplayName}.`) + autoWalletNotice,
             time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             card: {
               type: analysis.transactionType,
