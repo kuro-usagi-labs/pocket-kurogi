@@ -222,6 +222,15 @@ function analyzeWithRegex(text, walletNames) {
   if (!desc) desc = category.charAt(0).toUpperCase() + category.slice(1)
 
   const isIncome = /(gaji|dapat|terima|masuk|bonus|topup|pemasukan|tambah|plus|add|\+)/i.test(normalizedText)
+  const isExplicitExpense = /(beli|bayar|keluar|tarif|biaya|spent|-\s*\d)/i.test(normalizedText)
+  
+  // Confidence Check: If it's a number but we have no wallet, no category, and no explicit type, 
+  // it's likely an ambiguous command. Return 'unknown' to let Gemini predict the intent.
+  const hasLowConfidence = !isIncome && !isExplicitExpense && category === 'lainnya' && !normalizedText.match(walletRegex)
+  
+  if (hasLowConfidence) {
+    return { type: 'unknown' }
+  }
 
   return {
     type: 'transaction',
