@@ -50,12 +50,21 @@ Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "advice": { reply } 
 - "goal_contribution": { goalId, amount, reply } 
 - "goal_creation_pending": { name, amount, reply } 
+- "transfer": { amount, from, to, reply }
 - "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".
 
 INSTRUKSI KHUSUS TABUNGAN (GOALS):
 1. Jika user ingin menabung/menyisihkan uang ke target tertentu (misal: "tabungan nikah"), periksa daftar "activeGoals" di konteks.
 2. Jika nama target ADA di daftar: kembalikan "goal_contribution" dengan goalId yang sesuai.
 3. Jika nama target TIDAK ADA: kembalikan "goal_creation_pending", simpan "name" dan "amount", lalu berikan "reply" yang menanyakan berapa target nominal tabungan tersebut.
+
+INSTRUKSI KHUSUS TRANSFER:
+1. Jika user ingin memindahkan uang antar dompet (misal: "transfer 50k dari BCA ke Tunai"):
+2. Kembalikan "type": "transfer".
+3. "amount": nominal yang dipindahkan.
+4. "from": nama dompet asal.
+5. "to": nama dompet tujuan.
+6. "reply": Konfirmasi singkat yang merangkum rencana transfer tersebut.
 `
 
   const parts = [{ text: prompt }];

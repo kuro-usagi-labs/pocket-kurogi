@@ -290,6 +290,40 @@ export default function AppShell() {
             text: analysis.reply || `Wah, tabungan baru ya? Target tabungan **${analysis.name}** ini mau di-set berapa nominalnya?`,
             time: currentTime
           };
+        } else if (analysis.type === 'transfer') {
+          const fromWallet = wallets.find(w => w.name.toLowerCase() === analysis.from?.toLowerCase());
+          const toWallet = wallets.find(w => w.name.toLowerCase() === analysis.to?.toLowerCase());
+
+          if (!fromWallet) throw new Error(`Dompet asal "${analysis.from}" tidak ditemukan.`);
+          if (!toWallet) throw new Error(`Dompet tujuan "${analysis.to}" tidak ditemukan.`);
+
+          // 1. Update balances
+          await updateBalance(fromWallet.id, analysis.amount, 'expense');
+          await updateBalance(toWallet.id, analysis.amount, 'income');
+
+          // 2. Add transaction records
+          await addTransaction({
+            type: 'expense',
+            amount: analysis.amount,
+            desc: `Transfer ke ${toWallet.name}`,
+            walletId: fromWallet.id,
+            categoryId: null
+          });
+
+          await addTransaction({
+            type: 'income',
+            amount: analysis.amount,
+            desc: `Transfer dari ${fromWallet.name}`,
+            walletId: toWallet.id,
+            categoryId: null
+          });
+
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: `Transfer sebesar **${formatRupiah(analysis.amount)}** dari **${fromWallet.name}** ke **${toWallet.name}** berhasil diproses.`,
+            time: currentTime,
+          };
         } else {
           botResponse = {
             id: Date.now() + 1,
