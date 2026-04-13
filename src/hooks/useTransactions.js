@@ -97,7 +97,26 @@ export function useTransactions() {
   const totalIncome = transactions.filter((t) => t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
   const totalExpense = transactions.filter((t) => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
 
-  return { transactions, loading, totalIncome, totalExpense, addTransaction, refetch: fetchTransactions }
+  const deleteTransaction = async (id) => {
+    if (!user) return { error: 'Not authenticated' }
+    
+    // Optimistic update
+    setTransactions((prev) => prev.filter(t => t.id !== id))
+    
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+      
+    if (error) {
+      fetchTransactions()
+      return { error }
+    }
+    return { error: null }
+  }
+
+  return { transactions, loading, totalIncome, totalExpense, addTransaction, deleteTransaction, refetch: fetchTransactions }
 }
 
 function formatRelativeDate(date) {

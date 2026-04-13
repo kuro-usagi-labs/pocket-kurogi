@@ -110,6 +110,20 @@ function analyzeWithRegex(text, walletNames) {
     }
   }
 
+  // Undo Transaction Intent
+  if (/^(hapus|undo|batalkan|batal|delete)\s+(transaksi|pengeluaran|pemasukan|terakhir|tadi)/i.test(normalizedText) || normalizedText === 'undo') {
+    return { type: 'undo_transaction' };
+  }
+
+  // Check Balance Intent
+  if (/^(cek|berapa|lihat|tampilkan)\s+(saldo|sisa|uang|total)/i.test(normalizedText) || /saldo \w+ berapa/i.test(normalizedText)) {
+    const walletMatch = walletNames.find(w => normalizedText.includes(w.toLowerCase()));
+    return {
+      type: 'check_balance',
+      target: walletMatch || 'all'
+    };
+  }
+
   // Create Wallet Intent
   if (/^(buat|bikin|tambah|create)\s+(dompet|rekening|wallet)/i.test(normalizedText)) {
     const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i);

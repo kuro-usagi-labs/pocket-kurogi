@@ -14,7 +14,7 @@ import AnalyticsView from '../Analytics/AnalyticsView'
 export default function AppShell() {
   const { signOut } = useAuth()
   const { wallets, totalBalance, addWallet, deleteWallet, updateBalance } = useWallets()
-  const { transactions, totalIncome, totalExpense, addTransaction } = useTransactions()
+  const { transactions, totalIncome, totalExpense, addTransaction, deleteTransaction } = useTransactions()
   const { findCategory } = useCategories()
 
   const [activeTab, setActiveTab] = useState('chat')
@@ -113,6 +113,56 @@ export default function AppShell() {
             sender: 'bot',
             text: `Dompet **${analysis.name}** berhasil dibuat dengan saldo awal ${formatRupiah(analysis.initial_balance || 0)}. Anda dapat melihatnya di menu Wallets.`,
             time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          }
+        } else if (analysis.type === 'undo_transaction') {
+          if (transactions.length > 0) {
+            const lastTx = transactions[0];
+            const revertType = lastTx.type === 'income' ? 'expense' : 'income'; // invert type to revert balance
+            
+            if (lastTx.walletId) {
+               await updateBalance(lastTx.walletId, lastTx.amount, revertType);
+            }
+            await deleteTransaction(lastTx.id);
+
+            botResponse = {
+              id: Date.now() + 1,
+              sender: 'bot',
+              text: `Transaksi terakhir (${lastTx.desc} sejumlah ${formatRupiah(lastTx.amount)}) telah berhasil dibatalkan.`,
+              time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            }
+          } else {
+            botResponse = {
+              id: Date.now() + 1,
+              sender: 'bot',
+              text: 'Tidak ada transaksi untuk dibatalkan.',
+              time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            }
+          }
+        } else if (analysis.type === 'check_balance') {
+          if (analysis.target === 'all') {
+            botResponse = {
+              id: Date.now() + 1,
+              sender: 'bot',
+              text: `Total gabungan saldo Anda saat ini adalah **${formatRupiah(totalBalance)}**.`,
+              time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            }
+          } else {
+            const matchedWallet = wallets.find(w => w.name.toLowerCase().includes(analysis.target.toLowerCase()));
+            if (matchedWallet) {
+              botResponse = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                text: `Sisa saldo di dompet **${matchedWallet.name}** adalah **${formatRupiah(matchedWallet.current_balance || 0)}**.`,
+                time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+              }
+            } else {
+              botResponse = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                text: `Sistem gagal menemukan dompet tersebut di akun Anda.`,
+                time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+              }
+            }
           }
         } else {
           botResponse = {
