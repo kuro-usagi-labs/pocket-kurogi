@@ -50,24 +50,37 @@ Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini
   "transactionType": "expense",
   "amount": 50000,
   "desc": "Nama transaksi bersih",
-  "category": "Kategori singkat (misal: Makan, Bensin, Gaji, Kopi, Belanja, Transport, Listrik, Bonus)",
-  "wallet": "Nama dompet yang cocok",
+  "category": "Kategori singkat",
+  "wallet": "Nama dompet",
   "reply": ""
 }
 
-2. Pembuatan Dompet Baru (jika user minta buat dompet/rekening):
+2. Pembuangan/Penghapusan Dompet:
 {
-  "type": "create_wallet",
-  "name": "Nama dompet (misal: BCA, Gopay)",
-  "initial_balance": 500000,
-  "wallet_type": "bank",
-  "reply": "Komentar ramah"
+  "type": "delete_wallet",
+  "wallet": "Nama dompet yang ingin dihapus",
+  "reply": "Konfirmasi penghapusan"
 }
 
-3. Lainnya (Sapaan/Belum Jelas/Informasi):
+3. Pembatalan/Undo Transaksi Terakhir:
 {
-  "type": "greeting" atau "unknown" atau "help",
-  "reply": "Balasan ramah singkat"
+  "type": "undo_transaction",
+  "reply": "Konfirmasi pembatalan"
+}
+
+4. Pembuatan Dompet Baru:
+{
+  "type": "create_wallet",
+  "name": "Nama dompet",
+  "initial_balance": 0,
+  "wallet_type": "bank",
+  "reply": ""
+}
+
+5. Lainnya:
+{
+  "type": "greeting" atau "unknown",
+  "reply": "Balasan ramah"
 }`
 
   const parts = [{ text: prompt }];
@@ -118,6 +131,15 @@ function analyzeWithRegex(text, walletNames) {
   // Undo Transaction Intent
   if (/^(hapus|undo|batalkan|batal|delete)\s+(transaksi|pengeluaran|pemasukan|terakhir|tadi)/i.test(normalizedText) || normalizedText === 'undo') {
     return { type: 'undo_transaction' };
+  }
+
+  // Delete Wallet Intent
+  let delMatch = normalizedText.match(/^(?:hapus|buang|delete|hilangkan)\s+(?:dompet|rekening|wallet)\s+([a-z0-9]+)/i);
+  if (delMatch) {
+    return {
+      type: 'delete_wallet',
+      wallet: delMatch[1]
+    };
   }
 
   // Check Balance Intent

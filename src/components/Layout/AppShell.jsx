@@ -135,9 +135,37 @@ export default function AppShell() {
               desc: analysis.desc,
             },
           }
+        } else if (analysis.type === 'undo_transaction') {
+          if (transactions.length === 0) {
+            throw new Error('Tidak ada transaksi yang bisa dibatalkan.')
+          }
+          const lastTx = transactions[0]
+          // Reverse balance
+          const reverseType = lastTx.type === 'expense' ? 'income' : 'expense'
+          await updateBalance(lastTx.walletId, lastTx.amount, reverseType)
+          await deleteTransaction(lastTx.id)
+
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: `Transaksi terakhir (**${lastTx.desc}**) telah dibatalkan. Saldo dompet **${lastTx.wallet.toUpperCase()}** telah dikembalikan.`,
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          }
+        } else if (analysis.type === 'delete_wallet') {
+          const walletToDelete = wallets.find(w => w.name.toLowerCase() === (analysis.wallet || '').toLowerCase())
+          if (!walletToDelete) {
+            throw new Error(`Dompet **${analysis.wallet}** tidak ditemukan.`)
+          }
+          await deleteWallet(walletToDelete.id)
+          botResponse = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: `Dompet **${walletToDelete.name}** telah dihapus dari portofolio Anda. Riwayat transaksinya tetap tersimpan di database.`,
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          }
         } else if (analysis.type === 'create_wallet') {
           const { data: newWallet } = await addWallet(analysis.name, analysis.initial_balance || 0);
-          
+
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
