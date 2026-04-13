@@ -78,19 +78,28 @@ export default function AppShell() {
           // Find matching category
           const matchedCategory = findCategory(analysis.category)
 
+          const finalWalletId = matchedWallet?.id || wallets[0]?.id;
+
+          if (!finalWalletId) {
+            throw new Error("Sistem tidak menemukan dompet di akun Anda. Pastikan Anda memiliki setidaknya satu dompet aktif.")
+          }
+
           // Insert transaction to Supabase
-          const { data: newTx } = await addTransaction({
+          const { data: newTx, error: txError } = await addTransaction({
             type: analysis.transactionType,
             amount: analysis.amount,
             desc: analysis.desc,
-            walletId: matchedWallet?.id || wallets[0]?.id,
+            walletId: finalWalletId,
             categoryId: matchedCategory?.id || null,
           })
 
-          // Update wallet balance
-          if (matchedWallet) {
-            await updateBalance(matchedWallet.id, analysis.amount, analysis.transactionType)
+          if (txError) {
+            console.error('Database Error:', txError)
+            throw new Error(`Gagal menyimpan ke database: ${txError.message || 'Error tidak dikenal'}`)
           }
+
+          // Update wallet balance
+          await updateBalance(finalWalletId, analysis.amount, analysis.transactionType)
 
           botResponse = {
             id: Date.now() + 1,
@@ -186,7 +195,7 @@ export default function AppShell() {
           {
             id: Date.now() + 1,
             sender: 'bot',
-            text: 'Maaf, terjadi kesalahan saat memproses transaksi Anda.',
+            text: err instanceof Error ? err.message : 'Maaf, terjadi kesalahan saat memproses transaksi Anda.',
             time: currentTime,
           },
         ])

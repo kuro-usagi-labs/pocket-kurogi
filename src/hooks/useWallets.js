@@ -17,7 +17,13 @@ export function useWallets() {
       .eq('is_archived', false)
       .order('created_at', { ascending: true })
 
-    if (!error && data) setWallets(data)
+    if (!error && data) {
+      setWallets(data)
+      // Auto-initialize if empty
+      if (data.length === 0) {
+        addWallet('Tunai', 0, 'cash')
+      }
+    }
     setLoading(false)
   }, [user])
 
