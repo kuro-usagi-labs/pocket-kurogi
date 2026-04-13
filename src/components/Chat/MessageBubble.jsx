@@ -6,10 +6,10 @@ export default function MessageBubble({ msg, formatRupiah }) {
   return (
     <div className={`flex flex-col w-full mb-6 animate-fade-in ${isUser ? 'items-end' : 'items-start'}`}>
       <div
-        className={`relative max-w-[85%] px-5 py-4 text-[14.5px] leading-relaxed transition-all duration-300 ${
+        className={`relative max-w-[85%] text-[14.5px] leading-relaxed transition-all duration-300 ${
           isUser
-            ? 'bg-midnight text-white rounded-[22px] rounded-br-[6px] shadow-[0_8px_20px_rgba(15,23,42,0.15)]'
-            : 'bg-white text-midnight rounded-[22px] rounded-bl-[6px] border border-midnight/5 shadow-[0_8px_32px_rgba(15,23,42,0.04)]'
+            ? 'px-5 py-4 md:px-6 md:py-4 bg-midnight text-white rounded-[22px] rounded-br-[6px] shadow-[0_8px_20px_rgba(15,23,42,0.15)]'
+            : 'px-5 py-4 md:p-8 bg-white text-midnight rounded-[22px] rounded-bl-[6px] border border-midnight/5 shadow-[0_8px_32px_rgba(15,23,42,0.04)]'
         }`}
       >
         {msg.image && (

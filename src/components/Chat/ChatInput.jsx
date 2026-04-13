@@ -81,7 +81,7 @@ export default function ChatInput({ onSend, isTyping }) {
   }
 
   return (
-    <div className="absolute bottom-[110px] left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
+    <div className="absolute bottom-[110px] md:bottom-8 left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
       {/* Quick Suggestion Pills */}
       <div className="flex gap-3 w-full max-w-sm mb-4 overflow-x-auto no-scrollbar pb-2 pt-1 pointer-events-auto px-1">
         {quickSuggestions.map((item, idx) => (

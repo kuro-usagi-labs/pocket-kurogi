@@ -10,6 +10,9 @@ import ChatView from '../Chat/ChatView'
 import HistoryView from '../History/HistoryView'
 import WalletsView from '../Wallets/WalletsView'
 import AnalyticsView from '../Analytics/AnalyticsView'
+import DesktopSidebar from './DesktopSidebar'
+import DesktopHeader from './DesktopHeader'
+import DesktopRightPanel from './DesktopRightPanel'
 
 export default function AppShell() {
   const { signOut } = useAuth()
@@ -201,79 +204,92 @@ export default function AppShell() {
   }
 
   return (
-    <div className="h-[100dvh] w-full flex justify-center font-inter bg-champagne overflow-hidden text-midnight selection:bg-gold/20 selection:text-midnight">
-      <div className="w-full h-full md:max-w-[420px] bg-champagne flex flex-col relative md:shadow-[0_0_60px_-15px_rgba(15,23,42,0.2)] md:border-x md:border-midnight/5 overflow-hidden">
-        {/* Top App Bar */}
-        <header className="shrink-0 z-50 relative bg-ivory/90 backdrop-blur-xl border-b border-midnight/5 px-6 py-5 flex justify-between items-center transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-midnight flex items-center justify-center text-white shadow-md shadow-midnight/20">
-              <Sparkles size={16} strokeWidth={2} />
+    <div className="bg-champagne font-inter text-midnight overflow-hidden h-[100dvh] flex selection:bg-gold/20 selection:text-midnight">
+      <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      <main className="flex-1 md:ml-64 flex flex-col h-[100dvh] overflow-hidden">
+        <DesktopHeader />
+
+        <div className="flex-1 flex overflow-hidden">
+          {/* Central Content */}
+          <section className="flex-1 flex justify-center overflow-hidden relative">
+            <div className="w-full h-full md:max-w-4xl bg-champagne flex flex-col relative md:shadow-[-20px_0_40px_-15px_rgba(15,23,42,0.05)] md:border-l border-midnight/5 overflow-hidden">
+              {/* Top App Bar (Mobile Only) */}
+              <header className="md:hidden shrink-0 z-50 relative bg-ivory/90 backdrop-blur-xl border-b border-midnight/5 px-6 py-5 flex justify-between items-center transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-midnight flex items-center justify-center text-white shadow-md shadow-midnight/20">
+                    <Sparkles size={16} strokeWidth={2} />
+                  </div>
+                  <h1 className="text-[17px] font-bold tracking-tight text-midnight font-jakarta">
+                    Pocket Kurogi
+                  </h1>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-midnight font-jakarta tracking-tight font-bold">
+                    {formatRupiah(totalBalance)}
+                  </span>
+                </div>
+              </header>
+
+              {/* Dynamic Body */}
+              <div className="flex-1 relative overflow-hidden bg-transparent">
+                {/* Chat */}
+                <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
+                  <ChatView
+                    messages={messages}
+                    isTyping={isTyping}
+                    onSend={handleSend}
+                    formatRupiah={formatRupiah}
+                  />
+                </div>
+
+                {/* History */}
+                <div
+                  className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                    activeTab === 'history' ? 'block' : 'hidden'
+                  }`}
+                >
+                  <HistoryView transactions={transactions} formatRupiah={formatRupiah} />
+                </div>
+
+                {/* Wallets */}
+                <div
+                  className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                    activeTab === 'wallets' ? 'block' : 'hidden'
+                  }`}
+                >
+                  <WalletsView
+                    wallets={wallets}
+                    totalBalance={totalBalance}
+                    onAddWallet={handleAddWallet}
+                    onDeleteWallet={handleDeleteWallet}
+                    formatRupiah={formatRupiah}
+                  />
+                </div>
+
+                {/* Analytics */}
+                <div
+                  className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                    activeTab === 'analytics' ? 'block' : 'hidden'
+                  }`}
+                >
+                  <AnalyticsView
+                    transactions={transactions}
+                    totalIncome={totalIncome}
+                    totalExpense={totalExpense}
+                    formatRupiah={formatRupiah}
+                  />
+                </div>
+              </div>
+
+              {/* Bottom Dock */}
+              <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
-            <h1 className="text-[17px] font-bold tracking-tight text-midnight font-jakarta">
-              Pocket Kurogi
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-midnight font-jakarta tracking-tight font-bold">
-              {formatRupiah(totalBalance)}
-            </span>
-          </div>
-        </header>
+          </section>
 
-        {/* Dynamic Body */}
-        <div className="flex-1 relative overflow-hidden bg-transparent">
-          {/* Chat */}
-          <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
-            <ChatView
-              messages={messages}
-              isTyping={isTyping}
-              onSend={handleSend}
-              formatRupiah={formatRupiah}
-            />
-          </div>
-
-          {/* History */}
-          <div
-            className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
-              activeTab === 'history' ? 'block' : 'hidden'
-            }`}
-          >
-            <HistoryView transactions={transactions} formatRupiah={formatRupiah} />
-          </div>
-
-          {/* Wallets */}
-          <div
-            className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
-              activeTab === 'wallets' ? 'block' : 'hidden'
-            }`}
-          >
-            <WalletsView
-              wallets={wallets}
-              totalBalance={totalBalance}
-              onAddWallet={handleAddWallet}
-              onDeleteWallet={handleDeleteWallet}
-              formatRupiah={formatRupiah}
-            />
-          </div>
-
-          {/* Analytics */}
-          <div
-            className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
-              activeTab === 'analytics' ? 'block' : 'hidden'
-            }`}
-          >
-            <AnalyticsView
-              transactions={transactions}
-              totalIncome={totalIncome}
-              totalExpense={totalExpense}
-              formatRupiah={formatRupiah}
-            />
-          </div>
+          <DesktopRightPanel />
         </div>
-
-        {/* Bottom Dock */}
-        <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
-      </div>
+      </main>
     </div>
   )
 }

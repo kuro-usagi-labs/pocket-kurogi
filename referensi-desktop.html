@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Vault | Intelligent Finance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0F172A",
+                    "secondary": "#775a19",
+                    "background": "#FDFCF7",
+                    "surface": "#faf9f4",
+                    "on-surface": "#0F172A",
+                    "outline": "#e5e3d9",
+                    "surface-container": "#f5f4ef",
+                    "surface-container-low": "#faf9f4",
+                    "surface-container-high": "#ebe9df",
+                    "on-primary": "#ffffff",
+                    "primary-container": "#1e293b",
+                    "accent-gold": "#775a19"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "1rem",
+                    "xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans", "sans-serif"],
+                    "body": ["Inter", "sans-serif"],
+                    "label": ["Inter", "sans-serif"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #0F172A20; border-radius: 10px; }
+        .glass-panel {
+            backdrop-filter: blur(24px);
+            background: rgba(253, 252, 247, 0.8);
+        }
+        .user-bubble {
+            border-radius: 1.5rem 1.5rem 0.25rem 1.5rem;
+            background: #0F172A;
+        }
+        .ai-bubble {
+            border-radius: 1.5rem 1.5rem 1.5rem 0.25rem;
+            background: #ffffff;
+            border: 1px solid #ebe9df;
+        }
+        .sidebar-active {
+            border-right: 2px solid #775a19;
+        }
+    </style>
+</head>
+<body class="bg-background font-body text-on-surface overflow-hidden h-screen flex">
+<!-- SideNavBar (Authority: COMPONENTS_14) -->
+<aside class="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-[#faf9f4] dark:bg-slate-950 py-8 z-40 font-['Plus_Jakarta_Sans'] tracking-tight">
+<div class="mb-12 px-8">
+<h1 class="text-xl font-bold tracking-tighter text-[#0F172A] dark:text-white">The Vault</h1>
+<p class="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase mt-1">Private Banking</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-8 py-4 text-[#0F172A] dark:text-white font-bold border-r-2 border-[#775a19] transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="chat_bubble">chat_bubble</span>
+<span class="text-sm">Chat</span>
+</a>
+<a class="flex items-center gap-3 px-8 py-4 text-slate-500 dark:text-slate-400 font-medium hover:bg-[#f5f4ef] dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="insights">insights</span>
+<span class="text-sm">Insights</span>
+</a>
+<a class="flex items-center gap-3 px-8 py-4 text-slate-500 dark:text-slate-400 font-medium hover:bg-[#f5f4ef] dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+<span class="text-sm">History</span>
+</a>
+<a class="flex items-center gap-3 px-8 py-4 text-slate-500 dark:text-slate-400 font-medium hover:bg-[#f5f4ef] dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="text-sm">Budgets</span>
+</a>
+<a class="flex items-center gap-3 px-8 py-4 text-slate-500 dark:text-slate-400 font-medium hover:bg-[#f5f4ef] dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</nav>
+<div class="px-8 mt-auto space-y-1">
+<a class="flex items-center gap-3 py-3 text-slate-500 dark:text-slate-400 font-medium hover:text-[#0F172A] transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+<span class="text-sm">Help</span>
+</a>
+<a class="flex items-center gap-3 py-3 text-slate-500 dark:text-slate-400 font-medium hover:text-red-600 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+<span class="text-sm">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar (Authority: COMPONENTS_14) -->
+<header class="flex justify-between items-center w-full px-12 py-6 bg-[#faf9f4]/80 dark:bg-slate-950/80 backdrop-blur-xl sticky top-0 z-30 shadow-sm shadow-black/5 border-b border-black/5 font-['Plus_Jakarta_Sans'] font-medium">
+<div class="flex items-center gap-8 flex-1">
+<span class="material-symbols-outlined md:hidden text-[#0F172A]" data-icon="menu">menu</span>
+<div class="bg-black/5 rounded-full px-4 py-2 flex items-center gap-3 w-72 focus-within:bg-white focus-within:ring-1 focus-within:ring-[#0F172A]/20 transition-all">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder-slate-400" placeholder="Search commands..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="p-2 text-slate-400 hover:text-[#775a19] transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-black/5">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-[#0F172A]">Julian Thorne</p>
+<p class="text-[10px] text-slate-500">Wealth Client</p>
+</div>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-[#775a19]/20">
+<img alt="User profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAehkXlLZxK0jyYZH0gqdWCIifshnvZ8q2nN0VBKYURgqTSeg2olt0kR36hQIL6Wz7oYKNTzeDqOaqg1sEtnq3425Qq0Jy_jA1JkRg_20OdFHAiNTwX2Rfapb6ErkkZvqsKDL4J5TFtlNYaARDpVCKx4S7j_dnZctPDdc0OKv7QYHUfacHnXe8DX_fL-DeM5nfpFooCcWSsuGcPimn6e8VOLQ8XctHV-nykTaKlZi-AITDxLC0T6a9V69IZHQc686FxIZSZa0RHgLmi"/>
+</div>
+</div>
+</div>
+</header>
+<div class="flex-1 flex overflow-hidden">
+<!-- Chat Area -->
+<section class="flex-1 flex flex-col overflow-hidden relative">
+<div class="flex-1 overflow-y-auto px-12 py-10 space-y-10 flex flex-col">
+<!-- Date Separator -->
+<div class="flex justify-center">
+<span class="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase bg-[#ebe9df]/40 px-4 py-1 rounded-full">October 24, 2024</span>
+</div>
+<!-- User Message -->
+<div class="flex flex-col items-end gap-1 max-w-[80%] self-end">
+<div class="user-bubble px-6 py-4 text-white shadow-xl shadow-slate-900/10">
+<p class="text-sm leading-relaxed">How am I tracking against my travel budget for the Tokyo trip?</p>
+</div>
+<span class="text-[10px] text-slate-400 mr-2 mt-1">10:42 AM</span>
+</div>
+<!-- AI Response -->
+<div class="flex flex-col items-start gap-4 max-w-[85%] self-start">
+<div class="flex items-center gap-3 ml-1">
+<div class="w-8 h-8 rounded-full bg-[#0F172A] flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-[#FDFCF7] text-[18px]" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<span class="text-[10px] font-extrabold text-[#0F172A] tracking-[0.1em] uppercase">Intelligence Analyst</span>
+</div>
+<div class="ai-bubble p-8 shadow-sm space-y-6">
+<p class="text-sm leading-relaxed text-slate-700">You're currently <span class="font-bold text-[#775a19]">well-positioned</span>. Your 'Tokyo 2024' liquidity reserve is healthy:</p>
+<!-- Budget Card -->
+<div class="bg-[#faf9f4] rounded-2xl p-6 border border-[#ebe9df]">
+<div class="flex justify-between items-end mb-6">
+<div>
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Spent to Date</p>
+<h3 class="text-3xl font-headline font-extrabold text-[#0F172A]">$2,450.00</h3>
+</div>
+<div class="text-right">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Available</p>
+<h3 class="text-xl font-headline font-bold text-[#775a19]">$1,550.00</h3>
+</div>
+</div>
+<div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mb-3">
+<div class="h-full bg-[#0F172A] w-[62%]"></div>
+</div>
+<div class="flex justify-between text-[10px] font-bold text-slate-400">
+<span>Core Expenses Finalized</span>
+<span>Total Allocation: $4,000</span>
+</div>
+</div>
+<p class="text-sm leading-relaxed text-slate-700">I identified a <span class="font-bold">$42.00</span> pending debit from 'Airport Express'. Should this be reconciled against Travel?</p>
+<div class="flex gap-3 pt-2">
+<button class="px-6 py-2.5 bg-[#0F172A] text-white text-xs font-bold rounded-full hover:opacity-90 transition-all">Yes, reconcile</button>
+<button class="px-6 py-2.5 bg-white text-[#0F172A] border border-[#ebe9df] text-xs font-bold rounded-full hover:bg-[#faf9f4] transition-all">Exclude</button>
+</div>
+</div>
+<span class="text-[10px] text-slate-400 ml-2">10:43 AM</span>
+</div>
+<!-- User Message -->
+<div class="flex flex-col items-end gap-1 max-w-[80%] self-end">
+<div class="user-bubble px-6 py-4 text-white shadow-xl shadow-slate-900/10">
+<p class="text-sm leading-relaxed">Yes, please. Also, show me my last three transactions at Starbucks.</p>
+</div>
+</div>
+<!-- Transaction Card -->
+<div class="flex flex-col items-start gap-4 max-w-[85%] self-start pb-32">
+<div class="ai-bubble p-8 shadow-sm w-full max-w-lg">
+<h4 class="text-[10px] font-bold text-slate-400 mb-6 tracking-widest uppercase">Transaction History: Starbucks</h4>
+<div class="space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-xl bg-[#faf9f4] flex items-center justify-center border border-[#ebe9df]">
+<span class="material-symbols-outlined text-[#0F172A]" data-icon="coffee">coffee</span>
+</div>
+<div>
+<p class="text-sm font-bold text-[#0F172A]">Starbucks Reserve</p>
+<p class="text-[10px] text-slate-400 font-bold uppercase">Oct 22 • 08:15 AM</p>
+</div>
+</div>
+<span class="font-headline font-bold text-[#0F172A]">-$12.50</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-xl bg-[#faf9f4] flex items-center justify-center border border-[#ebe9df]">
+<span class="material-symbols-outlined text-[#0F172A]" data-icon="coffee">coffee</span>
+</div>
+<div>
+<p class="text-sm font-bold text-[#0F172A]">Starbucks #4920</p>
+<p class="text-[10px] text-slate-400 font-bold uppercase">Oct 20 • 03:20 PM</p>
+</div>
+</div>
+<span class="font-headline font-bold text-[#0F172A]">-$6.45</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-xl bg-[#faf9f4] flex items-center justify-center border border-[#ebe9df]">
+<span class="material-symbols-outlined text-[#0F172A]" data-icon="coffee">coffee</span>
+</div>
+<div>
+<p class="text-sm font-bold text-[#0F172A]">Starbucks #4920</p>
+<p class="text-[10px] text-slate-400 font-bold uppercase">Oct 18 • 09:00 AM</p>
+</div>
+</div>
+<span class="font-headline font-bold text-[#0F172A]">-$5.75</span>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-dashed border-[#ebe9df] flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#775a19]"></div>
+<p class="text-[11px] font-bold text-[#775a19] uppercase tracking-tight">Spending Alert: Weekly coffee expenditure reached $45.00</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating Input Bar -->
+<div class="absolute bottom-0 left-0 right-0 p-8">
+<div class="max-w-4xl mx-auto glass-panel rounded-2xl p-2 flex items-center gap-2 shadow-2xl shadow-black/5 ring-1 ring-black/5 border border-white/50">
+<button class="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-[#0F172A] transition-colors">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-2 placeholder-slate-400 font-medium" placeholder="Ask The Vault anything..." type="text"/>
+<button class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-[#0F172A] transition-colors">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center bg-[#0F172A] text-white rounded-xl shadow-lg active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Right Side: Portfolio Summary -->
+<aside class="hidden xl:flex w-80 bg-[#faf9f4] flex-col p-8 space-y-8 border-l border-black/5">
+<div>
+<h3 class="text-[10px] font-extrabold text-slate-400 tracking-[0.2em] uppercase mb-6">Asset Intelligence</h3>
+<div class="space-y-4">
+<!-- Health Score -->
+<div class="bg-white p-6 rounded-2xl shadow-sm border border-[#ebe9df] relative overflow-hidden group">
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-[#775a19]/5 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+<div class="relative z-10">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Vault Health</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-extrabold text-[#0F172A]">84</span>
+<span class="text-xs font-bold text-[#775a19]">+2.4%</span>
+</div>
+<p class="text-[10px] text-slate-500 font-medium mt-2">Optimal Liquidity Ratio</p>
+</div>
+</div>
+<!-- Portfolio Mix -->
+<div class="bg-white p-6 rounded-2xl shadow-sm border border-[#ebe9df]">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Allocation Mix</p>
+<div class="space-y-5">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-3">
+<div class="w-1 h-4 rounded-full bg-[#0F172A]"></div>
+<span class="text-xs font-bold text-slate-600">Equities</span>
+</div>
+<span class="text-xs font-bold">62%</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-3">
+<div class="w-1 h-4 rounded-full bg-[#775a19]"></div>
+<span class="text-xs font-bold text-slate-600">Treasuries</span>
+</div>
+<span class="text-xs font-bold">24%</span>
+</div>
+<div class="flex justify-between items-center opacity-40">
+<div class="flex items-center gap-3">
+<div class="w-1 h-4 rounded-full bg-slate-300"></div>
+<span class="text-xs font-bold text-slate-600">Cash</span>
+</div>
+<span class="text-xs font-bold">14%</span>
+</div>
+</div>
+</div>
+<!-- Action Card -->
+<div class="bg-[#0F172A] p-6 rounded-2xl shadow-xl relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2 opacity-10">
+<span class="material-symbols-outlined text-white text-5xl" data-icon="account_balance">account_balance</span>
+</div>
+<h4 class="text-white text-sm font-bold mb-2">Yield Optimization</h4>
+<p class="text-slate-400 text-[11px] leading-relaxed mb-4">Capital idle in checking. Shift to Vault High-Yield for <span class="text-[#775a19] font-bold">+$18.50/mo</span> projected gain.</p>
+<button class="w-full py-2.5 bg-[#775a19] text-white text-[10px] font-extrabold uppercase tracking-widest rounded-lg hover:brightness-110 transition-all">Execute Transfer</button>
+</div>
+</div>
+</div>
+<div class="pt-4">
+<h4 class="text-[10px] font-bold text-slate-400 tracking-widest uppercase mb-4">Reconciliation Queue</h4>
+<div class="bg-white rounded-xl p-4 border border-[#ebe9df] flex items-center gap-3 hover:border-[#775a19] transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded-lg bg-[#faf9f4] flex items-center justify-center border border-[#ebe9df]">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-[#0F172A]" data-icon="receipt_long">receipt_long</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold truncate text-[#0F172A]">Masterclass Subscription</p>
+<p class="text-[9px] text-slate-400 font-bold">$180.00 • Pending Review</p>
+</div>
+<span class="material-symbols-outlined text-slate-300 text-sm" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</body></html>
