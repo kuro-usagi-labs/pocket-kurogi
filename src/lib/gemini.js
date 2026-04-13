@@ -5,11 +5,35 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
  * Falls back to local regex parsing if API key is not set or request fails.
  */
 export async function analyzeTransaction(text, imageBase64 = null, walletNames = []) {
-  // Try Gemini API first
+  // 1. If there's an attached image, MUST use Gemini Vision
+  if (imageBase64) {
+    return await callGeminiAPI(text, imageBase64, walletNames);
+  }
+
+  // 2. Fast Path: Use local Regex for simple text commands
+  const regexResult = analyzeWithRegex(text || '', walletNames);
+  
+  // If regex successfully understood the intent, return instantly to save tokens/time
+  if (regexResult.type !== 'unknown') {
+    return regexResult;
+  }
+
+  // 3. Fallback: Regex failed (complex text). Try Gemini AI NLP.
   if (GEMINI_API_KEY) {
     try {
-      const walletList = [...walletNames, 'Tunai'].join(', ')
-      const prompt = `Kamu adalah AI asisten keuangan pencatat pengeluaran dan pemasukan.
+      return await callGeminiAPI(text, null, walletNames);
+    } catch (err) {
+      console.error('Gemini API Error:', err);
+      return regexResult;
+    }
+  }
+
+  return regexResult;
+}
+
+async function callGeminiAPI(text, imageBase64, walletNames) {
+  const walletList = [...walletNames, 'Tunai'].join(', ')
+  const prompt = `Kamu adalah AI asisten keuangan pencatat pengeluaran dan pemasukan.
 Ekstrak informasi dari teks atau gambar struk berikut: "${text || 'Berkas Struk Terlampir'}"
 Daftar dompet yang tersedia: ${walletList}. (pilih yang paling cocok, default: Tunai).
 
@@ -41,44 +65,35 @@ Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini
   "reply": "Balasan ramah singkat"
 }`
 
-      const parts = [{ text: prompt }];
+  const parts = [{ text: prompt }];
 
-      if (imageBase64) {
-        const mimeTypeMatch = imageBase64.match(/data:(.*?);base64,/);
-        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-        const base64Data = imageBase64.split(',')[1];
-        
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
-          }
-        });
+  if (imageBase64) {
+    const mimeTypeMatch = imageBase64.match(/data:(.*?);base64,/);
+    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+    const base64Data = imageBase64.split(',')[1];
+    
+    parts.push({
+      inlineData: {
+        data: base64Data,
+        mimeType: mimeType
       }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: { responseMimeType: 'application/json' },
-          }),
-        }
-      )
-
-      const data = await response.json()
-      const result = JSON.parse(data.candidates[0].content.parts[0].text)
-      return result
-    } catch (error) {
-      console.error('Gemini API Error:', error)
-      // Fall through to regex fallback
-    }
+    });
   }
 
-  // Regex fallback (cannot process images, ignores them)
-  return analyzeWithRegex(text || '', walletNames)
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  )
+
+  const data = await response.json()
+  return JSON.parse(data.candidates[0].content.parts[0].text)
 }
 
 /**
