@@ -140,7 +140,7 @@ export function useTransactions() {
     return { error }
   }
 
-  return { transactions, loading, totalIncome, totalExpense, addTransaction, deleteTransaction, refetch: fetchTransactions }
+  return { transactions, loading, totalIncome, totalExpense, addTransaction, deleteTransaction, clearTransactionsInRange, clearAllTransactions, refetch: fetchTransactions }
 }
 
 function formatRelativeDate(date) {

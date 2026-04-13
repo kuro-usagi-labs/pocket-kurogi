@@ -107,5 +107,5 @@ export function useWallets() {
 
   const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance), 0)
 
-  return { wallets, loading, totalBalance, addWallet, deleteWallet, updateBalance, refetch: fetchWallets }
+  return { wallets, loading, totalBalance, addWallet, deleteWallet, hardDeleteWallet, clearAllWallets, updateBalance, refetch: fetchWallets }
 }
