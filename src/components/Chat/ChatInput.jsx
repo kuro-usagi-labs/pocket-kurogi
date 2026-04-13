@@ -101,7 +101,7 @@ export default function ChatInput({ onSend, isTyping }) {
         )}
 
         {/* Input Form */}
-        <div className="w-full bg-white/95 backdrop-blur-3xl p-2 rounded-[28px] shadow-[0_12px_40px_-12px_rgba(15,23,42,0.15)] flex items-center gap-2.5 border border-midnight/10 pointer-events-auto">
+        <div className="w-full glass-panel p-2 rounded-[28px] shadow-premium flex items-center gap-2.5 pointer-events-auto">
           <input 
             type="file" 
             accept="image/*" 

@@ -46,7 +46,8 @@ PANDUAN:
 
 Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, wallet, reply }
-- "advice": { reply } // Untuk motivasi, tips saham, analisa keuangan, atau saran menabung.
+- "advice": { reply } 
+- "goal_contribution": { goalId, amount, reply } 
 - "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".``
 
   const parts = [{ text: prompt }];

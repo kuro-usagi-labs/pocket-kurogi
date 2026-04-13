@@ -1,15 +1,17 @@
 import { CategoryIcon } from '../shared/CategoryIcon'
+import { AlertCircle } from 'lucide-react'
 
-export default function AnalyticsView({ transactions, totalIncome, totalExpense, formatRupiah }) {
+export default function AnalyticsView({ transactions, totalIncome, totalExpense, budgets = [], formatRupiah }) {
   // Calculate category totals
   const expenseTransactions = transactions.filter((t) => t.type === 'expense')
   const categoryTotals = expenseTransactions.reduce((acc, curr) => {
     acc[curr.category] = (acc[curr.category] || 0) + curr.amount
     return acc
   }, {})
+  
   const topCategories = Object.entries(categoryTotals)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+    .slice(0, 5)
 
   return (
     <div className="pt-8 px-6 pb-[140px] space-y-7">
@@ -36,17 +38,23 @@ export default function AnalyticsView({ transactions, totalIncome, totalExpense,
         </div>
       </div>
 
-      {/* Top Categories */}
+      {/* Top Categories & Budgets */}
       <div className="bg-white rounded-[32px] p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-midnight/5">
         <div className="flex justify-between items-center mb-8">
           <h3 className="text-[17px] font-bold font-jakarta text-midnight tracking-tight">
-            Kategori Terbesar
+            Analisa Budget
           </h3>
         </div>
-        <div className="space-y-7">
+        <div className="space-y-8">
           {topCategories.length > 0 ? (
             topCategories.map(([cat, amount], idx) => {
-              const percentage = totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(0) : 0
+              const categoryBudget = budgets.find(b => b.categories?.name === cat)
+              const limit = categoryBudget?.monthly_limit || 0
+              const usagePercent = limit > 0 ? (amount / limit) * 100 : 0
+              const overflow = limit > 0 && amount > limit
+              
+              const displayPercent = totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(0) : 0
+              
               return (
                 <div key={cat} className="space-y-3.5 group">
                   <div className="flex items-center gap-4">
@@ -54,23 +62,41 @@ export default function AnalyticsView({ transactions, totalIncome, totalExpense,
                       <CategoryIcon category={cat} size={22} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[10px] font-extrabold text-muted uppercase tracking-widest opacity-60 capitalize">
-                        {cat}
-                      </p>
-                      <p className="text-[16px] font-bold font-jakarta text-midnight mt-0.5">
-                        {formatRupiah(amount)}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-extrabold text-muted uppercase tracking-widest opacity-60 capitalize">
+                          {cat}
+                        </p>
+                        {overflow && (
+                            <span className="flex items-center gap-1 text-[9px] font-extrabold text-red-500 uppercase tracking-tighter">
+                                <AlertCircle size={10} /> Over Budget
+                            </span>
+                        )}
+                      </div>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <p className="text-[16px] font-bold font-jakarta text-midnight">
+                          {formatRupiah(amount)}
+                        </p>
+                        {limit > 0 && (
+                          <p className="text-[11px] font-medium text-midnight/30">
+                            dari {formatRupiah(limit)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <span className="text-[13px] font-extrabold font-jakarta text-midnight">
-                      {percentage}%
+                      {limit > 0 ? `${Math.round(usagePercent)}%` : `${displayPercent}%`}
                     </span>
                   </div>
-                  <div className="w-full h-2 bg-cream rounded-full overflow-hidden">
+                  
+                  {/* Progress Bar Container */}
+                  <div className="w-full h-2 bg-cream rounded-full overflow-hidden relative">
                     <div
                       className={`h-full rounded-full transition-all duration-1000 ${
-                        idx === 0 ? 'bg-gold' : idx === 1 ? 'bg-midnight/70' : 'bg-midnight/40'
+                        overflow ? 'bg-red-500' : 
+                        usagePercent >= 80 ? 'bg-orange-400' :
+                        idx === 0 ? 'bg-gold' : 'bg-midnight/70'
                       }`}
-                      style={{ width: `${percentage}%` }}
+                      style={{ width: `${Math.min(100, limit > 0 ? usagePercent : displayPercent)}%` }}
                     />
                   </div>
                 </div>

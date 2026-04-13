@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
+import { useGoals } from '../../hooks/useGoals'
+import { useBudgets } from '../../hooks/useBudgets'
 import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
 import ChatView from '../Chat/ChatView'
@@ -67,7 +69,8 @@ export default function AppShell() {
 
       try {
         const walletNames = wallets.map((w) => w.name)
-        const financialContext = getContextString()
+        const goalMap = goals.map(g => `${g.name} (id: ${g.id})`).join(', ')
+        const financialContext = `${getContextString()}\nACTIVE GOALS FOR MAPPING: ${goalMap}`
         const analysis = await analyzeTransaction(text, image, walletNames, financialContext)
         let botResponse
 
@@ -224,14 +227,16 @@ export default function AppShell() {
               botResponse = { id: Date.now() + 1, sender: 'bot', text: `Dompet "${analysis.target}" tidak ditemukan.`, time: currentTime };
             }
           }
-        } else if (analysis.type === 'create_wallet') {
-          await addWallet(analysis.name, analysis.initial_balance || 0);
+        } else if (analysis.type === 'goal_contribution') {
+          const { goalId, amount, reply } = analysis
+          const { error } = await updateGoalProgress(goalId, amount)
+          if (error) throw error
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: `Dompet ${analysis.name} berhasil dibuat.`,
+            text: reply || `Berhasil menambahkan Rp ${formatRupiah(amount)} ke target Anda. Milestone semakin dekat!`,
             time: currentTime
-          };
+          }
         } else {
           botResponse = {
             id: Date.now() + 1,
@@ -261,6 +266,25 @@ export default function AppShell() {
     },
     [wallets, transactions, totalBalance, findCategory, addTransaction, updateBalance, hardDeleteWallet, clearAllWallets, clearTransactionsInRange, clearAllTransactions, addWallet, formatRupiah, pendingAction, isTyping, deleteTransaction, getContextString]
   )
+
+  const { goals, addGoal, deleteGoal, updateGoalProgress } = useGoals()
+  const { budgets } = useBudgets()
+  const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0)
+
+  const handleAddGoal = async (goalData) => {
+    const { error } = await addGoal(goalData)
+    if (error) {
+      console.error('Error adding goal:', error)
+      return
+    }
+  }
+
+  const handleDeleteGoal = async (id) => {
+    if (window.confirm('Hapus target milestone ini?')) {
+      const { error } = deleteGoal(id)
+      if (error) console.error('Error deleting goal:', error)
+    }
+  }
 
   const handleAddWallet = async (name, balance) => {
     await addWallet(name, balance)
@@ -327,8 +351,11 @@ export default function AppShell() {
                   <WalletsView
                     wallets={wallets}
                     totalBalance={totalBalance}
+                    goals={goals}
                     onAddWallet={handleAddWallet}
                     onDeleteWallet={handleDeleteWallet}
+                    onAddGoal={handleAddGoal}
+                    onDeleteGoal={handleDeleteGoal}
                     formatRupiah={formatRupiah}
                   />
                 </div>
@@ -343,6 +370,7 @@ export default function AppShell() {
                     transactions={transactions}
                     totalIncome={totalIncome}
                     totalExpense={totalExpense}
+                    budgets={budgets}
                     formatRupiah={formatRupiah}
                   />
                 </div>

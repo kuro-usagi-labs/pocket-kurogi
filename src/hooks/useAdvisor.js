@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
-import { useWallets } from './useWallets'
-import { useTransactions } from './useTransactions'
+import { useGoals } from './useGoals'
+import { useBudgets } from './useBudgets'
 
 export function useAdvisor() {
   const { wallets, totalBalance } = useWallets()
   const { transactions, totalIncome, totalExpense } = useTransactions()
+  const { goals } = useGoals()
+  const { budgets } = useBudgets()
 
   const financialStats = useMemo(() => {
     // 1. Category Breakdown
@@ -15,6 +16,13 @@ export function useAdvisor() {
         categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount
       })
 
+    // 2. Budget Alert Analysis
+    const budgetAlerts = budgets.map(b => {
+      const spent = categoryTotals[b.categories?.name] || 0
+      const percent = b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0
+      return { name: b.categories?.name, limit: b.monthly_limit, spent, percent }
+    }).filter(a => a.percent >= 80)
+
     const topCategories = Object.entries(categoryTotals)
       .sort((a, b) => b[1] - a[1])
       .map(([name, amount]) => ({
@@ -23,34 +31,41 @@ export function useAdvisor() {
         percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0
       }))
 
-    // 2. Savings Rate
-    const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0
-    
-    // 3. Wallet Context
-    const activeWallets = wallets.map(w => `${w.name}: ${w.current_balance}`).join(', ')
+    // 3. Subscription Audit
+    const potentialSubscriptions = []
+    const txByDesc = {}
+    transactions.forEach(t => {
+      if (t.type === 'expense') {
+        txByDesc[t.desc] = (txByDesc[t.desc] || 0) + 1
+      }
+    })
+    Object.entries(txByDesc).forEach(([desc, count]) => {
+      if (count >= 2) potentialSubscriptions.push(desc)
+    })
 
     return {
       totalBalance,
       totalIncome,
       totalExpense,
-      savingsRate,
+      savingsRate: totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0,
       topCategories,
-      activeWallets,
-      recentTransactionsCount: transactions.length,
-      largestExpense: topCategories[0] || null
+      activeWallets: wallets.map(w => `${w.name}: ${w.current_balance}`).join(', '),
+      goals: goals.map(g => `${g.name} (${Math.round((g.current_amount / g.target_amount) * 100)}% tercapai)`),
+      budgetAlerts,
+      subscriptions: potentialSubscriptions
     }
-  }, [wallets, transactions, totalBalance, totalIncome, totalExpense])
+  }, [wallets, transactions, totalBalance, totalIncome, totalExpense, goals, budgets])
 
   const getFinancialContextString = () => {
     return `
 STATUS KEUANGAN USER SAAT INI:
-- Saldo Total: Rp ${financialStats.totalBalance}
-- Pemasukan: Rp ${financialStats.totalIncome}
-- Pengeluaran: Rp ${financialStats.totalExpense}
+- Saldo: Rp ${financialStats.totalBalance}
 - Rasio Tabungan: ${financialStats.savingsRate.toFixed(1)}%
-- Dompet Aktif: ${financialStats.activeWallets}
-- Pengeluaran Terbesar: ${financialStats.largestExpense ? `${financialStats.largestExpense.name} (Rp ${financialStats.largestExpense.amount})` : 'Belum ada'}
-- Top Kategori: ${financialStats.topCategories.slice(0, 3).map(c => `${c.name} (${c.percentage.toFixed(0)}%)`).join(', ')}
+- Dompet: ${financialStats.activeWallets}
+- Target Tabungan (Goals): ${financialStats.goals.join(', ') || 'Belum ada'}
+- Pengeluaran Terbesar: ${financialStats.topCategories[0] ? `${financialStats.topCategories[0].name} (Rp ${financialStats.topCategories[0].amount})` : 'Belum ada'}
+- ALERT BUDGET (>80%): ${financialStats.budgetAlerts.map(a => `${a.name}: ${a.percent.toFixed(0)}% used`).join(', ') || 'Semua aman'}
+- DETEKSI SUBSCRIPTION: ${financialStats.subscriptions.join(', ') || 'Tidak terdeteksi'}
     `.trim()
   }
 
