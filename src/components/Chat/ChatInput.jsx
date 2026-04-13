@@ -83,7 +83,7 @@ export default function ChatInput({ onSend, isTyping }) {
   return (
     <div className="absolute bottom-[110px] md:bottom-8 left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
       {/* Quick Suggestion Pills */}
-      <div className="flex gap-3 w-full max-w-sm mb-4 overflow-x-auto no-scrollbar pb-2 pt-1 pointer-events-auto px-1">
+      <div className="flex gap-3 w-full max-w-sm md:max-w-3xl mb-4 overflow-x-auto no-scrollbar pb-2 pt-1 pointer-events-auto px-1">
         {quickSuggestions.map((item, idx) => (
           <button
             key={idx}
@@ -104,7 +104,7 @@ export default function ChatInput({ onSend, isTyping }) {
       </div>
 
       {/* Input Form & Preview Container */}
-      <div className="w-full max-w-sm flex flex-col gap-2">
+      <div className="w-full max-w-sm md:max-w-3xl flex flex-col gap-2">
         {/* Image Preview */}
         {selectedImage && (
           <div className="self-end relative w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2 border-white pointer-events-auto bg-midnight/5">
