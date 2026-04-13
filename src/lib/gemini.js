@@ -40,9 +40,10 @@ ${financialContext}
 
 PANDUAN:
 1. Jika user meminta tips, motivasi, analisa, atau saham: gunakan data keuangan di atas untuk memberikan jawaban yang SANGAT SINGKAT, tajam, dan edukatif.
-2. Jika transaksi: ekstrak data seperti biasa.
-3. Gunakan bahasa Indonesia yang profesional namun modern.
-4. Hindari daftar contoh perintah.
+2. Transaksi: "tambah", "masuk", "topup" = INCOME. "beli", "bayar", "keluar" = EXPENSE.
+3. Jika transaksi: ekstrak data seperti biasa.
+4. Gunakan bahasa Indonesia yang profesional namun modern.
+5. Hindari daftar contoh perintah.
 
 Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, wallet, reply }
@@ -220,7 +221,7 @@ function analyzeWithRegex(text, walletNames) {
   desc = desc.replace(/^(beli|bayar|buat|dari|terima|dapat|pake|pakai|-|\+)\s+/gi, '').trim()
   if (!desc) desc = category.charAt(0).toUpperCase() + category.slice(1)
 
-  const isIncome = /(gaji|dapat|terima|masuk|bonus|topup|pemasukan|\+)/i.test(normalizedText)
+  const isIncome = /(gaji|dapat|terima|masuk|bonus|topup|pemasukan|tambah|plus|add|\+)/i.test(normalizedText)
 
   return {
     type: 'transaction',
