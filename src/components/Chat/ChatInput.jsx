@@ -77,7 +77,7 @@ export default function ChatInput({ onSend, isTyping }) {
   }
 
   return (
-    <div className="absolute bottom-[110px] md:bottom-8 left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
+    <div className="absolute bottom-[110px] md:bottom-12 left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
 
 
       {/* Input Form & Preview Container */}
@@ -96,7 +96,7 @@ export default function ChatInput({ onSend, isTyping }) {
         )}
 
         {/* Input Form */}
-        <div className="w-full bg-white/95 backdrop-blur-3xl p-2 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.1)] flex items-center gap-2.5 border border-midnight/10 pointer-events-auto">
+        <div className="w-full bg-white/95 backdrop-blur-3xl p-2 rounded-[28px] shadow-[0_12px_40px_-12px_rgba(15,23,42,0.15)] flex items-center gap-2.5 border border-midnight/10 pointer-events-auto">
           <input 
             type="file" 
             accept="image/*" 
