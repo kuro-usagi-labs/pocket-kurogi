@@ -8,6 +8,7 @@ export default function ChatInput({ onSend, isTyping }) {
   const [isListening, setIsListening] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
   const fileInputRef = useRef(null)
+  const recognitionRef = useRef(null)
 
   const handleSubmit = (e) => {
     e?.preventDefault()
@@ -35,6 +36,11 @@ export default function ChatInput({ onSend, isTyping }) {
   }
 
   const handleMicClick = () => {
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
     // Check support for speech recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -42,9 +48,8 @@ export default function ChatInput({ onSend, isTyping }) {
       return;
     }
 
-    if (isListening) return; // Prevent multiple instances
-
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
     recognition.lang = 'id-ID';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
