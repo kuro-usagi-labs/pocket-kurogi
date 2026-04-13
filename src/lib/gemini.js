@@ -4,13 +4,13 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
  * Analyze user text using Gemini 2.5 Flash API to extract transaction data.
  * Falls back to local regex parsing if API key is not set or request fails.
  */
-export async function analyzeTransaction(text, walletNames = []) {
+export async function analyzeTransaction(text, imageBase64 = null, walletNames = []) {
   // Try Gemini API first
   if (GEMINI_API_KEY) {
     try {
       const walletList = [...walletNames, 'Tunai'].join(', ')
       const prompt = `Kamu adalah AI asisten keuangan pencatat pengeluaran dan pemasukan.
-Ekstrak informasi dari teks berikut: "${text}"
+Ekstrak informasi dari teks atau gambar struk berikut: "${text || 'Berkas Struk Terlampir'}"
 Daftar dompet yang tersedia: ${walletList}. (pilih yang paling cocok, default: Tunai).
 
 Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini:
@@ -41,13 +41,28 @@ Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini
   "reply": "Balasan ramah singkat"
 }`
 
+      const parts = [{ text: prompt }];
+
+      if (imageBase64) {
+        const mimeTypeMatch = imageBase64.match(/data:(.*?);base64,/);
+        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+        const base64Data = imageBase64.split(',')[1];
+        
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        });
+      }
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents: [{ parts }],
             generationConfig: { responseMimeType: 'application/json' },
           }),
         }
@@ -62,8 +77,8 @@ Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini
     }
   }
 
-  // Regex fallback
-  return analyzeWithRegex(text, walletNames)
+  // Regex fallback (cannot process images, ignores them)
+  return analyzeWithRegex(text || '', walletNames)
 }
 
 /**

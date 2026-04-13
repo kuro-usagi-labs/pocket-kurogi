@@ -38,22 +38,31 @@ export default function AppShell() {
   }, [])
 
   const handleSend = useCallback(
-    async (text) => {
-      if (!text || isTyping) return
+    async (payload) => {
+      let text = '';
+      let image = null;
+      if (typeof payload === 'string') {
+        text = payload;
+      } else if (payload && typeof payload === 'object') {
+        text = payload.text || '';
+        image = payload.image || null;
+      }
+
+      if ((!text && !image) || isTyping) return
 
       const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 
       // Add user message
       setMessages((prev) => [
         ...prev,
-        { id: Date.now(), sender: 'user', text, time: currentTime },
+        { id: Date.now(), sender: 'user', text, image, time: currentTime },
       ])
       setIsTyping(true)
 
       try {
         // Analyze with Gemini (or regex fallback)
         const walletNames = wallets.map((w) => w.name)
-        const analysis = await analyzeTransaction(text, walletNames)
+        const analysis = await analyzeTransaction(text, image, walletNames)
 
         let botResponse
 

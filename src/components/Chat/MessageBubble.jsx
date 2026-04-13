@@ -12,6 +12,11 @@ export default function MessageBubble({ msg, formatRupiah }) {
             : 'bg-white text-midnight rounded-[22px] rounded-bl-[6px] border border-midnight/5 shadow-[0_8px_32px_rgba(15,23,42,0.04)]'
         }`}
       >
+        {msg.image && (
+          <div className="mb-3 rounded-xl overflow-hidden border border-white/10 shadow-sm">
+            <img src={msg.image} alt="Uploaded Receipt" className="w-full max-w-[240px] object-contain" />
+          </div>
+        )}
         <div className="whitespace-pre-wrap font-medium">{msg.text}</div>
 
         {/* Receipt card for transactions */}
