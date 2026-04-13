@@ -27,7 +27,7 @@ export default function AppShell() {
     {
       id: 1,
       sender: 'bot',
-      text: 'Selamat datang kembali. Saya Financial Analyst Anda.\n\nSebutkan transaksi Anda untuk memperbarui portofolio hari ini:\n• "Pengeluaran 45k kopi bca"\n• "Pemasukan gaji 12 juta ke bca"',
+      text: 'Halo! Saya asisten keuangan Anda. Ada transaksi yang ingin dicatat hari ini?',
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     },
   ])
@@ -89,14 +89,14 @@ export default function AppShell() {
             botResponse = {
               id: Date.now() + 1,
               sender: 'bot',
-              text: `✅ Berhasil. ${pendingAction.successMessage}`,
+              text: `Selesai. ${pendingAction.successMessage}`,
               time: currentTime
             };
           } else {
             botResponse = {
               id: Date.now() + 1,
               sender: 'bot',
-              text: "❌ Operasi dibatalkan. Data Anda tetap aman.",
+              text: "Baik, operasi dibatalkan. Data Anda aman.",
               time: currentTime
             };
           }
@@ -119,7 +119,7 @@ export default function AppShell() {
             }
           }
           if (!finalWalletId) finalWalletId = wallets[0]?.id;
-          if (!finalWalletId) throw new Error("Sistem tidak menemukan dompet di akun Anda.");
+          if (!finalWalletId) throw new Error("Dompet tidak ditemukan.");
 
           const { error: txError } = await addTransaction({
             type: analysis.transactionType,
@@ -137,7 +137,7 @@ export default function AppShell() {
             sender: 'bot',
             text: (analysis.transactionType === 'income'
                 ? `Pemasukan divalidasi. Dana sebesar ${formatRupiah(analysis.amount)} dialokasikan ke ${walletDisplayName}.`
-                : `Alokasi dana diproses. ${formatRupiah(analysis.amount)} ditarik dari ${walletDisplayName}.`) + (isNewWallet ? `\n\n*(Catatan: Dompet **${walletDisplayName}** baru saja dibuat otomatis)*` : ''),
+                : `Alokasi dana diproses. ${formatRupiah(analysis.amount)} ditarik dari ${walletDisplayName}.`) + (isNewWallet ? `\n\n*(Catatan: Dompet ${walletDisplayName} baru saja dibuat otomatis)*` : ''),
             time: currentTime,
             card: { type: analysis.transactionType, amount: analysis.amount, category: analysis.category || 'Lainnya', wallet: analysis.wallet || 'Tunai', desc: analysis.desc },
           }
@@ -149,22 +149,22 @@ export default function AppShell() {
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: `Transaksi terakhir (**${lastTx.desc}**) telah dibatalkan dan saldo dikembalikan.`,
+            text: `Transaksi terakhir (${lastTx.desc}) telah dibatalkan.`,
             time: currentTime
           };
         } else if (analysis.type === 'delete_wallet') {
           const walletToDelete = wallets.find(w => w.name.toLowerCase() === (analysis.wallet || '').toLowerCase());
-          if (!walletToDelete) throw new Error(`Dompet **${analysis.wallet}** tidak ditemukan.`);
+          if (!walletToDelete) throw new Error(`Dompet ${analysis.wallet} tidak ditemukan.`);
           
           setPendingAction({
             type: 'delete_wallet',
             payload: { id: walletToDelete.id },
-            successMessage: `Dompet **${walletToDelete.name}** telah dihapus secara permanen.`
+            successMessage: `Dompet ${walletToDelete.name} telah dihapus permanen.`
           });
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: `⚠️ **Konfirmasi**: Anda yakin ingin menghapus dompet **${walletToDelete.name}** secara permanen? Seluruh data riwayat di dompet ini akan hilang.\n\nKetik **"Ya"** untuk mengonfirmasi.`,
+            text: `Anda yakin ingin menghapus dompet ${walletToDelete.name} secara permanen? Data saldonya akan ikut terhapus.\n\nKetik "Ya" untuk konfirmasi.`,
             time: currentTime
           };
         } else if (analysis.type === 'bulk_delete_wallets') {
@@ -176,11 +176,11 @@ export default function AppShell() {
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: "⚠️ **WARNING**: Anda yakin ingin menghapus **SEMUA** dompet? Tindakan ini tidak dapat dibatalkan.\n\nKetik **\"Ya\"** untuk konfirmasi.",
+            text: "Tunggu sebentar, Anda yakin ingin menghapus SEMUA dompet? Tindakan ini tidak dapat dibatalkan.\n\nKetik \"Ya\" untuk konfirmasi.",
             time: currentTime
           };
         } else if (analysis.type === 'bulk_delete_transactions') {
-          const rangeInfo = analysis.startDate && analysis.endDate ? `periode **${analysis.startDate}** hingga **${analysis.endDate}**` : "seluruh riwayat";
+          const rangeInfo = analysis.startDate && analysis.endDate ? `periode ${analysis.startDate} hingga ${analysis.endDate}` : "seluruh riwayat";
           setPendingAction({
             type: 'bulk_delete_transactions',
             payload: { startDate: analysis.startDate, endDate: analysis.endDate },
@@ -189,7 +189,7 @@ export default function AppShell() {
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: `⚠️ **Konfirmasi**: Hapus ${rangeInfo}? Saldo dompet tidak akan terpengaruh oleh penghapusan riwayat massal ini.\n\nKetik **\"Ya\"** untuk konfirmasi.`,
+            text: `Anda yakin ingin menghapus ${rangeInfo}? Saldo dompet tidak akan terpengaruh.\n\nKetik \"Ya\" untuk konfirmasi.`,
             time: currentTime
           };
         } else if (analysis.type === 'check_balance') {
@@ -197,7 +197,7 @@ export default function AppShell() {
             botResponse = {
               id: Date.now() + 1,
               sender: 'bot',
-              text: `Total gabungan saldo Anda saat ini adalah **${formatRupiah(totalBalance)}**.`,
+              text: `Total gabungan saldo Anda adalah ${formatRupiah(totalBalance)}.`,
               time: currentTime
             };
           } else {
@@ -206,11 +206,11 @@ export default function AppShell() {
               botResponse = {
                 id: Date.now() + 1,
                 sender: 'bot',
-                text: `Saldo di dompet **${matchedWallet.name}** adalah **${formatRupiah(matchedWallet.balance || 0)}**.`,
+                text: `Saldo di dompet ${matchedWallet.name} adalah ${formatRupiah(matchedWallet.balance || 0)}.`,
                 time: currentTime
               };
             } else {
-              botResponse = { id: Date.now() + 1, sender: 'bot', text: `Saya tidak menemukan dompet bernama "${analysis.target}".`, time: currentTime };
+              botResponse = { id: Date.now() + 1, sender: 'bot', text: `Dompet "${analysis.target}" tidak ditemukan.`, time: currentTime };
             }
           }
         } else if (analysis.type === 'create_wallet') {
@@ -218,14 +218,14 @@ export default function AppShell() {
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: `Dompet **${analysis.name}** berhasil dibuat.`,
+            text: `Dompet ${analysis.name} berhasil dibuat.`,
             time: currentTime
           };
         } else {
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
-            text: analysis.reply || "Maaf, saya tidak mengerti instruksi tersebut.",
+            text: analysis.reply || "Maaf, permintaan tersebut kurang jelas.",
             time: currentTime
           };
         }

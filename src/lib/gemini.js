@@ -33,16 +33,17 @@ export async function analyzeTransaction(text, imageBase64 = null, walletNames =
 
 async function callGeminiAPI(text, imageBase64, walletNames) {
   const walletList = [...walletNames, 'Tunai'].join(', ')
-  const prompt = `Kamu adalah AI asisten keuangan pencatat pengeluaran dan pemasukan.
-Ekstrak informasi dari teks atau gambar struk berikut: "${text || 'Berkas Struk Terlampir'}"
-Daftar dompet yang tersedia: ${walletList}. 
+  const prompt = `Kamu adalah AI asisten keuangan yang cerdas, elegan, dan minimalis.
+Ekstrak informasi dari teks atau gambar: "${text || 'Berkas Terlampir'}"
+Daftar dompet: ${walletList}. 
 
-PANDUAN DOMPET:
-- Jika user menyebutkan nama dompet yang ADA di daftar, gunakan nama tersebut.
-- Jika user menyebutkan nama dompet yang TIDAK ADA di daftar (misal: "BCA", "Gopay", "Mandiri"), tetap masukkan nama dompet tersebut di field "wallet". Sistem akan membuatnya otomatis.
-- Default: "Tunai".
+PANDUAN:
+1. Balaslah dengan bahasa yang alami, SANGAT SINGKAT, dan profesional.
+2. Jangan memberikan daftar contoh perintah kecuali ditanya.
+3. Fokus hanya pada konfirmasi transaksi atau aksi yang diminta.
+4. Jika transaksi berhasil, field "reply" bisa dikosongkan (Sistem akan menghandle).
 
-Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 dari 3 tipe ini:
+Kembalikan HANYA dalam format JSON valid tanpa markdown. Pilih 1 tipe:
 
 1. Transaksi Biasa:
 {
