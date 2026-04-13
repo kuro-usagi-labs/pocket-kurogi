@@ -211,9 +211,8 @@ export default function AppShell() {
         <DesktopHeader />
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Central Content */}
-          <section className="flex-1 flex justify-center overflow-hidden relative">
-            <div className="w-full h-full md:max-w-4xl bg-champagne flex flex-col relative md:shadow-[-20px_0_40px_-15px_rgba(15,23,42,0.05)] md:border-l border-midnight/5 overflow-hidden">
+          <section className="flex-1 flex overflow-hidden relative bg-champagne">
+            <div className="w-full h-full flex flex-col relative overflow-hidden">
               {/* Top App Bar (Mobile Only) */}
               <header className="md:hidden shrink-0 z-50 relative bg-ivory/90 backdrop-blur-xl border-b border-midnight/5 px-6 py-5 flex justify-between items-center transition-all">
                 <div className="flex items-center gap-3">
