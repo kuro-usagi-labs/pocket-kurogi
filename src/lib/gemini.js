@@ -95,16 +95,16 @@ INSTRUKSI KHUSUS TRANSFER:
   )
 
   const data = await response.json()
-  const text = data.candidates[0].content.parts[0].text
+  const responseText = data.candidates[0].content.parts[0].text
   
   // Robust parsing: extract JSON block if wrapped in markdown or has preamble
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  const cleanJson = jsonMatch ? jsonMatch[0] : text
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+  const cleanJson = jsonMatch ? jsonMatch[0] : responseText
   
   try {
     return JSON.parse(cleanJson)
   } catch (e) {
-    console.error("Gemini JSON Parse Error:", e, "Raw text:", text)
+    console.error("Gemini JSON Parse Error:", e, "Raw text:", responseText)
     throw new Error("Gagal memproses jawaban AI. Silakan coba lagi.")
   }
 }
