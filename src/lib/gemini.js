@@ -115,6 +115,11 @@ INSTRUKSI KHUSUS TRANSFER:
 function analyzeWithRegex(text, walletNames) {
   let normalizedText = text.toLowerCase().trim()
 
+  // Force Gemini for goal-related keywords to avoid intent confusion
+  if (/(tabungan|milestone|target)/i.test(normalizedText)) {
+    return { type: 'unknown' };
+  }
+
   // Greeting detection
   if (/^(halo|hai|hi|hey|pagi|siang|sore|malam)/.test(normalizedText) && !/\d/.test(normalizedText)) {
     return {
