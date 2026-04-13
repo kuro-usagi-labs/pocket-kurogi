@@ -269,7 +269,7 @@ export default function AppShell() {
 
   const { goals, addGoal, deleteGoal, updateGoalProgress } = useGoals()
   const { budgets } = useBudgets()
-  const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0)
+  const advisor = useAdvisor()
 
   const handleAddGoal = async (goalData) => {
     const { error } = await addGoal(goalData)

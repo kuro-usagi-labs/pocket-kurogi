@@ -10,6 +10,7 @@
   --color-cream: #F5F2E8;
   --color-gold: #775a19;
   --color-muted: #45464D;
+  --shadow-premium: 0 12px 45px -12px rgba(15, 23, 42, 0.12);
 }
 
 /* Hide scrollbars completely */
@@ -60,7 +61,7 @@ body {
 
 /* Premium Shadows */
 .shadow-premium {
-  shadow-[0_12px_45px_-12px_rgba(15,23,42,0.12)];
+  box-shadow: var(--shadow-premium);
 }
 
 .animate-scale-in {
