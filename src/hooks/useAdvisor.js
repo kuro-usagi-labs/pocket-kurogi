@@ -82,6 +82,7 @@ STATUS KEUANGAN USER SAAT INI:
 
   return { 
     ...financialStats, 
+    grandTotalBalance,
     getContextString: getFinancialContextString 
   }
 }
