@@ -16,6 +16,7 @@ import DesktopHeader from './DesktopHeader'
 import DesktopRightPanel from './DesktopRightPanel'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
+import { useAnalytics } from '../../hooks/useAnalytics'
 
 export default function AppShell() {
   const {
@@ -25,39 +26,36 @@ export default function AppShell() {
     deleteWallet,
     hardDeleteWallet,
     clearAllWallets,
-    updateBalance,
     refetch: refetchWallets,
   } = useWallets()
 
   const {
     transactions,
-    totalIncome,
-    totalExpense,
     addTransaction,
     deleteTransaction,
     clearTransactionsInRange,
     clearAllTransactions,
     transferBetweenWallets,
+    refetch: refetchTransactions,
   } = useTransactions()
 
   const { findCategory } = useCategories()
   const {
     goals,
     addGoal,
-    updateGoalProgress,
     contributeToGoal,
     createGoalWithContribution,
     deleteGoal,
   } = useGoals()
   const { budgets } = useBudgets()
   const { messages, saveMessage } = useChat()
+  const { analytics, refetch: refetchAnalytics } = useAnalytics()
 
   const advisor = useAdvisor({
     wallets,
     totalBalance,
     transactions,
-    totalIncome,
-    totalExpense,
+    analytics,
     goals,
     budgets,
   })
@@ -76,6 +74,29 @@ export default function AppShell() {
       maximumFractionDigits: 0,
     }).format(number)
   }, [])
+
+  const syncFinancialViews = useCallback(
+    async ({ wallets: shouldRefreshWallets = false, transactions: shouldRefreshTransactions = false, analytics: shouldRefreshAnalytics = true } = {}) => {
+      const tasks = []
+
+      if (shouldRefreshWallets) {
+        tasks.push(refetchWallets())
+      }
+
+      if (shouldRefreshTransactions) {
+        tasks.push(refetchTransactions())
+      }
+
+      if (shouldRefreshAnalytics) {
+        tasks.push(refetchAnalytics())
+      }
+
+      if (tasks.length > 0) {
+        await Promise.all(tasks)
+      }
+    },
+    [refetchAnalytics, refetchTransactions, refetchWallets]
+  )
 
   const handleSend = useCallback(
     async (payload) => {
@@ -121,15 +142,27 @@ export default function AppShell() {
             if (type === 'delete_wallet') {
               const { error } = await hardDeleteWallet(pendingPayload.id)
               if (error) throw error
+              await syncFinancialViews({
+                transactions: true,
+                analytics: true,
+              })
             } else if (type === 'bulk_delete_wallets') {
               const { error } = await clearAllWallets()
               if (error) throw error
+              await syncFinancialViews({
+                transactions: true,
+                analytics: true,
+              })
             } else if (type === 'bulk_delete_transactions') {
               const { error } =
                 pendingPayload.startDate && pendingPayload.endDate
                   ? await clearTransactionsInRange(pendingPayload.startDate, pendingPayload.endDate)
                   : await clearAllTransactions()
               if (error) throw error
+              await syncFinancialViews({
+                transactions: true,
+                analytics: true,
+              })
             }
 
             botResponse = {
@@ -157,33 +190,16 @@ export default function AppShell() {
                 walletId: pendingAction.payload.amount > 0 ? sourceWallet?.id || null : null,
               })
 
-              let newGoalName = pendingAction.payload.name
-
-              if (!rpcGoalResult.error && rpcGoalResult.data) {
-                newGoalName = rpcGoalResult.data.goal_name || pendingAction.payload.name
-                if (rpcGoalResult.walletHandled) {
-                  await refetchWallets()
-                }
-              } else {
-                const { data: newGoal, error } = await addGoal({
-                  name: pendingAction.payload.name,
-                  targetAmount: targetMatch,
-                  initialAmount: pendingAction.payload.amount,
-                })
-
-                if (error) throw error
-                newGoalName = newGoal.name
-
-                if (pendingAction.payload.amount > 0 && sourceWallet) {
-                  const { error: walletError } = await updateBalance(
-                    sourceWallet.id,
-                    pendingAction.payload.amount,
-                    'expense'
-                  )
-                  if (walletError) throw walletError
-                  await refetchWallets()
-                }
+              if (rpcGoalResult.error) {
+                throw rpcGoalResult.error
               }
+
+              const newGoalName = rpcGoalResult.data?.goal_name || pendingAction.payload.name
+              await syncFinancialViews({
+                wallets: rpcGoalResult.walletHandled,
+                transactions: rpcGoalResult.walletHandled,
+                analytics: rpcGoalResult.walletHandled,
+              })
 
               botResponse = {
                 sender: 'bot',
@@ -240,11 +256,15 @@ export default function AppShell() {
             desc: analysis.desc,
             walletId: finalWalletId,
             categoryId: matchedCategory?.id || null,
+            source: image ? 'ocr' : 'chat',
           })
 
           if (transactionError) throw transactionError
 
-          await refetchWallets()
+          await syncFinancialViews({
+            wallets: true,
+            analytics: true,
+          })
 
           const walletDisplayName = (analysis.wallet || 'Dompet').toUpperCase()
           botResponse = {
@@ -276,7 +296,10 @@ export default function AppShell() {
           const { error } = await deleteTransaction(lastTransaction.id)
           if (error) throw error
 
-          await refetchWallets()
+          await syncFinancialViews({
+            wallets: true,
+            analytics: true,
+          })
 
           botResponse = {
             sender: 'bot',
@@ -355,13 +378,20 @@ export default function AppShell() {
                 }
           }
         } else if (analysis.type === 'create_wallet') {
-          const { data: newWallet, error: walletError } = await addWallet(
+          const { data: newWallet, error: walletError, ledgerCreated } = await addWallet(
             analysis.name,
             analysis.initial_balance,
             analysis.wallet_type
           )
 
           if (walletError) throw walletError
+
+          if (ledgerCreated) {
+            await syncFinancialViews({
+              transactions: true,
+              analytics: true,
+            })
+          }
 
           botResponse = {
             sender: 'bot',
@@ -381,20 +411,15 @@ export default function AppShell() {
               })
             : { error: new Error('Dompet sumber tidak ditemukan.'), walletHandled: false }
 
-          if (!rpcContributionResult.error) {
-            if (rpcContributionResult.walletHandled) {
-              await refetchWallets()
-            }
-          } else {
-            const { error: goalError } = await updateGoalProgress(goalId, amount)
-            if (goalError) throw goalError
-
-            if (sourceWallet) {
-              const { error: walletError } = await updateBalance(sourceWallet.id, amount, 'expense')
-              if (walletError) throw walletError
-              await refetchWallets()
-            }
+          if (rpcContributionResult.error) {
+            throw rpcContributionResult.error
           }
+
+          await syncFinancialViews({
+            wallets: rpcContributionResult.walletHandled,
+            transactions: true,
+            analytics: true,
+          })
 
           botResponse = {
             sender: 'bot',
@@ -435,7 +460,10 @@ export default function AppShell() {
 
           if (error) throw error
 
-          await refetchWallets()
+          await syncFinancialViews({
+            wallets: true,
+            analytics: true,
+          })
 
           botResponse = {
             sender: 'bot',
@@ -480,13 +508,11 @@ export default function AppShell() {
       hardDeleteWallet,
       isTyping,
       pendingAction,
-      refetchWallets,
       saveMessage,
       totalBalance,
+      syncFinancialViews,
       transactions,
       transferBetweenWallets,
-      updateBalance,
-      updateGoalProgress,
       wallets,
     ]
   )
@@ -506,7 +532,18 @@ export default function AppShell() {
   }
 
   const handleAddWallet = async (name, balance) => {
-    await addWallet(name, balance)
+    const { error, ledgerCreated } = await addWallet(name, balance)
+    if (error) {
+      console.error('Error adding wallet:', error)
+      return
+    }
+
+    if (ledgerCreated) {
+      await syncFinancialViews({
+        transactions: true,
+        analytics: true,
+      })
+    }
   }
 
   const handleDeleteWallet = async (id) => {
@@ -598,9 +635,7 @@ export default function AppShell() {
                   }`}
                 >
                   <AnalyticsView
-                    transactions={transactions}
-                    totalIncome={totalIncome}
-                    totalExpense={totalExpense}
+                    analytics={analytics}
                     budgets={budgets}
                     formatRupiah={formatRupiah}
                   />
@@ -612,6 +647,8 @@ export default function AppShell() {
           </section>
 
           <DesktopRightPanel
+            analytics={analytics}
+            transactions={transactions}
             onExecuteStrategy={(message) => {
               setActiveTab('chat')
               handleSend(message)

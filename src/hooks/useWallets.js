@@ -7,8 +7,42 @@ export function useWallets() {
   const [wallets, setWallets] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const fetchWalletById = useCallback(async (id) => {
+    const { data, error } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    return { data, error }
+  }, [user])
+
   const addWallet = useCallback(async (name, initialBalance = 0, walletType = 'cash') => {
     if (!user) return { error: 'Not authenticated' }
+
+    const normalizedInitialBalance = Number(initialBalance || 0)
+    const rpcResult = await supabase.rpc('create_wallet_with_opening_balance', {
+      p_name: name,
+      p_initial_balance: normalizedInitialBalance,
+      p_wallet_type: walletType,
+      p_tone: null,
+    })
+
+    if (!rpcResult.error && rpcResult.data?.wallet_id) {
+      const { data: insertedWallet, error: fetchError } = await fetchWalletById(rpcResult.data.wallet_id)
+
+      if (fetchError || !insertedWallet) {
+        return { data: null, error: fetchError ?? new Error('Wallet created but could not be loaded.') }
+      }
+
+      setWallets((prev) => [...prev, insertedWallet])
+      return { data: insertedWallet, error: null, ledgerCreated: normalizedInitialBalance > 0 }
+    }
+
+    if (normalizedInitialBalance > 0) {
+      return { data: null, error: rpcResult.error ?? new Error('Wallet opening balance failed.'), ledgerCreated: false }
+    }
 
     const { data, error } = await supabase
       .from('wallets')
@@ -16,8 +50,8 @@ export function useWallets() {
         user_id: user.id,
         name,
         wallet_type: walletType,
-        initial_balance: initialBalance,
-        current_balance: initialBalance,
+        initial_balance: normalizedInitialBalance,
+        current_balance: normalizedInitialBalance,
       })
       .select()
       .single()
@@ -26,8 +60,8 @@ export function useWallets() {
       setWallets((prev) => [...prev, data])
     }
 
-    return { data, error }
-  }, [user])
+    return { data, error, ledgerCreated: false }
+  }, [fetchWalletById, user])
 
   const fetchWallets = useCallback(async () => {
     if (!user) {

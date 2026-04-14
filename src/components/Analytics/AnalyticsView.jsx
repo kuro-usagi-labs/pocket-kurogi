@@ -1,17 +1,15 @@
 import { CategoryIcon } from '../shared/CategoryIcon'
 import { AlertCircle } from 'lucide-react'
 
-export default function AnalyticsView({ transactions, totalIncome, totalExpense, budgets = [], formatRupiah }) {
-  // Calculate category totals
-  const expenseTransactions = transactions.filter((t) => t.type === 'expense')
-  const categoryTotals = expenseTransactions.reduce((acc, curr) => {
-    acc[curr.category] = (acc[curr.category] || 0) + curr.amount
-    return acc
-  }, {})
-  
-  const topCategories = Object.entries(categoryTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+export default function AnalyticsView({ analytics, budgets = [], formatRupiah }) {
+  const {
+    totalIncome = 0,
+    totalExpense = 0,
+    totalSavings = 0,
+    netCashflow = 0,
+    transferVolume = 0,
+    topExpenseCategories = [],
+  } = analytics || {}
 
   return (
     <div className="pt-8 px-6 pb-[140px] space-y-7">
@@ -21,17 +19,34 @@ export default function AnalyticsView({ transactions, totalIncome, totalExpense,
         <div className="relative z-10">
           <h3 className="text-xl font-bold font-jakarta mb-1.5 tracking-tight">Ringkasan Arus Kas</h3>
           <p className="text-white/40 text-[10px] font-extrabold mb-8 tracking-widest uppercase font-jakarta">
-            Siklus Berjalan
+            Seluruh Ledger Tercatat
           </p>
           <div className="space-y-5">
             <div className="flex justify-between items-center border-b border-white/10 pb-5">
               <span className="text-[13.5px] font-medium text-white/60">Pemasukan Kotor</span>
               <span className="text-[19px] font-extrabold font-jakarta">+{formatRupiah(totalIncome)}</span>
             </div>
-            <div className="flex justify-between items-center pt-1">
+            <div className="flex justify-between items-center border-b border-white/10 pb-5">
               <span className="text-[13.5px] font-medium text-white/60">Pengeluaran Inti</span>
               <span className="text-[19px] font-extrabold font-jakarta text-gold">
                 {formatRupiah(totalExpense)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center border-b border-white/10 pb-5">
+              <span className="text-[13.5px] font-medium text-white/60">Alokasi Tabungan</span>
+              <span className="text-[19px] font-extrabold font-jakarta text-[#BFE89E]">
+                {formatRupiah(totalSavings)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-[13.5px] font-medium text-white/60">Net Cashflow</span>
+              <span
+                className={`text-[19px] font-extrabold font-jakarta ${
+                  netCashflow >= 0 ? 'text-white' : 'text-rose-300'
+                }`}
+              >
+                {netCashflow >= 0 ? '+' : '-'}
+                {formatRupiah(Math.abs(netCashflow))}
               </span>
             </div>
           </div>
@@ -44,17 +59,21 @@ export default function AnalyticsView({ transactions, totalIncome, totalExpense,
           <h3 className="text-[17px] font-bold font-jakarta text-midnight tracking-tight">
             Analisa Budget
           </h3>
+          <span className="text-[10px] font-extrabold text-midnight/35 uppercase tracking-[0.2em]">
+            Transfer Internal {formatRupiah(transferVolume)}
+          </span>
         </div>
         <div className="space-y-8">
-          {topCategories.length > 0 ? (
-            topCategories.map(([cat, amount], idx) => {
-              const categoryBudget = budgets.find(b => b.categories?.name === cat)
+          {topExpenseCategories.length > 0 ? (
+            topExpenseCategories.slice(0, 5).map((categorySummary, idx) => {
+              const cat = categorySummary.name
+              const amount = Number(categorySummary.amount || 0)
+              const categoryBudget = budgets.find((budget) => budget.categories?.name === cat)
               const limit = categoryBudget?.monthly_limit || 0
               const usagePercent = limit > 0 ? (amount / limit) * 100 : 0
               const overflow = limit > 0 && amount > limit
-              
-              const displayPercent = totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(0) : 0
-              
+              const displayPercent = Math.round(Number(categorySummary.percentage || 0))
+
               return (
                 <div key={cat} className="space-y-3.5 group">
                   <div className="flex items-center gap-4">
@@ -104,7 +123,7 @@ export default function AnalyticsView({ transactions, totalIncome, totalExpense,
             })
           ) : (
             <p className="text-[14px] text-muted text-center py-6 font-medium">
-              Belum ada analisis data.
+              Belum ada arus kas yang terekam.
             </p>
           )}
         </div>

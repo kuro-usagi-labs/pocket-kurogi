@@ -1,25 +1,18 @@
-import { DollarSign, Landmark, ChevronRight, ReceiptText } from 'lucide-react'
-import { useTransactions } from '../../hooks/useTransactions'
+import { Landmark, ChevronRight, ReceiptText } from 'lucide-react'
 
-export default function DesktopRightPanel({ onExecuteStrategy }) {
-  const { transactions, totalIncome, totalExpense } = useTransactions()
+export default function DesktopRightPanel({ analytics, transactions = [], onExecuteStrategy }) {
+  const {
+    totalIncome = 0,
+    totalExpense = 0,
+    totalSavings = 0,
+    netCashflow = 0,
+    topExpenseCategories = [],
+  } = analytics || {}
 
-  // Calculate Health Score (0-100) based on savings rate
-  const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0
+  const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0
+  const liquidityRatio = totalIncome > 0 ? (netCashflow / totalIncome) * 100 : 0
   let healthScore = Math.min(99, Math.max(10, Math.round(savingsRate)))
-  if (totalIncome === 0 && totalExpense === 0) healthScore = 100 // Unused vault
-
-  // Calculate Allocation Mix (Expenses by Category)
-  const categoryTotals = {}
-  transactions
-    .filter(t => t.type === 'expense')
-    .forEach(t => {
-      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + (t.amount || 0)
-    })
-
-  const sortedCategories = Object.entries(categoryTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+  if (totalIncome === 0 && totalExpense === 0 && totalSavings === 0) healthScore = 100
 
   const formatRupiah = (number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -43,11 +36,13 @@ export default function DesktopRightPanel({ onExecuteStrategy }) {
               <p className="text-[10px] font-bold text-midnight/40 uppercase tracking-widest mb-2">Vault Health</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-jakarta font-extrabold text-midnight">{healthScore}</span>
-                <span className={`text-xs font-bold ${savingsRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {savingsRate >= 0 ? '+' : ''}{savingsRate.toFixed(1)}%
+                <span className={`text-xs font-bold ${liquidityRatio >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {liquidityRatio >= 0 ? '+' : ''}{liquidityRatio.toFixed(1)}%
                 </span>
               </div>
-              <p className="text-[10px] text-midnight/50 font-medium mt-2">Optimal Liquidity Ratio</p>
+              <p className="text-[10px] text-midnight/50 font-medium mt-2">
+                Savings Rate {savingsRate.toFixed(1)}%
+              </p>
             </div>
           </div>
 
@@ -55,8 +50,10 @@ export default function DesktopRightPanel({ onExecuteStrategy }) {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-midnight/5">
             <p className="text-[10px] font-bold text-midnight/40 uppercase tracking-widest mb-6">Allocation Mix</p>
             <div className="space-y-5">
-              {sortedCategories.map(([cat, amount], idx) => {
-                const percentage = Math.round((amount / totalExpense) * 100)
+              {topExpenseCategories.slice(0, 3).map((categorySummary, idx) => {
+                const cat = categorySummary.name
+                const amount = Number(categorySummary.amount || 0)
+                const percentage = Math.round(Number(categorySummary.percentage || 0))
                 const colors = ['bg-midnight', 'bg-gold', 'bg-slate-300']
                 return (
                   <div key={cat} className={`flex justify-between items-center ${idx === 2 ? 'opacity-50' : ''}`}>
@@ -68,7 +65,7 @@ export default function DesktopRightPanel({ onExecuteStrategy }) {
                   </div>
                 )
               })}
-              {sortedCategories.length === 0 && (
+              {topExpenseCategories.length === 0 && (
                 <p className="text-xs text-midnight/40 italic">No expense data yet</p>
               )}
             </div>
@@ -81,9 +78,9 @@ export default function DesktopRightPanel({ onExecuteStrategy }) {
             </div>
             <h4 className="text-white text-sm font-bold mb-2">Yield Optimization</h4>
             <p className="text-white/60 text-[11px] leading-relaxed mb-4">
-              Your largest expense is <span className="text-gold font-bold capitalize">{sortedCategories[0]?.[0] || 'Unknown'}</span>. 
+              Your largest expense is <span className="text-gold font-bold capitalize">{topExpenseCategories[0]?.name || 'Unknown'}</span>. 
               Reduce it by 20% to save <span className="text-gold font-bold">
-                {sortedCategories[0]?.[1] ? formatRupiah(sortedCategories[0][1] * 0.2) : 'Rp0'}
+                {topExpenseCategories[0]?.amount ? formatRupiah(topExpenseCategories[0].amount * 0.2) : 'Rp0'}
               </span> this month.
             </p>
             <button 

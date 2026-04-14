@@ -4,18 +4,24 @@ export function useAdvisor({
   wallets = [],
   totalBalance = 0,
   transactions = [],
-  totalIncome = 0,
-  totalExpense = 0,
+  analytics = {},
   goals = [],
   budgets = [],
 }) {
   const financialStats = useMemo(() => {
-    const categoryTotals = {}
-    transactions
-      .filter((transaction) => transaction.type === 'expense')
-      .forEach((transaction) => {
-        categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount
-      })
+    const totalIncome = Number(analytics.totalIncome || 0)
+    const totalExpense = Number(analytics.totalExpense || 0)
+    const totalSavings = Number(analytics.totalSavings || 0)
+    const topCategories = Array.isArray(analytics.topExpenseCategories)
+      ? analytics.topExpenseCategories.map((category) => ({
+          name: category.name,
+          amount: Number(category.amount || 0),
+          percentage: Number(category.percentage || 0),
+        }))
+      : []
+    const categoryTotals = Object.fromEntries(
+      topCategories.map((category) => [category.name, Number(category.amount || 0)])
+    )
 
     const budgetAlerts = budgets
       .map((budget) => {
@@ -25,19 +31,11 @@ export function useAdvisor({
       })
       .filter((alert) => alert.percent >= 80)
 
-    const topCategories = Object.entries(categoryTotals)
-      .sort((left, right) => right[1] - left[1])
-      .map(([name, amount]) => ({
-        name,
-        amount,
-        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-      }))
-
     const potentialSubscriptions = []
     const transactionsBySignature = {}
 
     transactions
-      .filter((transaction) => transaction.type === 'expense')
+      .filter((transaction) => transaction.analyticsBucket === 'expense')
       .forEach((transaction) => {
         const key = `${transaction.desc.toLowerCase()}-${transaction.amount}`
         transactionsBySignature[key] = (transactionsBySignature[key] || 0) + 1
@@ -50,7 +48,10 @@ export function useAdvisor({
       totalBalance,
       totalIncome,
       totalExpense,
-      savingsRate: totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0,
+      totalSavings,
+      netCashflow: Number(analytics.netCashflow || 0),
+      transferVolume: Number(analytics.transferVolume || 0),
+      savingsRate: totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0,
       topCategories,
       activeWallets: wallets.map((wallet) => `${wallet.name}: ${wallet.current_balance}`).join(', '),
       goals: goals.map(
@@ -61,7 +62,7 @@ export function useAdvisor({
       subscriptions: potentialSubscriptions,
       activeGoals: goals.map((goal) => ({ id: goal.id, name: goal.name })),
     }
-  }, [budgets, goals, totalBalance, totalExpense, totalIncome, transactions, wallets])
+  }, [analytics, budgets, goals, totalBalance, transactions, wallets])
 
   const grandTotalBalance = financialStats.totalBalance + financialStats.totalGoalsBalance
 
@@ -70,6 +71,10 @@ STATUS KEUANGAN USER SAAT INI:
 - Total Kekayaan (Wallet + Tabungan): Rp ${grandTotalBalance}
 - Saldo Likuid (Dompet): Rp ${financialStats.totalBalance}
 - Saldo Milestone (Goals): Rp ${financialStats.totalGoalsBalance}
+- Pemasukan Tercatat: Rp ${financialStats.totalIncome}
+- Pengeluaran Tercatat: Rp ${financialStats.totalExpense}
+- Alokasi Tabungan: Rp ${financialStats.totalSavings}
+- Net Cashflow: Rp ${financialStats.netCashflow}
 - Rasio Tabungan: ${financialStats.savingsRate.toFixed(1)}%
 - Dompet: ${financialStats.activeWallets}
 - Target Tabungan (Goals): ${financialStats.goals.join(', ') || 'Belum ada'}

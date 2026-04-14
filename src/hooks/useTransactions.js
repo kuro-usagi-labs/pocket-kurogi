@@ -13,23 +13,38 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const mapTransactionRow = useCallback((transaction) => ({
-    id: transaction.id,
-    type: transaction.transaction_type,
-    amount: Number(transaction.amount),
-    desc: transaction.merchant || transaction.notes || 'Transaksi',
-    category: transaction.categories?.name || 'Lainnya',
-    categoryIcon: transaction.categories?.icon || null,
-    wallet: transaction.wallets?.name || 'Unknown',
-    walletId: transaction.wallet_id,
-    categoryId: transaction.category_id,
-    time: new Date(transaction.occurred_at).toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    date: formatRelativeDate(transaction.occurred_at),
-    occurredAt: transaction.occurred_at,
-  }), [])
+  const mapTransactionRow = useCallback((transaction) => {
+    const normalizedSource = normalizeTransactionSource(transaction.source)
+    const analyticsBucket = deriveAnalyticsBucket({
+      source: normalizedSource,
+      transactionType: transaction.transaction_type,
+      analyticsBucket: transaction.analytics_bucket,
+    })
+
+    return {
+      id: transaction.id,
+      type: transaction.transaction_type,
+      amount: Number(transaction.amount),
+      desc: transaction.merchant || transaction.notes || 'Transaksi',
+      category: transaction.categories?.name || 'Lainnya',
+      categoryIcon: transaction.categories?.icon || null,
+      wallet: transaction.wallets?.name || 'Unknown',
+      walletId: transaction.wallet_id,
+      categoryId: transaction.category_id,
+      time: new Date(transaction.occurred_at).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      date: formatRelativeDate(transaction.occurred_at),
+      occurredAt: transaction.occurred_at,
+      source: normalizedSource,
+      analyticsBucket,
+      canDelete: canDeleteLedgerEntry({
+        source: normalizedSource,
+        analyticsBucket,
+      }),
+    }
+  }, [])
 
   const fetchTransactions = useCallback(async () => {
     if (!user) {
@@ -98,12 +113,24 @@ export function useTransactions() {
     return { data: newBalance, error: null }
   }, [user])
 
-  const addTransaction = useCallback(async ({ type, amount, desc, walletId, categoryId }) => {
+  const addTransaction = useCallback(async ({
+    type,
+    amount,
+    desc,
+    walletId,
+    categoryId,
+    source = 'chat',
+  }) => {
     if (!user) return { data: null, error: 'Not authenticated' }
 
     const normalizedType = type?.toLowerCase()
     const normalizedAmount = Number(amount)
     const delta = normalizedType === 'income' ? normalizedAmount : -normalizedAmount
+    const normalizedSource = normalizeTransactionSource(source)
+    const analyticsBucket = deriveAnalyticsBucket({
+      source: normalizedSource,
+      transactionType: normalizedType,
+    })
 
     const rpcResult = await supabase.rpc('record_transaction', {
       p_wallet_id: walletId,
@@ -111,7 +138,7 @@ export function useTransactions() {
       p_transaction_type: normalizedType,
       p_amount: normalizedAmount,
       p_merchant: desc,
-      p_source: 'app',
+      p_source: normalizedSource,
     })
 
     if (!rpcResult.error && rpcResult.data?.transaction_id) {
@@ -138,6 +165,12 @@ export function useTransactions() {
             }),
             date: 'Hari Ini',
             occurredAt: new Date().toISOString(),
+            source: normalizedSource,
+            analyticsBucket,
+            canDelete: canDeleteLedgerEntry({
+              source: normalizedSource,
+              analyticsBucket,
+            }),
           },
           error: null,
           balanceUpdated: true,
@@ -157,7 +190,8 @@ export function useTransactions() {
         transaction_type: normalizedType,
         amount: normalizedAmount,
         merchant: desc,
-        source: 'app',
+        source: normalizedSource,
+        analytics_bucket: analyticsBucket,
       })
       .select(TRANSACTION_SELECT)
       .single()
@@ -180,10 +214,21 @@ export function useTransactions() {
     const formatted = mapTransactionRow(data)
     setTransactions((prev) => [formatted, ...prev])
     return { data: formatted, error: null, balanceUpdated: true }
-  }, [adjustWalletBalanceClientSide, fetchTransactionById, mapTransactionRow, user])
+  }, [adjustWalletBalanceClientSide, fetchTransactionById, fetchTransactions, mapTransactionRow, user])
 
   const deleteTransaction = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated', balanceUpdated: false }
+
+    const localTransaction =
+      transactions.find((transaction) => transaction.id === id) ??
+      (await fetchTransactionById(id)).data
+
+    if (localTransaction && !localTransaction.canDelete) {
+      return {
+        error: new Error('Transaksi ini tidak bisa dihapus dari riwayat.'),
+        balanceUpdated: false,
+      }
+    }
 
     const rpcResult = await supabase.rpc('delete_transaction_and_revert_balance', {
       p_transaction_id: id,
@@ -194,9 +239,7 @@ export function useTransactions() {
       return { error: null, balanceUpdated: true }
     }
 
-    const transactionToDelete =
-      transactions.find((transaction) => transaction.id === id) ??
-      (await fetchTransactionById(id)).data
+    const transactionToDelete = localTransaction
 
     if (!transactionToDelete) {
       return { error: rpcResult.error ?? new Error('Transaction not found'), balanceUpdated: false }
@@ -294,6 +337,7 @@ export function useTransactions() {
           amount: normalizedAmount,
           merchant: description || 'Transfer keluar',
           source: 'transfer',
+          analytics_bucket: 'internal_transfer',
         },
         {
           user_id: user.id,
@@ -302,6 +346,7 @@ export function useTransactions() {
           amount: normalizedAmount,
           merchant: description || 'Transfer masuk',
           source: 'transfer',
+          analytics_bucket: 'internal_transfer',
         },
       ])
 
@@ -316,11 +361,11 @@ export function useTransactions() {
   }, [adjustWalletBalanceClientSide, fetchTransactions, user])
 
   const totalIncome = transactions
-    .filter((transaction) => transaction.type?.toLowerCase() === 'income')
+    .filter((transaction) => transaction.analyticsBucket === 'income')
     .reduce((accumulator, transaction) => accumulator + transaction.amount, 0)
 
   const totalExpense = transactions
-    .filter((transaction) => transaction.type?.toLowerCase() === 'expense')
+    .filter((transaction) => transaction.analyticsBucket === 'expense')
     .reduce((accumulator, transaction) => accumulator + transaction.amount, 0)
 
   return {
@@ -335,6 +380,46 @@ export function useTransactions() {
     transferBetweenWallets,
     refetch: fetchTransactions,
   }
+}
+
+function normalizeTransactionSource(source) {
+  const normalized = String(source || '')
+    .trim()
+    .toLowerCase()
+
+  if (!normalized || normalized === 'app') {
+    return 'chat'
+  }
+
+  return normalized
+}
+
+function deriveAnalyticsBucket({ source, transactionType, analyticsBucket = null }) {
+  if (analyticsBucket) {
+    return analyticsBucket
+  }
+
+  if (source === 'transfer') {
+    return 'internal_transfer'
+  }
+
+  if (source === 'goal_contribution' || source === 'goal_initial_contribution') {
+    return 'savings'
+  }
+
+  if (source === 'wallet_opening_balance') {
+    return 'opening_balance'
+  }
+
+  return transactionType?.toLowerCase() === 'income' ? 'income' : 'expense'
+}
+
+function canDeleteLedgerEntry({ source, analyticsBucket }) {
+  if (analyticsBucket !== 'income' && analyticsBucket !== 'expense') {
+    return false
+  }
+
+  return ['chat', 'manual', 'ocr'].includes(source)
 }
 
 function formatRelativeDate(value) {

@@ -32,13 +32,15 @@ export default function HistoryView({ transactions, formatRupiah, onDeleteTransa
                   key={t.id}
                   className="bg-white p-5 rounded-[20px] flex items-center justify-between border border-midnight/5 hover:shadow-[0_8px_30px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 transition-all duration-300 relative group"
                 >
-                  <button
-                    onClick={() => onDeleteTransaction(t.id)}
-                    className="absolute top-3 right-3 p-1.5 text-muted/20 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
-                    title="Hapus transaksi"
-                  >
-                    <X size={14} strokeWidth={2.5} />
-                  </button>
+                  {t.canDelete && (
+                    <button
+                      onClick={() => onDeleteTransaction(t.id)}
+                      className="absolute top-3 right-3 p-1.5 text-muted/20 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                      title="Hapus transaksi"
+                    >
+                      <X size={14} strokeWidth={2.5} />
+                    </button>
+                  )}
 
                   <div className="flex items-center gap-4">
                     <div className="w-[50px] h-[50px] rounded-2xl bg-ivory flex items-center justify-center text-midnight border border-midnight/5 shadow-sm">
