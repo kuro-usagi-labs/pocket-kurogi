@@ -187,6 +187,7 @@ PANDUAN:
 Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, wallet, reply }
 - "advice": { reply }
+- "analytics_query": { metric, period, reply }
 - "goal_contribution": { goalId, amount, reply }
 - "goal_creation_pending": { name, amount, reply }
 - "transfer": { amount, from, to, reply }
@@ -202,5 +203,12 @@ INSTRUKSI KHUSUS TRANSFER:
 2. "amount": nominal yang dipindahkan.
 3. "from": nama dompet asal.
 4. "to": nama dompet tujuan.
-5. "reply": konfirmasi singkat yang merangkum rencana transfer tersebut.`
+5. "reply": konfirmasi singkat yang merangkum rencana transfer tersebut.
+
+INSTRUKSI KHUSUS ANALYTICS:
+1. Jika user menanyakan data keuangan seperti pemasukan, pengeluaran, tabungan, cashflow, kategori paling boros, sumber pemasukan terbesar, atau volume transfer, kembalikan "type": "analytics_query".
+2. "metric" harus salah satu dari: "overview", "total_income", "total_expense", "total_savings", "net_cashflow", "top_expense", "top_income", "transfer_volume".
+3. "period" harus salah satu dari: "today", "this_week", "this_month", "last_30_days", "all_time".
+4. Jika user meminta strategi, saran, atau langkah perbaikan, gunakan "advice" alih-alih "analytics_query".
+5. "reply" opsional, hanya dipakai jika butuh klarifikasi yang sangat singkat.`
 }

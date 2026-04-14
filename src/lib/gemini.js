@@ -52,8 +52,9 @@ async function callAnalyzerFunction(text, imageBase64, walletNames, financialCon
 
 function analyzeWithRegex(text, walletNames) {
   let normalizedText = text.toLowerCase().trim()
+  const analyticsQuery = detectAnalyticsQuery(normalizedText)
 
-  if (/(tabungan|milestone|target)/i.test(normalizedText)) {
+  if (!analyticsQuery && /(tabungan|milestone|target)/i.test(normalizedText)) {
     return { type: 'unknown' }
   }
 
@@ -92,14 +93,21 @@ function analyzeWithRegex(text, walletNames) {
   }
 
   if (
-    /^(cek|berapa|lihat|tampilkan)\s+(saldo|sisa|uang|total)/i.test(normalizedText) ||
+    !/(pengeluaran|pemasukan|tabungan|cashflow|arus kas|transfer)/i.test(normalizedText) &&
+    (
+      /^(cek|berapa|lihat|tampilkan)\s+(saldo|sisa|uang|total)/i.test(normalizedText) ||
     /saldo \w+ berapa/i.test(normalizedText)
+    )
   ) {
     const walletMatch = walletNames.find((wallet) => normalizedText.includes(wallet.toLowerCase()))
     return {
       type: 'check_balance',
       target: walletMatch || 'all',
     }
+  }
+
+  if (analyticsQuery) {
+    return analyticsQuery
   }
 
   if (/^(buat|bikin|tambah|create)\s+(dompet|rekening|wallet)/i.test(normalizedText)) {
@@ -208,4 +216,82 @@ function analyzeWithRegex(text, walletNames) {
     category,
     wallet,
   }
+}
+
+function detectAnalyticsQuery(normalizedText) {
+  if (!normalizedText) {
+    return null
+  }
+
+  if (/(tips|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|bantu saya atur)/i.test(normalizedText)) {
+    return null
+  }
+
+  const metric = detectAnalyticsMetric(normalizedText)
+
+  if (!metric) {
+    return null
+  }
+
+  return {
+    type: 'analytics_query',
+    metric,
+    period: detectAnalyticsPeriod(normalizedText),
+  }
+}
+
+function detectAnalyticsMetric(normalizedText) {
+  if (/(paling boros|boros di mana|pengeluaran terbesar|kategori terbesar|spending terbesar|paling banyak habis)/i.test(normalizedText)) {
+    return 'top_expense'
+  }
+
+  if (/(pemasukan terbesar|uang masuk terbesar|income terbesar|masuk paling banyak dari mana|sumber pemasukan terbesar)/i.test(normalizedText)) {
+    return 'top_income'
+  }
+
+  if (/(total pengeluaran|pengeluaran berapa|keluar berapa|habis berapa|expense berapa)/i.test(normalizedText)) {
+    return 'total_expense'
+  }
+
+  if (/(total pemasukan|pemasukan berapa|uang masuk berapa|income berapa|masuk berapa)/i.test(normalizedText)) {
+    return 'total_income'
+  }
+
+  if (/(tabungan berapa|sudah nabung berapa|alokasi tabungan|savings berapa|berapa yang disisihkan)/i.test(normalizedText)) {
+    return 'total_savings'
+  }
+
+  if (/(cashflow|arus kas|net cashflow|saldo bersih|sisa bersih)/i.test(normalizedText)) {
+    return 'net_cashflow'
+  }
+
+  if (/(transfer berapa|total transfer|volume transfer)/i.test(normalizedText)) {
+    return 'transfer_volume'
+  }
+
+  if (/(ringkas|ringkasan|summary|overview|laporan|kondisi keuangan|kondisi uang|situasi keuangan|gimana keuangan|bagaimana keuangan|rekap keuangan)/i.test(normalizedText)) {
+    return 'overview'
+  }
+
+  return null
+}
+
+function detectAnalyticsPeriod(normalizedText) {
+  if (/(hari ini|today)/i.test(normalizedText)) {
+    return 'today'
+  }
+
+  if (/(minggu ini|pekan ini|7 hari terakhir|seminggu terakhir)/i.test(normalizedText)) {
+    return 'this_week'
+  }
+
+  if (/(bulan ini|month to date|mtd)/i.test(normalizedText)) {
+    return 'this_month'
+  }
+
+  if (/(30 hari|30 hari terakhir|sebulan terakhir)/i.test(normalizedText)) {
+    return 'last_30_days'
+  }
+
+  return 'all_time'
 }

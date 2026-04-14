@@ -19,6 +19,13 @@ export function useAdvisor({
           percentage: Number(category.percentage || 0),
         }))
       : []
+    const topIncomeCategories = Array.isArray(analytics.topIncomeCategories)
+      ? analytics.topIncomeCategories.map((category) => ({
+          name: category.name,
+          amount: Number(category.amount || 0),
+          percentage: Number(category.percentage || 0),
+        }))
+      : []
     const categoryTotals = Object.fromEntries(
       topCategories.map((category) => [category.name, Number(category.amount || 0)])
     )
@@ -33,6 +40,7 @@ export function useAdvisor({
 
     const potentialSubscriptions = []
     const transactionsBySignature = {}
+    const recentActivity = []
 
     transactions
       .filter((transaction) => transaction.analyticsBucket === 'expense')
@@ -44,6 +52,12 @@ export function useAdvisor({
         }
       })
 
+    transactions.slice(0, 5).forEach((transaction) => {
+      recentActivity.push(
+        `${transaction.type}:${transaction.desc}:${transaction.amount}:${transaction.category}:${transaction.date}`
+      )
+    })
+
     return {
       totalBalance,
       totalIncome,
@@ -53,6 +67,7 @@ export function useAdvisor({
       transferVolume: Number(analytics.transferVolume || 0),
       savingsRate: totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0,
       topCategories,
+      topIncomeCategories,
       activeWallets: wallets.map((wallet) => `${wallet.name}: ${wallet.current_balance}`).join(', '),
       goals: goals.map(
         (goal) => `${goal.name} (${Math.round((goal.current_amount / goal.target_amount) * 100)}% tercapai)`
@@ -61,6 +76,7 @@ export function useAdvisor({
       budgetAlerts,
       subscriptions: potentialSubscriptions,
       activeGoals: goals.map((goal) => ({ id: goal.id, name: goal.name })),
+      recentActivity,
     }
   }, [analytics, budgets, goals, totalBalance, transactions, wallets])
 
@@ -75,12 +91,15 @@ STATUS KEUANGAN USER SAAT INI:
 - Pengeluaran Tercatat: Rp ${financialStats.totalExpense}
 - Alokasi Tabungan: Rp ${financialStats.totalSavings}
 - Net Cashflow: Rp ${financialStats.netCashflow}
+- Volume Transfer Internal: Rp ${financialStats.transferVolume}
 - Rasio Tabungan: ${financialStats.savingsRate.toFixed(1)}%
 - Dompet: ${financialStats.activeWallets}
 - Target Tabungan (Goals): ${financialStats.goals.join(', ') || 'Belum ada'}
 - Pengeluaran Terbesar: ${financialStats.topCategories[0] ? `${financialStats.topCategories[0].name} (Rp ${financialStats.topCategories[0].amount})` : 'Belum ada'}
+- Pemasukan Terbesar: ${financialStats.topIncomeCategories[0] ? `${financialStats.topIncomeCategories[0].name} (Rp ${financialStats.topIncomeCategories[0].amount})` : 'Belum ada'}
 - ALERT BUDGET (>80%): ${financialStats.budgetAlerts.map((alert) => `${alert.name}: ${alert.percent.toFixed(0)}% used`).join(', ') || 'Semua aman'}
 - DETEKSI SUBSCRIPTION: ${financialStats.subscriptions.join(', ') || 'Tidak terdeteksi'}
+- AKTIVITAS TERBARU: ${financialStats.recentActivity.join(' | ') || 'Belum ada'}
   `.trim()
 
   return {

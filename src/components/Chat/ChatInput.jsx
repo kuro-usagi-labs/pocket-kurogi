@@ -120,7 +120,7 @@ export default function ChatInput({ onSend, isTyping }) {
           <input
             type="text"
             className="w-full bg-transparent border-none focus:ring-0 text-midnight font-inter placeholder:text-midnight/30 px-2 text-[14.5px] outline-none font-medium"
-            placeholder={isListening ? "Mendengarkan..." : "Instruksikan transaksi..."}
+            placeholder={isListening ? "Mendengarkan..." : "Catat transaksi atau tanya kondisi uangmu..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isListening}

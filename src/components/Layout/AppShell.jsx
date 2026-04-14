@@ -17,6 +17,7 @@ import DesktopRightPanel from './DesktopRightPanel'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
+import { buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
 
 export default function AppShell() {
   const {
@@ -49,7 +50,7 @@ export default function AppShell() {
   } = useGoals()
   const { budgets } = useBudgets()
   const { messages, saveMessage } = useChat()
-  const { analytics, refetch: refetchAnalytics } = useAnalytics()
+  const { analytics, getSnapshot, refetch: refetchAnalytics } = useAnalytics()
 
   const advisor = useAdvisor({
     wallets,
@@ -283,6 +284,36 @@ export default function AppShell() {
               desc: analysis.desc,
             },
           }
+        } else if (analysis.type === 'analytics_query') {
+          const timeframe = resolveAnalyticsTimeframe(analysis.period)
+          const snapshotResult =
+            timeframe.key === 'all_time'
+              ? { data: analytics, error: null }
+              : await getSnapshot({
+                  startAt: timeframe.startAt,
+                  endAt: timeframe.endAt,
+                })
+
+          if (snapshotResult.error) {
+            throw snapshotResult.error
+          }
+
+          botResponse = {
+            sender: 'bot',
+            text:
+              buildAnalyticsReply({
+                query: {
+                  ...analysis,
+                  periodLabel: timeframe.label,
+                },
+                snapshot: snapshotResult.data,
+                formatRupiah,
+                goals,
+              }) ||
+              analysis.reply ||
+              'Saya belum bisa membaca ringkasan data untuk pertanyaan itu saat ini.',
+            time: currentTime,
+          }
         } else if (analysis.type === 'advice') {
           botResponse = {
             sender: 'bot',
@@ -495,6 +526,7 @@ export default function AppShell() {
       addGoal,
       addTransaction,
       addWallet,
+      analytics,
       clearAllTransactions,
       clearAllWallets,
       clearTransactionsInRange,
@@ -504,6 +536,7 @@ export default function AppShell() {
       findCategory,
       formatRupiah,
       getContextString,
+      getSnapshot,
       goals,
       hardDeleteWallet,
       isTyping,
@@ -586,7 +619,7 @@ export default function AppShell() {
                             {
                               id: 'welcome',
                               sender: 'bot',
-                              text: 'Halo! Saya asisten keuangan Anda. Ada transaksi yang ingin dicatat hari ini?',
+                              text: 'Halo! Saya asisten keuangan Anda. Anda bisa mencatat transaksi atau langsung bertanya seperti "bulan ini boros di mana?"',
                               time: new Date().toLocaleTimeString('id-ID', {
                                 hour: '2-digit',
                                 minute: '2-digit',
