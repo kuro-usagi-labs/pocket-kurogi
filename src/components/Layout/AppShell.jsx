@@ -107,6 +107,14 @@ export default function AppShell() {
 
               if (error) throw error;
 
+              // Deduct from wallet if there's an initial amount
+              if (pendingAction.payload.amount > 0) {
+                const sourceWallet = wallets.find(w => w.name.toLowerCase() === 'tunai') || wallets[0];
+                if (sourceWallet) {
+                  await updateBalance(sourceWallet.id, pendingAction.payload.amount, 'expense');
+                }
+              }
+
               botResponse = {
                 id: Date.now() + 1,
                 sender: 'bot',
@@ -266,6 +274,13 @@ export default function AppShell() {
           const { goalId, amount, reply } = analysis
           const { error } = await updateGoalProgress(goalId, amount)
           if (error) throw error
+
+          // Deduct from source wallet
+          const sourceWallet = wallets.find(w => w.name.toLowerCase() === 'tunai') || wallets[0];
+          if (sourceWallet) {
+            await updateBalance(sourceWallet.id, amount, 'expense');
+          }
+
           botResponse = {
             id: Date.now() + 1,
             sender: 'bot',
