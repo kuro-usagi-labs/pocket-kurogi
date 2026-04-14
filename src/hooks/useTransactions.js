@@ -276,27 +276,21 @@ export function useTransactions() {
   const clearTransactionsInRange = useCallback(async (startDate, endDate) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('user_id', user.id)
-      .gte('occurred_at', startDate)
-      .lte('occurred_at', endDate)
-
-    if (!error) fetchTransactions()
-    return { error }
-  }, [fetchTransactions, user])
+    return {
+      error: new Error(
+        `Riwayat ledger untuk ${startDate} hingga ${endDate} tidak bisa dihapus massal karena akan merusak saldo dan analytics.`
+      ),
+    }
+  }, [user])
 
   const clearAllTransactions = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (!error) setTransactions([])
-    return { error }
+    return {
+      error: new Error(
+        'Riwayat ledger tidak bisa dihapus massal. Hapus transaksi satu per satu agar saldo ikut direvert dengan aman.'
+      ),
+    }
   }, [user])
 
   const transferBetweenWallets = useCallback(async ({ fromWalletId, toWalletId, amount, description }) => {

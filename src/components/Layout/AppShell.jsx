@@ -25,7 +25,6 @@ export default function AppShell() {
     totalBalance,
     addWallet,
     deleteWallet,
-    hardDeleteWallet,
     clearAllWallets,
     refetch: refetchWallets,
   } = useWallets()
@@ -141,10 +140,9 @@ export default function AppShell() {
             const { type, payload: pendingPayload } = pendingAction
 
             if (type === 'delete_wallet') {
-              const { error } = await hardDeleteWallet(pendingPayload.id)
+              const { error } = await deleteWallet(pendingPayload.id)
               if (error) throw error
               await syncFinancialViews({
-                transactions: true,
                 analytics: true,
               })
             } else if (type === 'bulk_delete_wallets') {
@@ -347,41 +345,24 @@ export default function AppShell() {
           setPendingAction({
             type: 'delete_wallet',
             payload: { id: walletToDelete.id },
-            successMessage: `Dompet ${walletToDelete.name} telah dihapus permanen.`,
+            successMessage: `Dompet ${walletToDelete.name} telah diarsipkan.`,
           })
 
           botResponse = {
             sender: 'bot',
-            text: `Anda yakin ingin menghapus dompet ${walletToDelete.name} secara permanen? Data saldonya akan ikut terhapus.\n\nKetik "Ya" untuk konfirmasi.`,
+            text: `Anda yakin ingin mengarsipkan dompet ${walletToDelete.name}? Dompet hanya bisa diarsipkan saat saldonya sudah nol.\n\nKetik "Ya" untuk konfirmasi.`,
             time: currentTime,
           }
         } else if (analysis.type === 'bulk_delete_wallets') {
-          setPendingAction({
-            type: 'bulk_delete_wallets',
-            payload: {},
-            successMessage: 'Seluruh dompet Anda telah dikosongkan.',
-          })
-
           botResponse = {
             sender: 'bot',
-            text: 'Tunggu sebentar, Anda yakin ingin menghapus SEMUA dompet? Tindakan ini tidak dapat dibatalkan.\n\nKetik "Ya" untuk konfirmasi.',
+            text: 'Dompet tidak bisa dihapus massal lagi. Jika ada dompet yang sudah tidak dipakai, pindahkan dulu saldonya sampai nol lalu arsipkan satu per satu agar ledger tetap aman.',
             time: currentTime,
           }
         } else if (analysis.type === 'bulk_delete_transactions') {
-          const rangeInfo =
-            analysis.startDate && analysis.endDate
-              ? `periode ${analysis.startDate} hingga ${analysis.endDate}`
-              : 'seluruh riwayat'
-
-          setPendingAction({
-            type: 'bulk_delete_transactions',
-            payload: { startDate: analysis.startDate, endDate: analysis.endDate },
-            successMessage: `Riwayat transaksi ${rangeInfo} telah dihapus.`,
-          })
-
           botResponse = {
             sender: 'bot',
-            text: `Anda yakin ingin menghapus ${rangeInfo}? Saldo dompet tidak akan terpengaruh.\n\nKetik "Ya" untuk konfirmasi.`,
+            text: 'Riwayat ledger tidak bisa dihapus massal lagi karena itu bisa membuat saldo dompet dan analytics tidak sinkron. Jika ada transaksi yang salah, hapus satu per satu dari riwayat agar saldo ikut direvert dengan aman.',
             time: currentTime,
           }
         } else if (analysis.type === 'check_balance') {
@@ -538,7 +519,6 @@ export default function AppShell() {
       getContextString,
       getSnapshot,
       goals,
-      hardDeleteWallet,
       isTyping,
       pendingAction,
       saveMessage,
@@ -558,9 +538,32 @@ export default function AppShell() {
   }
 
   const handleDeleteGoal = async (id) => {
-    if (window.confirm('Hapus target milestone ini?')) {
-      const { error } = await deleteGoal(id)
-      if (error) console.error('Error deleting goal:', error)
+    const targetGoal = goals.find((goal) => goal.id === id)
+    const preferredWallet = wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0] || null
+    const refundAmount = Number(targetGoal?.current_amount || 0)
+    const refundTargetName = preferredWallet?.name || 'Tunai'
+    const confirmationMessage = refundAmount > 0
+      ? `Hapus target milestone ini dan kembalikan ${formatRupiah(refundAmount)} ke dompet ${refundTargetName}?`
+      : 'Hapus target milestone ini?'
+
+    if (window.confirm(confirmationMessage)) {
+      const { error, walletHandled, ledgerHandled } = await deleteGoal({
+        goalId: id,
+        walletId: refundAmount > 0 ? preferredWallet?.id || null : null,
+      })
+
+      if (error) {
+        console.error('Error deleting goal:', error)
+        return
+      }
+
+      if (walletHandled || ledgerHandled) {
+        await syncFinancialViews({
+          wallets: true,
+          transactions: true,
+          analytics: true,
+        })
+      }
     }
   }
 
@@ -580,7 +583,11 @@ export default function AppShell() {
   }
 
   const handleDeleteWallet = async (id) => {
-    await deleteWallet(id)
+    const { error } = await deleteWallet(id)
+
+    if (error) {
+      window.alert(error.message || 'Dompet belum bisa diarsipkan.')
+    }
   }
 
   return (

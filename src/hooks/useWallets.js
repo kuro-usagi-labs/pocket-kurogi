@@ -95,48 +95,41 @@ export function useWallets() {
   const deleteWallet = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
-      .from('wallets')
-      .update({ is_archived: true })
-      .eq('id', id)
-      .eq('user_id', user.id)
+    const rpcResult = await supabase.rpc('archive_wallet_safely', {
+      p_wallet_id: id,
+    })
 
-    if (!error) {
-      setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+    if (!rpcResult.error) {
+      await fetchWallets()
+      return { error: null }
     }
 
-    return { error }
-  }, [user])
+    return { error: rpcResult.error }
+  }, [fetchWallets, user])
 
   const hardDeleteWallet = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
-      .from('wallets')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
+    const rpcResult = await supabase.rpc('delete_wallet_permanently_safe', {
+      p_wallet_id: id,
+    })
 
-    if (!error) {
-      setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+    if (!rpcResult.error) {
+      await fetchWallets()
+      return { error: null }
     }
 
-    return { error }
-  }, [user])
+    return { error: rpcResult.error }
+  }, [fetchWallets, user])
 
   const clearAllWallets = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
-      .from('wallets')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (!error) {
-      setWallets([])
+    return {
+      error: new Error(
+        'Dompet tidak bisa dihapus massal. Arsipkan satu per satu setelah saldonya dipindahkan agar ledger tetap aman.'
+      ),
     }
-
-    return { error }
   }, [user])
 
   const updateBalance = useCallback(async (walletId, amount, type) => {

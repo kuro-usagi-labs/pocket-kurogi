@@ -60,7 +60,7 @@ export function buildAnalyticsReply({
   } = snapshot || {}
 
   const periodLabel = query?.periodLabel || PERIOD_LABELS[query?.period] || PERIOD_LABELS.all_time
-  const totalTracked = totalIncome + totalExpense + totalSavings + transferVolume
+  const totalTracked = totalIncome + totalExpense + Math.abs(totalSavings) + transferVolume
 
   if (totalTracked <= 0) {
     return `Belum ada data ledger untuk ${periodLabel}. Coba catat transaksi dulu, lalu tanya lagi supaya saya bisa membacakan polanya.`
@@ -91,10 +91,12 @@ export function buildAnalyticsReply({
         formatRupiah,
       })}`
     case 'total_savings':
-      return `Alokasi tabungan untuk ${periodLabel} tercatat ${formatRupiah(totalSavings)}.${formatGoalHint(
-        nextGoal,
-        formatRupiah
-      )}`
+      return totalSavings >= 0
+        ? `Alokasi tabungan untuk ${periodLabel} tercatat ${formatRupiah(totalSavings)}.${formatGoalHint(
+            nextGoal,
+            formatRupiah
+          )}`
+        : `Dana tabungan bersih untuk ${periodLabel} berkurang ${formatRupiah(Math.abs(totalSavings))} karena ada pengembalian dari target yang ditutup.`
     case 'net_cashflow':
       return `Net cashflow untuk ${periodLabel} adalah ${formatSignedCurrency(netCashflow, formatRupiah)}. ${buildCashflowComment(
         netCashflow,

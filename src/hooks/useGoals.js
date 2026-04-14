@@ -118,20 +118,27 @@ export function useGoals() {
     [fetchGoals, user]
   )
 
-  const deleteGoal = useCallback(async (id) => {
-    if (!user) return { error: 'Not authenticated' }
-
-    const { error } = await supabase
-      .from('goals')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
-
-    if (!error) {
-      setGoals((prev) => prev.filter((goal) => goal.id !== id))
+  const deleteGoal = useCallback(async ({ goalId, walletId = null }) => {
+    if (!user) {
+      return { data: null, error: 'Not authenticated', walletHandled: false, ledgerHandled: false }
     }
 
-    return { error }
+    const rpcResult = await supabase.rpc('delete_goal_and_restore_funds', {
+      p_goal_id: goalId,
+      p_wallet_id: walletId,
+    })
+
+    if (!rpcResult.error) {
+      setGoals((prev) => prev.filter((goal) => goal.id !== goalId))
+      return {
+        data: rpcResult.data,
+        error: null,
+        walletHandled: Number(rpcResult.data?.refunded_amount || 0) > 0,
+        ledgerHandled: Number(rpcResult.data?.refunded_amount || 0) > 0,
+      }
+    }
+
+    return { data: null, error: rpcResult.error, walletHandled: false, ledgerHandled: false }
   }, [user])
 
   return {
