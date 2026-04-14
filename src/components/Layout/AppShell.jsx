@@ -24,9 +24,10 @@ export default function AppShell() {
   const { wallets, totalBalance, addWallet, deleteWallet, hardDeleteWallet, clearAllWallets, updateBalance } = useWallets()
   const { transactions, totalIncome, totalExpense, addTransaction, deleteTransaction, clearTransactionsInRange, clearAllTransactions } = useTransactions()
   const { findCategory } = useCategories()
+  const { goals, addGoal, updateGoalProgress, deleteGoal } = useGoals()
+  const { budgets } = useBudgets()
   const advisor = useAdvisor()
   const { getContextString, totalGoalsBalance, grandTotalBalance } = advisor
-
   const { messages, saveMessage } = useChat()
 
   const [activeTab, setActiveTab] = useState('chat')
