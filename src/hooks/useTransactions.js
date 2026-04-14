@@ -94,8 +94,8 @@ export function useTransactions() {
     return { data: null, error }
   }
 
-  const totalIncome = transactions.filter((t) => t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
-  const totalExpense = transactions.filter((t) => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
+  const totalIncome = transactions.filter((t) => t.type?.toLowerCase() === 'income').reduce((acc, t) => acc + t.amount, 0)
+  const totalExpense = transactions.filter((t) => t.type?.toLowerCase() === 'expense').reduce((acc, t) => acc + t.amount, 0)
 
   const deleteTransaction = async (id) => {
     if (!user) return { error: 'Not authenticated' }

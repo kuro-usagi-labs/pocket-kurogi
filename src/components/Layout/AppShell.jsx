@@ -158,8 +158,11 @@ export default function AppShell() {
             walletId: finalWalletId,
             categoryId: matchedCategory?.id || null,
           })
+
+          if (!txError) {
+            await updateBalance(finalWalletId, analysis.amount, analysis.transactionType.toLowerCase());
+          }
           if (txError) throw txError;
-          await updateBalance(finalWalletId, analysis.amount, analysis.transactionType);
 
           const walletDisplayName = (analysis.wallet || 'Dompet').toUpperCase();
           botResponse = {
