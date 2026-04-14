@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const AuthContext = createContext({})
+const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -9,21 +9,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession)
+      setUser(currentSession?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        setLoading(false)
-      }
-    )
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      setSession(currentSession)
+      setUser(currentSession?.user ?? null)
+      setLoading(false)
+    })
 
     return () => subscription.unsubscribe()
   }, [])
@@ -48,17 +46,21 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
-  const value = {
-    user,
-    session,
-    loading,
-    signUp,
-    signInWithPassword,
-    signInWithMagicLink,
-    signOut,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        signUp,
+        signInWithPassword,
+        signInWithMagicLink,
+        signOut,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

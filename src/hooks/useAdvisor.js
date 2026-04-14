@@ -1,50 +1,48 @@
 import { useMemo } from 'react'
-import { useWallets } from './useWallets'
-import { useTransactions } from './useTransactions'
-import { useGoals } from './useGoals'
-import { useBudgets } from './useBudgets'
 
-export function useAdvisor() {
-  const { wallets, totalBalance } = useWallets()
-  const { transactions, totalIncome, totalExpense } = useTransactions()
-  const { goals } = useGoals()
-  const { budgets } = useBudgets()
-
+export function useAdvisor({
+  wallets = [],
+  totalBalance = 0,
+  transactions = [],
+  totalIncome = 0,
+  totalExpense = 0,
+  goals = [],
+  budgets = [],
+}) {
   const financialStats = useMemo(() => {
-    // 1. Category Breakdown
     const categoryTotals = {}
     transactions
-      .filter(t => t.type === 'expense')
-      .forEach(t => {
-        categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount
+      .filter((transaction) => transaction.type === 'expense')
+      .forEach((transaction) => {
+        categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount
       })
 
-    // 2. Budget Alert Analysis
-    const budgetAlerts = budgets.map(b => {
-      const spent = categoryTotals[b.categories?.name] || 0
-      const percent = b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0
-      return { name: b.categories?.name, limit: b.monthly_limit, spent, percent }
-    }).filter(a => a.percent >= 80)
+    const budgetAlerts = budgets
+      .map((budget) => {
+        const spent = categoryTotals[budget.categories?.name] || 0
+        const percent = budget.monthly_limit > 0 ? (spent / budget.monthly_limit) * 100 : 0
+        return { name: budget.categories?.name, limit: budget.monthly_limit, spent, percent }
+      })
+      .filter((alert) => alert.percent >= 80)
 
     const topCategories = Object.entries(categoryTotals)
-      .sort((a, b) => b[1] - a[1])
+      .sort((left, right) => right[1] - left[1])
       .map(([name, amount]) => ({
         name,
         amount,
-        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0
+        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
       }))
 
-    // 3. Subscription Audit: Flag items with consistent amount recurrence
     const potentialSubscriptions = []
-    const txByFrequency = {} // Key: "desc-amount"
-    
+    const transactionsBySignature = {}
+
     transactions
-      .filter(t => t.type === 'expense')
-      .forEach(t => {
-        const key = `${t.desc.toLowerCase()}-${t.amount}`
-        txByFrequency[key] = (txByFrequency[key] || 0) + 1
-        if (txByFrequency[key] === 2) {
-          potentialSubscriptions.push(t.desc)
+      .filter((transaction) => transaction.type === 'expense')
+      .forEach((transaction) => {
+        const key = `${transaction.desc.toLowerCase()}-${transaction.amount}`
+        transactionsBySignature[key] = (transactionsBySignature[key] || 0) + 1
+        if (transactionsBySignature[key] === 2) {
+          potentialSubscriptions.push(transaction.desc)
         }
       })
 
@@ -54,19 +52,20 @@ export function useAdvisor() {
       totalExpense,
       savingsRate: totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0,
       topCategories,
-      activeWallets: wallets.map(w => `${w.name}: ${w.current_balance}`).join(', '),
-      goals: goals.map(g => `${g.name} (${Math.round((g.current_amount / g.target_amount) * 100)}% tercapai)`),
-      totalGoalsBalance: goals.reduce((acc, g) => acc + Number(g.current_amount), 0),
+      activeWallets: wallets.map((wallet) => `${wallet.name}: ${wallet.current_balance}`).join(', '),
+      goals: goals.map(
+        (goal) => `${goal.name} (${Math.round((goal.current_amount / goal.target_amount) * 100)}% tercapai)`
+      ),
+      totalGoalsBalance: goals.reduce((accumulator, goal) => accumulator + Number(goal.current_amount), 0),
       budgetAlerts,
       subscriptions: potentialSubscriptions,
-      activeGoals: goals.map(g => ({ id: g.id, name: g.name }))
+      activeGoals: goals.map((goal) => ({ id: goal.id, name: goal.name })),
     }
-  }, [wallets, transactions, totalBalance, totalIncome, totalExpense, goals, budgets])
+  }, [budgets, goals, totalBalance, totalExpense, totalIncome, transactions, wallets])
 
   const grandTotalBalance = financialStats.totalBalance + financialStats.totalGoalsBalance
 
-  const getFinancialContextString = () => {
-    return `
+  const getFinancialContextString = () => `
 STATUS KEUANGAN USER SAAT INI:
 - Total Kekayaan (Wallet + Tabungan): Rp ${grandTotalBalance}
 - Saldo Likuid (Dompet): Rp ${financialStats.totalBalance}
@@ -75,14 +74,13 @@ STATUS KEUANGAN USER SAAT INI:
 - Dompet: ${financialStats.activeWallets}
 - Target Tabungan (Goals): ${financialStats.goals.join(', ') || 'Belum ada'}
 - Pengeluaran Terbesar: ${financialStats.topCategories[0] ? `${financialStats.topCategories[0].name} (Rp ${financialStats.topCategories[0].amount})` : 'Belum ada'}
-- ALERT BUDGET (>80%): ${financialStats.budgetAlerts.map(a => `${a.name}: ${a.percent.toFixed(0)}% used`).join(', ') || 'Semua aman'}
+- ALERT BUDGET (>80%): ${financialStats.budgetAlerts.map((alert) => `${alert.name}: ${alert.percent.toFixed(0)}% used`).join(', ') || 'Semua aman'}
 - DETEKSI SUBSCRIPTION: ${financialStats.subscriptions.join(', ') || 'Tidak terdeteksi'}
-    `.trim()
-  }
+  `.trim()
 
-  return { 
-    ...financialStats, 
+  return {
+    ...financialStats,
     grandTotalBalance,
-    getContextString: getFinancialContextString 
+    getContextString: getFinancialContextString,
   }
 }

@@ -8,7 +8,12 @@ export function useChat() {
   const [loading, setLoading] = useState(true)
 
   const fetchMessages = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      setMessages([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     const { data, error } = await supabase
       .from('chat_messages')
@@ -18,13 +23,19 @@ export function useChat() {
       .limit(100)
 
     if (!error && data) {
-      setMessages(data.map(m => ({
-        id: m.id,
-        sender: m.sender,
-        text: m.text,
-        time: new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-      })))
+      setMessages(
+        data.map((message) => ({
+          id: message.id,
+          sender: message.sender,
+          text: message.text,
+          time: new Date(message.created_at).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        }))
+      )
     }
+
     setLoading(false)
   }, [user])
 
@@ -32,7 +43,7 @@ export function useChat() {
     fetchMessages()
   }, [fetchMessages])
 
-  const saveMessage = async (sender, text) => {
+  const saveMessage = useCallback(async (sender, text, extras = {}) => {
     if (!user) return { error: 'Not authenticated' }
 
     const { data, error } = await supabase
@@ -40,7 +51,7 @@ export function useChat() {
       .insert({
         user_id: user.id,
         sender,
-        text
+        text,
       })
       .select()
       .single()
@@ -50,22 +61,33 @@ export function useChat() {
         id: data.id,
         sender: data.sender,
         text: data.text,
-        time: new Date(data.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        time: new Date(data.created_at).toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        ...extras,
       }
-      setMessages(prev => [...prev, formatted])
+      setMessages((prev) => [...prev, formatted])
       return { data: formatted, error: null }
     }
-    return { error }
-  }
 
-  const clearMessages = async () => {
-    if (!user) return
-    const { error } = await supabase.from('chat_messages').delete().eq('user_id', user.id)
+    return { error }
+  }, [user])
+
+  const clearMessages = useCallback(async () => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('user_id', user.id)
+
     if (!error) {
       setMessages([])
     }
+
     return { error }
-  }
+  }, [user])
 
   return { messages, loading, saveMessage, clearMessages, refetch: fetchMessages }
 }

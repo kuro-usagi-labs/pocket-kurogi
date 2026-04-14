@@ -8,7 +8,12 @@ export function useBudgets() {
   const [loading, setLoading] = useState(true)
 
   const fetchBudgets = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      setBudgets([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     const { data, error } = await supabase
       .from('budgets')
@@ -21,6 +26,7 @@ export function useBudgets() {
     if (!error && data) {
       setBudgets(data)
     }
+
     setLoading(false)
   }, [user])
 
@@ -28,33 +34,44 @@ export function useBudgets() {
     fetchBudgets()
   }, [fetchBudgets])
 
-  const setBudget = async (categoryId, monthlyLimit) => {
+  const setBudget = useCallback(async (categoryId, monthlyLimit) => {
     if (!user) return { error: 'Not authenticated' }
-    
-    // Upsert budget
+
     const { data, error } = await supabase
       .from('budgets')
-      .upsert({
-        user_id: user.id,
-        category_id: categoryId,
-        monthly_limit: monthlyLimit,
-      }, { onConflict: 'user_id,category_id' })
+      .upsert(
+        {
+          user_id: user.id,
+          category_id: categoryId,
+          monthly_limit: monthlyLimit,
+        },
+        { onConflict: 'user_id,category_id' }
+      )
       .select()
       .single()
 
     if (!error && data) {
-      fetchBudgets() // Refresh list for category names
+      fetchBudgets()
     }
-    return { data, error }
-  }
 
-  const deleteBudget = async (id) => {
-    const { error } = await supabase.from('budgets').delete().eq('id', id)
+    return { data, error }
+  }, [fetchBudgets, user])
+
+  const deleteBudget = useCallback(async (id) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+      .from('budgets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
     if (!error) {
-      setBudgets((prev) => prev.filter(b => b.id !== id))
+      setBudgets((prev) => prev.filter((budget) => budget.id !== id))
     }
+
     return { error }
-  }
+  }, [user])
 
   return { budgets, loading, setBudget, deleteBudget, refetch: fetchBudgets }
 }

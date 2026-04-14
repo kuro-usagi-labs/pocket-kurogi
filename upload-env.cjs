@@ -1,28 +1,40 @@
-const { execSync } = require('child_process');
+const { execSync } = require('child_process')
 
-const envs = {
-  VITE_SUPABASE_URL: "https://jchpigjboliantmslzwu.supabase.co",
-  VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjaHBpZ2pib2xpYW50bXNsend1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwODcyMzMsImV4cCI6MjA5MTY2MzIzM30.Fup1jte-9vGwBE3r_Z0gSyVsdtGShHQ47--ApxJCwj4",
-  VITE_GEMINI_API_KEY: "AIzaSyC9i9Vr8GSmB_zVFZM9uIslWC4rOHVuysw"
-};
+const frontendEnvKeys = [
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
+]
 
-for (const [key, val] of Object.entries(envs)) {
-  console.log(`Removing old ${key} (if exists)...`);
-  try {
-    execSync(`npx vercel env rm ${key} production preview development --yes`, { stdio: 'ignore' });
-  } catch (e) {
-    // Ignore if not exists
+for (const key of frontendEnvKeys) {
+  const value = process.env[key]
+
+  if (!value) {
+    console.error(`Missing environment variable: ${key}`)
+    process.exitCode = 1
+    continue
   }
-  
+
+  console.log(`Syncing ${key} to Vercel environments...`)
+
+  try {
+    execSync(`npx vercel env rm ${key} production preview development --yes`, {
+      stdio: 'ignore',
+    })
+  } catch (_error) {
+    // Ignore when the variable does not exist yet.
+  }
+
   for (const target of ['production', 'preview', 'development']) {
-    console.log(`Adding ${key} to ${target}...`);
     try {
-      execSync(`npx vercel env add ${key} ${target}`, { input: val });
-      console.log(`Successfully added ${key} to ${target}`);
-    } catch (e) {
-      console.error(`Failed to add ${key} to ${target}:`, e.message);
+      execSync(`npx vercel env add ${key} ${target}`, { input: value })
+      console.log(`Added ${key} to ${target}`)
+    } catch (error) {
+      console.error(`Failed to add ${key} to ${target}:`, error.message)
+      process.exitCode = 1
     }
   }
 }
 
-console.log('Finished uploading Environment Variables!');
+if (!process.exitCode) {
+  console.log('Finished uploading frontend environment variables.')
+}

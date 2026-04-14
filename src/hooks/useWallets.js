@@ -7,32 +7,9 @@ export function useWallets() {
   const [wallets, setWallets] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetchWallets = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_archived', false)
-      .order('created_at', { ascending: true })
-
-    if (!error && data) {
-      setWallets(data)
-      // Auto-initialize if empty
-      if (data.length === 0) {
-        addWallet('Tunai', 0, 'cash')
-      }
-    }
-    setLoading(false)
-  }, [user])
-
-  useEffect(() => {
-    fetchWallets()
-  }, [fetchWallets])
-
-  const addWallet = async (name, initialBalance = 0, walletType = 'cash') => {
+  const addWallet = useCallback(async (name, initialBalance = 0, walletType = 'cash') => {
     if (!user) return { error: 'Not authenticated' }
+
     const { data, error } = await supabase
       .from('wallets')
       .insert({
@@ -48,64 +25,152 @@ export function useWallets() {
     if (!error && data) {
       setWallets((prev) => [...prev, data])
     }
+
     return { data, error }
-  }
+  }, [user])
 
-  const deleteWallet = async (id) => {
-    const { error } = await supabase.from('wallets').update({ is_archived: true }).eq('id', id)
-    if (!error) {
-      setWallets((prev) => prev.filter((w) => w.id !== id))
+  const fetchWallets = useCallback(async () => {
+    if (!user) {
+      setWallets([])
+      setLoading(false)
+      return
     }
-    return { error }
-  }
 
-  const hardDeleteWallet = async (id) => {
-    const { error } = await supabase.from('wallets').delete().eq('id', id)
-    if (!error) {
-      setWallets((prev) => prev.filter((w) => w.id !== id))
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true })
+
+    if (!error && data) {
+      setWallets(data)
+      if (data.length === 0) {
+        await addWallet('Tunai', 0, 'cash')
+      }
     }
-    return { error }
-  }
 
-  const clearAllWallets = async () => {
-    if (!user) return
-    const { error } = await supabase.from('wallets').delete().eq('user_id', user.id)
+    setLoading(false)
+  }, [addWallet, user])
+
+  useEffect(() => {
+    fetchWallets()
+  }, [fetchWallets])
+
+  const deleteWallet = useCallback(async (id) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+      .from('wallets')
+      .update({ is_archived: true })
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (!error) {
+      setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+    }
+
+    return { error }
+  }, [user])
+
+  const hardDeleteWallet = useCallback(async (id) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+      .from('wallets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (!error) {
+      setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+    }
+
+    return { error }
+  }, [user])
+
+  const clearAllWallets = useCallback(async () => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+      .from('wallets')
+      .delete()
+      .eq('user_id', user.id)
+
     if (!error) {
       setWallets([])
     }
-    return { error }
-  }
 
-  const updateBalance = async (walletId, amount, type) => {
-    // Fetch latest balance from DB to avoid staleness (especially for new wallets)
+    return { error }
+  }, [user])
+
+  const updateBalance = useCallback(async (walletId, amount, type) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const normalizedAmount = Number(amount)
+    const delta = type === 'income' ? normalizedAmount : -normalizedAmount
+
+    const rpcResult = await supabase.rpc('adjust_wallet_balance', {
+      p_wallet_id: walletId,
+      p_delta: delta,
+    })
+
+    if (!rpcResult.error) {
+      const nextBalance = Number(rpcResult.data)
+      setWallets((prev) =>
+        prev.map((wallet) =>
+          wallet.id === walletId ? { ...wallet, current_balance: nextBalance } : wallet
+        )
+      )
+      return { error: null }
+    }
+
     const { data: currentWallet, error: fetchError } = await supabase
       .from('wallets')
       .select('current_balance')
       .eq('id', walletId)
+      .eq('user_id', user.id)
       .single()
 
     if (fetchError || !currentWallet) {
-      console.error('Error fetching latest balance:', fetchError)
-      return { error: fetchError }
+      return { error: fetchError ?? new Error('Wallet not found') }
     }
 
     const currentBalance = Number(currentWallet.current_balance)
-    const newBalance = type === 'income' ? currentBalance + amount : currentBalance - amount
+    const newBalance = currentBalance + delta
 
     const { error: updateError } = await supabase
       .from('wallets')
       .update({ current_balance: newBalance })
       .eq('id', walletId)
+      .eq('user_id', user.id)
 
     if (!updateError) {
       setWallets((prev) =>
-        prev.map((w) => (w.id === walletId ? { ...w, current_balance: newBalance } : w))
+        prev.map((wallet) =>
+          wallet.id === walletId ? { ...wallet, current_balance: newBalance } : wallet
+        )
       )
     }
+
     return { error: updateError }
+  }, [user])
+
+  const totalBalance = wallets.reduce(
+    (accumulator, wallet) => accumulator + Number(wallet.current_balance),
+    0
+  )
+
+  return {
+    wallets,
+    loading,
+    totalBalance,
+    addWallet,
+    deleteWallet,
+    hardDeleteWallet,
+    clearAllWallets,
+    updateBalance,
+    refetch: fetchWallets,
   }
-
-  const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance), 0)
-
-  return { wallets, loading, totalBalance, addWallet, deleteWallet, hardDeleteWallet, clearAllWallets, updateBalance, refetch: fetchWallets }
 }

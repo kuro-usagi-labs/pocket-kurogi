@@ -32,7 +32,12 @@ npm install
 
 # Configure environment
 cp .env.local.example .env.local
-# Edit .env.local with your API keys
+# Edit .env.local with your Supabase credentials
+
+# Configure Supabase backend
+# - apply SQL migration in supabase/migrations
+# - deploy Edge Function in supabase/functions/analyze-transaction
+# - set GEMINI_API_KEY in Supabase Edge Function secrets
 
 # Start development
 npm run dev
@@ -44,7 +49,8 @@ npm run dev
 |----------|-------------|
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon/publishable key |
-| `VITE_GEMINI_API_KEY` | Google Gemini 2.5 Flash API key |
+
+Gemini sekarang dipanggil dari backend Supabase Edge Function, jadi API key tidak lagi disimpan di browser bundle.
 
 ## 📂 Project Structure
 

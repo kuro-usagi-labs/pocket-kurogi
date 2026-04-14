@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
 import { Sparkles } from 'lucide-react'
-import { useAuth } from '../../contexts/AuthContext'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
@@ -15,20 +14,55 @@ import AnalyticsView from '../Analytics/AnalyticsView'
 import DesktopSidebar from './DesktopSidebar'
 import DesktopHeader from './DesktopHeader'
 import DesktopRightPanel from './DesktopRightPanel'
-
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 
 export default function AppShell() {
-  const { signOut } = useAuth()
-  const { wallets, totalBalance, addWallet, deleteWallet, hardDeleteWallet, clearAllWallets, updateBalance } = useWallets()
-  const { transactions, totalIncome, totalExpense, addTransaction, deleteTransaction, clearTransactionsInRange, clearAllTransactions } = useTransactions()
+  const {
+    wallets,
+    totalBalance,
+    addWallet,
+    deleteWallet,
+    hardDeleteWallet,
+    clearAllWallets,
+    updateBalance,
+    refetch: refetchWallets,
+  } = useWallets()
+
+  const {
+    transactions,
+    totalIncome,
+    totalExpense,
+    addTransaction,
+    deleteTransaction,
+    clearTransactionsInRange,
+    clearAllTransactions,
+    transferBetweenWallets,
+  } = useTransactions()
+
   const { findCategory } = useCategories()
-  const { goals, addGoal, updateGoalProgress, deleteGoal } = useGoals()
+  const {
+    goals,
+    addGoal,
+    updateGoalProgress,
+    contributeToGoal,
+    createGoalWithContribution,
+    deleteGoal,
+  } = useGoals()
   const { budgets } = useBudgets()
-  const advisor = useAdvisor()
-  const { getContextString, totalGoalsBalance, grandTotalBalance } = advisor
   const { messages, saveMessage } = useChat()
+
+  const advisor = useAdvisor({
+    wallets,
+    totalBalance,
+    transactions,
+    totalIncome,
+    totalExpense,
+    goals,
+    budgets,
+  })
+
+  const { getContextString, grandTotalBalance } = advisor
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
@@ -45,122 +79,162 @@ export default function AppShell() {
 
   const handleSend = useCallback(
     async (payload) => {
-      let text = '';
-      let image = null;
+      let text = ''
+      let image = null
+
       if (typeof payload === 'string') {
-        text = payload;
+        text = payload
       } else if (payload && typeof payload === 'object') {
-        text = payload.text || '';
-        image = payload.image || null;
+        text = payload.text || ''
+        image = payload.image || null
       }
 
       if ((!text && !image) || isTyping) return
 
-      await saveMessage('user', text)
+      const currentTime = new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+
+      const userMessageText = text || 'Lampiran gambar'
+      await saveMessage('user', userMessageText, image ? { image } : {})
       setIsTyping(true)
 
       try {
-        const walletNames = wallets.map((w) => w.name)
-        const goalMap = goals.map(g => `${g.name} (id: ${g.id})`).join(', ')
-        const financialContext = `${getContextString()}\nACTIVE GOALS FOR MAPPING: ${goalMap}`
+        const walletNames = wallets.map((wallet) => wallet.name)
+        const goalMap = goals.map((goal) => `${goal.name} (id: ${goal.id})`).join(', ')
+        const financialContext = `${getContextString()}\nACTIVE GOALS FOR MAPPING: ${goalMap || 'Tidak ada goal aktif'}`
         const analysis = await analyzeTransaction(text, image, walletNames, financialContext)
+
         let botResponse
 
-        // 1. Handle Pending Confirmation
         if (pendingAction) {
-          const isConfirmed = analysis.type === 'confirm' || text.toLowerCase().match(/^(ya|iy|yes|ok|siap|betul|benar)/i);
-          
+          const isConfirmed =
+            analysis.type === 'confirm' ||
+            /^(ya|iy|yes|ok|siap|betul|benar)/i.test(text.toLowerCase())
+
+          let shouldClearPendingAction = true
+
           if (isConfirmed) {
-            const { type, payload } = pendingAction;
+            const { type, payload: pendingPayload } = pendingAction
 
             if (type === 'delete_wallet') {
-              await hardDeleteWallet(payload.id);
+              const { error } = await hardDeleteWallet(pendingPayload.id)
+              if (error) throw error
             } else if (type === 'bulk_delete_wallets') {
-              await clearAllWallets();
+              const { error } = await clearAllWallets()
+              if (error) throw error
             } else if (type === 'bulk_delete_transactions') {
-              if (payload.startDate && payload.endDate) {
-                await clearTransactionsInRange(payload.startDate, payload.endDate);
-              } else {
-                await clearAllTransactions();
-              }
+              const { error } =
+                pendingPayload.startDate && pendingPayload.endDate
+                  ? await clearTransactionsInRange(pendingPayload.startDate, pendingPayload.endDate)
+                  : await clearAllTransactions()
+              if (error) throw error
             }
-            
+
             botResponse = {
-              id: Date.now() + 1,
               sender: 'bot',
               text: `Selesai. ${pendingAction.successMessage}`,
-              time: currentTime
-            };
+              time: currentTime,
+            }
           } else if (pendingAction.type === 'create_goal') {
-            const amountMatch = text.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i);
-            if (amountMatch) {
-              let targetMatch = parseFloat(amountMatch[1].replace(',', '.'));
-              const multiplier = amountMatch[2];
-              if (['k', 'rb', 'ribu'].includes(multiplier)) targetMatch *= 1000;
-              if (['jt', 'juta'].includes(multiplier)) targetMatch *= 1000000;
-              if (multiplier === 'm') targetMatch *= 1000000000;
+            const amountMatch = text.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
 
-              const { data: newGoal, error } = await addGoal({
+            if (amountMatch) {
+              let targetMatch = parseFloat(amountMatch[1].replace(',', '.'))
+              const multiplier = amountMatch[2]
+              if (['k', 'rb', 'ribu'].includes(multiplier)) targetMatch *= 1000
+              if (['jt', 'juta'].includes(multiplier)) targetMatch *= 1000000
+              if (multiplier === 'm') targetMatch *= 1000000000
+
+              const sourceWallet =
+                wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0]
+
+              const rpcGoalResult = await createGoalWithContribution({
                 name: pendingAction.payload.name,
                 targetAmount: targetMatch,
-                initialAmount: pendingAction.payload.amount
-              });
+                initialAmount: pendingAction.payload.amount,
+                walletId: pendingAction.payload.amount > 0 ? sourceWallet?.id || null : null,
+              })
 
-              if (error) throw error;
+              let newGoalName = pendingAction.payload.name
 
-              // Deduct from wallet if there's an initial amount
-              if (pendingAction.payload.amount > 0) {
-                const sourceWallet = wallets.find(w => w.name.toLowerCase() === 'tunai') || wallets[0];
-                if (sourceWallet) {
-                  await updateBalance(sourceWallet.id, pendingAction.payload.amount, 'expense');
+              if (!rpcGoalResult.error && rpcGoalResult.data) {
+                newGoalName = rpcGoalResult.data.goal_name || pendingAction.payload.name
+                if (rpcGoalResult.walletHandled) {
+                  await refetchWallets()
+                }
+              } else {
+                const { data: newGoal, error } = await addGoal({
+                  name: pendingAction.payload.name,
+                  targetAmount: targetMatch,
+                  initialAmount: pendingAction.payload.amount,
+                })
+
+                if (error) throw error
+                newGoalName = newGoal.name
+
+                if (pendingAction.payload.amount > 0 && sourceWallet) {
+                  const { error: walletError } = await updateBalance(
+                    sourceWallet.id,
+                    pendingAction.payload.amount,
+                    'expense'
+                  )
+                  if (walletError) throw walletError
+                  await refetchWallets()
                 }
               }
 
               botResponse = {
-                id: Date.now() + 1,
                 sender: 'bot',
-                text: `Sip! Tabungan **${newGoal.name}** berhasil dibuat dengan target **${formatRupiah(targetMatch)}**. Setoran awal **${formatRupiah(pendingAction.payload.amount)}** sudah dimasukkan.`,
-                time: currentTime
-              };
+                text: `Sip! Tabungan **${newGoalName}** berhasil dibuat dengan target **${formatRupiah(targetMatch)}**. Setoran awal **${formatRupiah(pendingAction.payload.amount)}** sudah dimasukkan.`,
+                time: currentTime,
+              }
             } else {
+              shouldClearPendingAction = false
               botResponse = {
-                id: Date.now() + 1,
                 sender: 'bot',
-                text: "Berapa target nominalnya? (Contoh: 50jt atau 1000000)",
-                time: currentTime
-              };
-              return; // Keep pending action
+                text: 'Berapa target nominalnya? (Contoh: 50jt atau 1000000)',
+                time: currentTime,
+              }
             }
           } else {
             botResponse = {
-              id: Date.now() + 1,
               sender: 'bot',
-              text: "Baik, operasi dibatalkan. Data Anda aman.",
-              time: currentTime
-            };
-          }
-          setPendingAction(null);
-        } 
-        // 2. Handle New Requests
-        else if (analysis.type === 'transaction') {
-          const matchedWallet = wallets.find(
-            (w) => w.name.toLowerCase() === (analysis.wallet || '').toLowerCase()
-          )
-          const matchedCategory = findCategory(analysis.category)
-          let finalWalletId = matchedWallet?.id;
-          let isNewWallet = false;
-
-          if (!finalWalletId && analysis.wallet && analysis.wallet.toLowerCase() !== 'tunai') {
-            const { data: newWallet, error: wError } = await addWallet(analysis.wallet.toUpperCase(), 0, 'bank');
-            if (!wError && newWallet) {
-              finalWalletId = newWallet.id;
-              isNewWallet = true;
+              text: 'Baik, operasi dibatalkan. Data Anda aman.',
+              time: currentTime,
             }
           }
-          if (!finalWalletId) finalWalletId = wallets[0]?.id;
-          if (!finalWalletId) throw new Error("Dompet tidak ditemukan.");
 
-          const { error: txError } = await addTransaction({
+          if (shouldClearPendingAction) {
+            setPendingAction(null)
+          }
+        } else if (analysis.type === 'transaction') {
+          const matchedWallet = wallets.find(
+            (wallet) => wallet.name.toLowerCase() === (analysis.wallet || '').toLowerCase()
+          )
+          const matchedCategory = findCategory(analysis.category)
+          let finalWalletId = matchedWallet?.id
+          let isNewWallet = false
+
+          if (!finalWalletId && analysis.wallet && analysis.wallet.toLowerCase() !== 'tunai') {
+            const { data: newWallet, error: walletError } = await addWallet(
+              analysis.wallet.toUpperCase(),
+              0,
+              'bank'
+            )
+
+            if (walletError) throw walletError
+            if (newWallet) {
+              finalWalletId = newWallet.id
+              isNewWallet = true
+            }
+          }
+
+          if (!finalWalletId) finalWalletId = wallets[0]?.id
+          if (!finalWalletId) throw new Error('Dompet tidak ditemukan.')
+
+          const { error: transactionError } = await addTransaction({
             type: analysis.transactionType,
             amount: analysis.amount,
             desc: analysis.desc,
@@ -168,215 +242,265 @@ export default function AppShell() {
             categoryId: matchedCategory?.id || null,
           })
 
-          if (!txError) {
-            await updateBalance(finalWalletId, analysis.amount, analysis.transactionType.toLowerCase());
-          }
-          if (txError) throw txError;
+          if (transactionError) throw transactionError
 
-          const walletDisplayName = (analysis.wallet || 'Dompet').toUpperCase();
+          await refetchWallets()
+
+          const walletDisplayName = (analysis.wallet || 'Dompet').toUpperCase()
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: (analysis.transactionType === 'income'
+            text:
+              (analysis.transactionType === 'income'
                 ? `Pemasukan divalidasi. Dana sebesar ${formatRupiah(analysis.amount)} dialokasikan ke ${walletDisplayName}.`
-                : `Alokasi dana diproses. ${formatRupiah(analysis.amount)} ditarik dari ${walletDisplayName}.`) + (isNewWallet ? `\n\n*(Catatan: Dompet ${walletDisplayName} baru saja dibuat otomatis)*` : ''),
+                : `Alokasi dana diproses. ${formatRupiah(analysis.amount)} ditarik dari ${walletDisplayName}.`) +
+              (isNewWallet ? `\n\n*(Catatan: Dompet ${walletDisplayName} baru saja dibuat otomatis)*` : ''),
             time: currentTime,
-            card: { type: analysis.transactionType, amount: analysis.amount, category: analysis.category || 'Lainnya', wallet: analysis.wallet || 'Tunai', desc: analysis.desc },
+            card: {
+              type: analysis.transactionType,
+              amount: analysis.amount,
+              category: analysis.category || 'Lainnya',
+              wallet: analysis.wallet || 'Tunai',
+              desc: analysis.desc,
+            },
           }
         } else if (analysis.type === 'advice') {
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: analysis.reply || "Analisa finansial tidak tersedia saat ini.",
-            time: currentTime
-          };
+            text: analysis.reply || 'Analisa finansial tidak tersedia saat ini.',
+            time: currentTime,
+          }
         } else if (analysis.type === 'undo_transaction') {
-          if (transactions.length === 0) throw new Error('Tidak ada transaksi yang bisa dibatalkan.');
-          const lastTx = transactions[0];
-          await updateBalance(lastTx.walletId, lastTx.amount, lastTx.type === 'expense' ? 'income' : 'expense');
-          await deleteTransaction(lastTx.id);
+          if (transactions.length === 0) throw new Error('Tidak ada transaksi yang bisa dibatalkan.')
+
+          const lastTransaction = transactions[0]
+          const { error } = await deleteTransaction(lastTransaction.id)
+          if (error) throw error
+
+          await refetchWallets()
+
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: `Transaksi terakhir (${lastTx.desc}) telah dibatalkan.`,
-            time: currentTime
-          };
+            text: `Transaksi terakhir (${lastTransaction.desc}) telah dibatalkan.`,
+            time: currentTime,
+          }
         } else if (analysis.type === 'delete_wallet') {
-          const walletToDelete = wallets.find(w => w.name.toLowerCase() === (analysis.wallet || '').toLowerCase());
-          if (!walletToDelete) throw new Error(`Dompet ${analysis.wallet} tidak ditemukan.`);
-          
+          const walletToDelete = wallets.find(
+            (wallet) => wallet.name.toLowerCase() === (analysis.wallet || '').toLowerCase()
+          )
+
+          if (!walletToDelete) throw new Error(`Dompet ${analysis.wallet} tidak ditemukan.`)
+
           setPendingAction({
             type: 'delete_wallet',
             payload: { id: walletToDelete.id },
-            successMessage: `Dompet ${walletToDelete.name} telah dihapus permanen.`
-          });
+            successMessage: `Dompet ${walletToDelete.name} telah dihapus permanen.`,
+          })
+
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
             text: `Anda yakin ingin menghapus dompet ${walletToDelete.name} secara permanen? Data saldonya akan ikut terhapus.\n\nKetik "Ya" untuk konfirmasi.`,
-            time: currentTime
-          };
+            time: currentTime,
+          }
         } else if (analysis.type === 'bulk_delete_wallets') {
           setPendingAction({
             type: 'bulk_delete_wallets',
             payload: {},
-            successMessage: "Seluruh dompet Anda telah dikosongkan."
-          });
+            successMessage: 'Seluruh dompet Anda telah dikosongkan.',
+          })
+
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: "Tunggu sebentar, Anda yakin ingin menghapus SEMUA dompet? Tindakan ini tidak dapat dibatalkan.\n\nKetik \"Ya\" untuk konfirmasi.",
-            time: currentTime
-          };
+            text: 'Tunggu sebentar, Anda yakin ingin menghapus SEMUA dompet? Tindakan ini tidak dapat dibatalkan.\n\nKetik "Ya" untuk konfirmasi.',
+            time: currentTime,
+          }
         } else if (analysis.type === 'bulk_delete_transactions') {
-          const rangeInfo = analysis.startDate && analysis.endDate ? `periode ${analysis.startDate} hingga ${analysis.endDate}` : "seluruh riwayat";
+          const rangeInfo =
+            analysis.startDate && analysis.endDate
+              ? `periode ${analysis.startDate} hingga ${analysis.endDate}`
+              : 'seluruh riwayat'
+
           setPendingAction({
             type: 'bulk_delete_transactions',
             payload: { startDate: analysis.startDate, endDate: analysis.endDate },
-            successMessage: `Riwayat transaksi ${rangeInfo} telah dihapus.`
-          });
+            successMessage: `Riwayat transaksi ${rangeInfo} telah dihapus.`,
+          })
+
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: `Anda yakin ingin menghapus ${rangeInfo}? Saldo dompet tidak akan terpengaruh.\n\nKetik \"Ya\" untuk konfirmasi.`,
-            time: currentTime
-          };
+            text: `Anda yakin ingin menghapus ${rangeInfo}? Saldo dompet tidak akan terpengaruh.\n\nKetik "Ya" untuk konfirmasi.`,
+            time: currentTime,
+          }
         } else if (analysis.type === 'check_balance') {
           if (analysis.target === 'all') {
             botResponse = {
-              id: Date.now() + 1,
               sender: 'bot',
               text: `Total gabungan saldo Anda adalah ${formatRupiah(totalBalance)}.`,
-              time: currentTime
-            };
-          } else {
-            const matchedWallet = wallets.find(w => w.name.toLowerCase().includes(analysis.target.toLowerCase()));
-            if (matchedWallet) {
-              botResponse = {
-                id: Date.now() + 1,
-                sender: 'bot',
-                text: `Saldo di dompet ${matchedWallet.name} adalah ${formatRupiah(matchedWallet.balance || 0)}.`,
-                time: currentTime
-              };
-            } else {
-              botResponse = { id: Date.now() + 1, sender: 'bot', text: `Dompet "${analysis.target}" tidak ditemukan.`, time: currentTime };
+              time: currentTime,
             }
+          } else {
+            const matchedWallet = wallets.find((wallet) =>
+              wallet.name.toLowerCase().includes(analysis.target.toLowerCase())
+            )
+
+            botResponse = matchedWallet
+              ? {
+                  sender: 'bot',
+                  text: `Saldo di dompet ${matchedWallet.name} adalah ${formatRupiah(matchedWallet.current_balance || 0)}.`,
+                  time: currentTime,
+                }
+              : {
+                  sender: 'bot',
+                  text: `Dompet "${analysis.target}" tidak ditemukan.`,
+                  time: currentTime,
+                }
           }
         } else if (analysis.type === 'create_wallet') {
-          const { data: newWallet, error: wError } = await addWallet(analysis.name, analysis.initial_balance, analysis.wallet_type);
-          if (wError) throw wError;
+          const { data: newWallet, error: walletError } = await addWallet(
+            analysis.name,
+            analysis.initial_balance,
+            analysis.wallet_type
+          )
+
+          if (walletError) throw walletError
+
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
             text: `Dompet **${newWallet.name}** berhasil dibuat dengan saldo awal **${formatRupiah(newWallet.current_balance)}**.`,
             time: currentTime,
-          };
+          }
         } else if (analysis.type === 'goal_contribution') {
-          const { goalId, amount, reply } = analysis
-          const { error } = await updateGoalProgress(goalId, amount)
-          if (error) throw error
+          const sourceWallet =
+            wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0]
 
-          // Deduct from source wallet
-          const sourceWallet = wallets.find(w => w.name.toLowerCase() === 'tunai') || wallets[0];
-          if (sourceWallet) {
-            await updateBalance(sourceWallet.id, amount, 'expense');
+          const { goalId, amount, reply } = analysis
+          const rpcContributionResult = sourceWallet
+            ? await contributeToGoal({
+                goalId,
+                amount,
+                walletId: sourceWallet.id,
+              })
+            : { error: new Error('Dompet sumber tidak ditemukan.'), walletHandled: false }
+
+          if (!rpcContributionResult.error) {
+            if (rpcContributionResult.walletHandled) {
+              await refetchWallets()
+            }
+          } else {
+            const { error: goalError } = await updateGoalProgress(goalId, amount)
+            if (goalError) throw goalError
+
+            if (sourceWallet) {
+              const { error: walletError } = await updateBalance(sourceWallet.id, amount, 'expense')
+              if (walletError) throw walletError
+              await refetchWallets()
+            }
           }
 
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: reply || `Berhasil menambahkan Rp ${formatRupiah(amount)} ke target Anda. Milestone semakin dekat!`,
-            time: currentTime
+            text:
+              reply || `Berhasil menambahkan Rp ${formatRupiah(amount)} ke target Anda. Milestone semakin dekat!`,
+            time: currentTime,
           }
         } else if (analysis.type === 'goal_creation_pending') {
           setPendingAction({
             type: 'create_goal',
-            payload: { name: analysis.name, amount: analysis.amount }
-          });
+            payload: { name: analysis.name, amount: analysis.amount },
+          })
+
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: analysis.reply || `Wah, tabungan baru ya? Target tabungan **${analysis.name}** ini mau di-set berapa nominalnya?`,
-            time: currentTime
-          };
+            text:
+              analysis.reply ||
+              `Wah, tabungan baru ya? Target tabungan **${analysis.name}** ini mau di-set berapa nominalnya?`,
+            time: currentTime,
+          }
         } else if (analysis.type === 'transfer') {
-          const fromWallet = wallets.find(w => w.name.toLowerCase() === analysis.from?.toLowerCase());
-          const toWallet = wallets.find(w => w.name.toLowerCase() === analysis.to?.toLowerCase());
+          const fromWallet = wallets.find(
+            (wallet) => wallet.name.toLowerCase() === analysis.from?.toLowerCase()
+          )
+          const toWallet = wallets.find(
+            (wallet) => wallet.name.toLowerCase() === analysis.to?.toLowerCase()
+          )
 
-          if (!fromWallet) throw new Error(`Dompet asal "${analysis.from}" tidak ditemukan.`);
-          if (!toWallet) throw new Error(`Dompet tujuan "${analysis.to}" tidak ditemukan.`);
+          if (!fromWallet) throw new Error(`Dompet asal "${analysis.from}" tidak ditemukan.`)
+          if (!toWallet) throw new Error(`Dompet tujuan "${analysis.to}" tidak ditemukan.`)
 
-          // 1. Update balances
-          await updateBalance(fromWallet.id, analysis.amount, 'expense');
-          await updateBalance(toWallet.id, analysis.amount, 'income');
-
-          // 2. Add transaction records
-          await addTransaction({
-            type: 'expense',
+          const { error } = await transferBetweenWallets({
+            fromWalletId: fromWallet.id,
+            toWalletId: toWallet.id,
             amount: analysis.amount,
-            desc: `Transfer ke ${toWallet.name}`,
-            walletId: fromWallet.id,
-            categoryId: null
-          });
+            description: `Transfer ${fromWallet.name} ke ${toWallet.name}`,
+          })
 
-          await addTransaction({
-            type: 'income',
-            amount: analysis.amount,
-            desc: `Transfer dari ${fromWallet.name}`,
-            walletId: toWallet.id,
-            categoryId: null
-          });
+          if (error) throw error
+
+          await refetchWallets()
 
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
             text: `Transfer sebesar **${formatRupiah(analysis.amount)}** dari **${fromWallet.name}** ke **${toWallet.name}** berhasil diproses.`,
             time: currentTime,
-          };
+          }
         } else {
           botResponse = {
-            id: Date.now() + 1,
             sender: 'bot',
-            text: analysis.reply || "Maaf, permintaan tersebut kurang jelas.",
-            time: currentTime
-          };
+            text: analysis.reply || 'Maaf, permintaan tersebut kurang jelas.',
+            time: currentTime,
+          }
         }
 
         if (botResponse) {
-          await saveMessage('bot', botResponse.text)
+          await saveMessage('bot', botResponse.text, botResponse.card ? { card: botResponse.card } : {})
         }
       } catch (error) {
-        console.error('Chat Error:', error);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: 'bot',
-            text: `⚠️ Maaf, terjadi kesalahan: ${error.message || 'Gagal memproses permintaan.'}`,
-            time: currentTime,
-          },
-        ]);
+        console.error('Chat Error:', error)
+        await saveMessage(
+          'bot',
+          `Maaf, terjadi kesalahan: ${error.message || 'Gagal memproses permintaan.'}`
+        ).catch(() => null)
       } finally {
-        setIsTyping(false);
+        setIsTyping(false)
       }
     },
-    [wallets, transactions, totalBalance, findCategory, addTransaction, updateBalance, hardDeleteWallet, clearAllWallets, clearTransactionsInRange, clearAllTransactions, addWallet, formatRupiah, pendingAction, isTyping, deleteTransaction, getContextString]
+    [
+      addGoal,
+      addTransaction,
+      addWallet,
+      clearAllTransactions,
+      clearAllWallets,
+      clearTransactionsInRange,
+      contributeToGoal,
+      createGoalWithContribution,
+      deleteTransaction,
+      findCategory,
+      formatRupiah,
+      getContextString,
+      goals,
+      hardDeleteWallet,
+      isTyping,
+      pendingAction,
+      refetchWallets,
+      saveMessage,
+      totalBalance,
+      transactions,
+      transferBetweenWallets,
+      updateBalance,
+      updateGoalProgress,
+      wallets,
+    ]
   )
-
-  const { goals, addGoal, deleteGoal, updateGoalProgress } = useGoals()
-  const { budgets } = useBudgets()
 
   const handleAddGoal = async (goalData) => {
     const { error } = await addGoal(goalData)
     if (error) {
       console.error('Error adding goal:', error)
-      return
     }
   }
 
   const handleDeleteGoal = async (id) => {
     if (window.confirm('Hapus target milestone ini?')) {
-      const { error } = deleteGoal(id)
+      const { error } = await deleteGoal(id)
       if (error) console.error('Error deleting goal:', error)
     }
   }
@@ -392,14 +516,13 @@ export default function AppShell() {
   return (
     <div className="bg-champagne font-inter text-midnight overflow-hidden h-[100dvh] flex selection:bg-gold/20 selection:text-midnight">
       <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
+
       <main className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden">
         <DesktopHeader />
 
         <div className="flex-1 flex overflow-hidden">
           <section className="flex-1 flex overflow-hidden relative bg-champagne">
             <div className="w-full h-full flex flex-col relative overflow-hidden">
-              {/* Top App Bar (Mobile Only) */}
               <header className="md:hidden shrink-0 z-50 relative bg-ivory/90 backdrop-blur-xl border-b border-midnight/5 px-6 py-5 flex justify-between items-center transition-all">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-midnight flex items-center justify-center text-white shadow-md shadow-midnight/20">
@@ -416,39 +539,42 @@ export default function AppShell() {
                 </div>
               </header>
 
-              {/* Dynamic Body */}
               <div className="flex-1 relative overflow-hidden bg-transparent">
-                {/* Chat */}
                 <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
                   <ChatView
-                    messages={messages.length > 0 ? messages : [
-                      {
-                        id: 'welcome',
-                        sender: 'bot',
-                        text: 'Halo! Saya asisten keuangan Anda. Ada transaksi yang ingin dicatat hari ini?',
-                        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-                      }
-                    ]}
+                    messages={
+                      messages.length > 0
+                        ? messages
+                        : [
+                            {
+                              id: 'welcome',
+                              sender: 'bot',
+                              text: 'Halo! Saya asisten keuangan Anda. Ada transaksi yang ingin dicatat hari ini?',
+                              time: new Date().toLocaleTimeString('id-ID', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              }),
+                            },
+                          ]
+                    }
                     isTyping={isTyping}
                     onSend={handleSend}
                     formatRupiah={formatRupiah}
                   />
                 </div>
 
-                {/* History */}
                 <div
                   className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
                     activeTab === 'history' ? 'block' : 'hidden'
                   }`}
                 >
-                  <HistoryView 
-                    transactions={transactions} 
-                    formatRupiah={formatRupiah} 
-                    onDeleteTransaction={deleteTransaction} 
+                  <HistoryView
+                    transactions={transactions}
+                    formatRupiah={formatRupiah}
+                    onDeleteTransaction={deleteTransaction}
                   />
                 </div>
 
-                {/* Wallets */}
                 <div
                   className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
                     activeTab === 'wallets' ? 'block' : 'hidden'
@@ -466,7 +592,6 @@ export default function AppShell() {
                   />
                 </div>
 
-                {/* Analytics */}
                 <div
                   className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
                     activeTab === 'analytics' ? 'block' : 'hidden'
@@ -482,15 +607,16 @@ export default function AppShell() {
                 </div>
               </div>
 
-              {/* Bottom Dock */}
               <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
           </section>
 
-          <DesktopRightPanel onExecuteStrategy={(msg) => {
-            setActiveTab('chat');
-            handleSend(msg);
-          }} />
+          <DesktopRightPanel
+            onExecuteStrategy={(message) => {
+              setActiveTab('chat')
+              handleSend(message)
+            }}
+          />
         </div>
       </main>
     </div>
