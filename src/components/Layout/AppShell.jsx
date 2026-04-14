@@ -17,6 +17,7 @@ import DesktopHeader from './DesktopHeader'
 import DesktopRightPanel from './DesktopRightPanel'
 
 import { useAdvisor } from '../../hooks/useAdvisor'
+import { useChat } from '../../hooks/useChat'
 
 export default function AppShell() {
   const { signOut } = useAuth()
@@ -26,17 +27,11 @@ export default function AppShell() {
   const advisor = useAdvisor()
   const { getContextString, totalGoalsBalance, grandTotalBalance } = advisor
 
+  const { messages, saveMessage } = useChat()
+
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      text: 'Halo! Saya asisten keuangan Anda. Ada transaksi yang ingin dicatat hari ini?',
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-    },
-  ])
 
   const formatRupiah = useCallback((number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -60,12 +55,7 @@ export default function AppShell() {
 
       if ((!text && !image) || isTyping) return
 
-      const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now(), sender: 'user', text, image, time: currentTime },
-      ])
+      await saveMessage('user', text)
       setIsTyping(true)
 
       try {
@@ -334,7 +324,7 @@ export default function AppShell() {
         }
 
         if (botResponse) {
-          setMessages((prev) => [...prev, botResponse]);
+          await saveMessage('bot', botResponse.text)
         }
       } catch (error) {
         console.error('Chat Error:', error);
@@ -412,7 +402,14 @@ export default function AppShell() {
                 {/* Chat */}
                 <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
                   <ChatView
-                    messages={messages}
+                    messages={messages.length > 0 ? messages : [
+                      {
+                        id: 'welcome',
+                        sender: 'bot',
+                        text: 'Halo! Saya asisten keuangan Anda. Ada transaksi yang ingin dicatat hari ini?',
+                        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                      }
+                    ]}
                     isTyping={isTyping}
                     onSend={handleSend}
                     formatRupiah={formatRupiah}
