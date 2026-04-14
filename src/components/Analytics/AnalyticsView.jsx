@@ -58,11 +58,6 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                 Seluruh Ledger Tercatat
               </p>
             </div>
-            <div className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-              <span className="text-[9px] font-extrabold tracking-[0.18em] uppercase text-white/55 font-jakarta">
-                Live Snapshot
-              </span>
-            </div>
           </div>
 
           <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.05] p-4 sm:p-5 md:p-6 backdrop-blur-sm">
@@ -126,17 +121,9 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
       <div className="bg-white rounded-[28px] md:rounded-[32px] p-5 sm:p-6 md:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-midnight/5">
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:items-start">
-            <div>
-              <h3 className="text-[17px] font-bold font-jakarta text-midnight tracking-tight">
-                Analisa Budget
-              </h3>
-              <p className="mt-1 text-[12.5px] text-midnight/48 leading-relaxed max-w-[34rem]">
-                Pengeluaran inti disusun dari kategori terbesar agar lebih mudah membaca area yang paling berat.
-              </p>
-            </div>
-            <span className="rounded-full bg-ivory px-3 py-1.5 text-[9px] font-extrabold text-midnight/45 uppercase tracking-[0.18em] border border-midnight/5">
-              Fokus Pengeluaran Inti
-            </span>
+            <h3 className="text-[17px] font-bold font-jakarta text-midnight tracking-tight">
+              Analisa Budget
+            </h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -162,7 +149,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                 {activeBudgetCount} kategori terjaga
               </p>
               <p className="mt-1 text-[11.5px] text-midnight/45">
-                Transfer internal {formatRupiah(transferVolume)} tetap dipisah agar ringkasan tidak dobel.
+                Transfer internal {formatRupiah(transferVolume)}
               </p>
             </div>
           </div>
