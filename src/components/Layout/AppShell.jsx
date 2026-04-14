@@ -425,7 +425,11 @@ export default function AppShell() {
                     activeTab === 'history' ? 'block' : 'hidden'
                   }`}
                 >
-                  <HistoryView transactions={transactions} formatRupiah={formatRupiah} />
+                  <HistoryView 
+                    transactions={transactions} 
+                    formatRupiah={formatRupiah} 
+                    onDeleteTransaction={deleteTransaction} 
+                  />
                 </div>
 
                 {/* Wallets */}
