@@ -119,13 +119,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
 
       {/* Top Categories & Budgets */}
       <div className="bg-white rounded-[28px] md:rounded-[32px] p-5 sm:p-6 md:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-midnight/5">
-        <div className="flex flex-col gap-4 mb-6 md:mb-8">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:items-start">
-            <h3 className="text-[17px] font-bold font-jakarta text-midnight tracking-tight">
-              Analisa Budget
-            </h3>
-          </div>
-
+        <div className="flex flex-col gap-4 mb-5 md:mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-[20px] bg-ivory/70 border border-midnight/5 px-4 py-3.5">
               <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-midnight/42 font-jakarta">
