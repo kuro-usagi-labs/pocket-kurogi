@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
+const DEFAULT_GOAL_ICON = '🎯'
+
 export function useGoals() {
   const { user } = useAuth()
   const [goals, setGoals] = useState([])
@@ -35,48 +37,34 @@ export function useGoals() {
   const addGoal = useCallback(async ({ name, targetAmount, deadline, icon, initialAmount = 0 }) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { data, error } = await supabase
-      .from('goals')
-      .insert({
-        user_id: user.id,
-        name,
-        target_amount: targetAmount,
-        current_amount: initialAmount,
-        deadline,
-        icon: icon || '🎯',
-      })
-      .select()
-      .single()
+    const rpcResult = await supabase.rpc('create_goal_with_contribution', {
+      p_name: name,
+      p_target_amount: Number(targetAmount),
+      p_deadline: deadline || null,
+      p_icon: icon || DEFAULT_GOAL_ICON,
+      p_initial_amount: Number(initialAmount || 0),
+      p_wallet_id: null,
+    })
 
-    if (!error && data) {
-      setGoals((prev) => [...prev, data])
+    if (!rpcResult.error) {
+      await fetchGoals()
+      return { data: rpcResult.data, error: null }
     }
 
-    return { data, error }
-  }, [user])
-
-  const updateGoalProgress = useCallback(async (id, amountToAdd) => {
-    const goal = goals.find((currentGoal) => currentGoal.id === id)
-    if (!goal) return { error: 'Goal not found' }
-
-    const newAmount = Number(goal.current_amount) + amountToAdd
-    const { data, error } = await supabase
-      .from('goals')
-      .update({
-        current_amount: newAmount,
-        status: newAmount >= goal.target_amount ? 'completed' : 'active',
-      })
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single()
-
-    if (!error && data) {
-      setGoals((prev) => prev.map((currentGoal) => (currentGoal.id === id ? data : currentGoal)))
+    return {
+      data: null,
+      error: rpcResult.error ?? new Error('Target tidak bisa dibuat saat ini.'),
     }
+  }, [fetchGoals, user])
 
-    return { data, error }
-  }, [goals, user])
+  const updateGoalProgress = useCallback(async (id) => {
+    return {
+      data: null,
+      error: new Error(
+        `Progress target ${id} tidak bisa diubah langsung. Gunakan flow setoran target agar saldo dan ledger tetap sinkron.`
+      ),
+    }
+  }, [])
 
   const contributeToGoal = useCallback(async ({ goalId, amount, walletId }) => {
     if (!user) return { data: null, error: 'Not authenticated', walletHandled: false }
@@ -103,7 +91,7 @@ export function useGoals() {
         p_name: name,
         p_target_amount: Number(targetAmount),
         p_deadline: deadline || null,
-        p_icon: icon || '🎯',
+        p_icon: icon || DEFAULT_GOAL_ICON,
         p_initial_amount: Number(initialAmount || 0),
         p_wallet_id: walletId,
       })

@@ -55,7 +55,10 @@ function analyzeWithRegex(text, walletNames) {
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
 
   if (!analyticsQuery && /(tabungan|milestone|target)/i.test(normalizedText)) {
-    return { type: 'unknown' }
+    return {
+      type: 'unknown',
+      reply: 'Kalau ingin mengatur target, tulis dengan format seperti "tabung 200k untuk dana darurat" atau "buat target laptop 12jt".',
+    }
   }
 
   if (/^(halo|hai|hi|hey|pagi|siang|sore|malam)/.test(normalizedText) && !/\d/.test(normalizedText)) {
@@ -205,7 +208,10 @@ function analyzeWithRegex(text, walletNames) {
     !isIncome && !isExplicitExpense && category === 'lainnya' && !normalizedText.match(walletRegex)
 
   if (hasLowConfidence) {
-    return { type: 'unknown' }
+    return {
+      type: 'unknown',
+      reply: 'Formatnya belum cukup jelas. Coba tulis seperti "beli kopi 25k tunai", "gaji 5jt BCA", atau "transfer 100k dari BCA ke OVO".',
+    }
   }
 
   return {

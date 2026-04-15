@@ -87,32 +87,6 @@ export function useTransactions() {
     return { data: mapTransactionRow(data), error: null }
   }, [mapTransactionRow, user])
 
-  const adjustWalletBalanceClientSide = useCallback(async (walletId, delta) => {
-    const { data: currentWallet, error: fetchError } = await supabase
-      .from('wallets')
-      .select('current_balance')
-      .eq('id', walletId)
-      .eq('user_id', user.id)
-      .single()
-
-    if (fetchError || !currentWallet) {
-      return { data: null, error: fetchError ?? new Error('Wallet not found') }
-    }
-
-    const newBalance = Number(currentWallet.current_balance) + delta
-    const { error: updateError } = await supabase
-      .from('wallets')
-      .update({ current_balance: newBalance })
-      .eq('id', walletId)
-      .eq('user_id', user.id)
-
-    if (updateError) {
-      return { data: null, error: updateError }
-    }
-
-    return { data: newBalance, error: null }
-  }, [user])
-
   const addTransaction = useCallback(async ({
     type,
     amount,
@@ -125,7 +99,6 @@ export function useTransactions() {
 
     const normalizedType = type?.toLowerCase()
     const normalizedAmount = Number(amount)
-    const delta = normalizedType === 'income' ? normalizedAmount : -normalizedAmount
     const normalizedSource = normalizeTransactionSource(source)
     const analyticsBucket = deriveAnalyticsBucket({
       source: normalizedSource,
@@ -181,40 +154,12 @@ export function useTransactions() {
       return { data: insertedTransaction, error: null, balanceUpdated: true }
     }
 
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: user.id,
-        wallet_id: walletId,
-        category_id: categoryId || null,
-        transaction_type: normalizedType,
-        amount: normalizedAmount,
-        merchant: desc,
-        source: normalizedSource,
-        analytics_bucket: analyticsBucket,
-      })
-      .select(TRANSACTION_SELECT)
-      .single()
-
-    if (error || !data) {
-      return { data: null, error: error ?? rpcResult.error, balanceUpdated: false }
+    return {
+      data: null,
+      error: rpcResult.error ?? new Error('Transaksi tidak bisa disimpan saat ini.'),
+      balanceUpdated: false,
     }
-
-    const { error: balanceError } = await adjustWalletBalanceClientSide(walletId, delta)
-    if (balanceError) {
-      await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', data.id)
-        .eq('user_id', user.id)
-
-      return { data: null, error: balanceError, balanceUpdated: false }
-    }
-
-    const formatted = mapTransactionRow(data)
-    setTransactions((prev) => [formatted, ...prev])
-    return { data: formatted, error: null, balanceUpdated: true }
-  }, [adjustWalletBalanceClientSide, fetchTransactionById, fetchTransactions, mapTransactionRow, user])
+  }, [fetchTransactionById, fetchTransactions, user])
 
   const deleteTransaction = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated', balanceUpdated: false }
@@ -239,39 +184,11 @@ export function useTransactions() {
       return { error: null, balanceUpdated: true }
     }
 
-    const transactionToDelete = localTransaction
-
-    if (!transactionToDelete) {
-      return { error: rpcResult.error ?? new Error('Transaction not found'), balanceUpdated: false }
+    return {
+      error: rpcResult.error ?? new Error('Transaksi tidak bisa dihapus saat ini.'),
+      balanceUpdated: false,
     }
-
-    const delta = transactionToDelete.type?.toLowerCase() === 'income'
-      ? -Number(transactionToDelete.amount)
-      : Number(transactionToDelete.amount)
-
-    const { error: balanceError } = await adjustWalletBalanceClientSide(
-      transactionToDelete.walletId,
-      delta
-    )
-
-    if (balanceError) {
-      return { error: balanceError, balanceUpdated: false }
-    }
-
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
-
-    if (error) {
-      await adjustWalletBalanceClientSide(transactionToDelete.walletId, -delta)
-      return { error, balanceUpdated: false }
-    }
-
-    setTransactions((prev) => prev.filter((transaction) => transaction.id !== id))
-    return { error: null, balanceUpdated: true }
-  }, [adjustWalletBalanceClientSide, fetchTransactionById, transactions, user])
+  }, [fetchTransactionById, transactions, user])
 
   const clearTransactionsInRange = useCallback(async (startDate, endDate) => {
     if (!user) return { error: 'Not authenticated' }
@@ -310,49 +227,8 @@ export function useTransactions() {
       return { error: null }
     }
 
-    const { error: debitError } = await adjustWalletBalanceClientSide(fromWalletId, -normalizedAmount)
-    if (debitError) {
-      return { error: debitError }
-    }
-
-    const { error: creditError } = await adjustWalletBalanceClientSide(toWalletId, normalizedAmount)
-    if (creditError) {
-      await adjustWalletBalanceClientSide(fromWalletId, normalizedAmount)
-      return { error: creditError }
-    }
-
-    const { error: insertError } = await supabase
-      .from('transactions')
-      .insert([
-        {
-          user_id: user.id,
-          wallet_id: fromWalletId,
-          transaction_type: 'expense',
-          amount: normalizedAmount,
-          merchant: description || 'Transfer keluar',
-          source: 'transfer',
-          analytics_bucket: 'internal_transfer',
-        },
-        {
-          user_id: user.id,
-          wallet_id: toWalletId,
-          transaction_type: 'income',
-          amount: normalizedAmount,
-          merchant: description || 'Transfer masuk',
-          source: 'transfer',
-          analytics_bucket: 'internal_transfer',
-        },
-      ])
-
-    if (insertError) {
-      await adjustWalletBalanceClientSide(fromWalletId, normalizedAmount)
-      await adjustWalletBalanceClientSide(toWalletId, -normalizedAmount)
-      return { error: insertError }
-    }
-
-    await fetchTransactions()
-    return { error: null }
-  }, [adjustWalletBalanceClientSide, fetchTransactions, user])
+    return { error: rpcResult.error ?? new Error('Transfer tidak bisa diproses saat ini.') }
+  }, [fetchTransactions, user])
 
   const totalIncome = transactions
     .filter((transaction) => transaction.analyticsBucket === 'income')

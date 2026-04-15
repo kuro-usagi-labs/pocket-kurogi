@@ -485,7 +485,7 @@ export default function AppShell() {
         } else {
           botResponse = {
             sender: 'bot',
-            text: analysis.reply || 'Maaf, permintaan tersebut kurang jelas.',
+            text: buildUnknownInputReply(analysis.reply),
             time: currentTime,
           }
         }
@@ -497,7 +497,7 @@ export default function AppShell() {
         console.error('Chat Error:', error)
         await saveMessage(
           'bot',
-          `Maaf, terjadi kesalahan: ${error.message || 'Gagal memproses permintaan.'}`
+          buildActionErrorReply(error, { wallets, goals })
         ).catch(() => null)
       } finally {
         setIsTyping(false)
@@ -698,4 +698,61 @@ export default function AppShell() {
       </main>
     </div>
   )
+}
+
+function buildUnknownInputReply(reply) {
+  const baseReply = reply || 'Format pesannya belum cukup jelas untuk saya proses.'
+
+  return `${baseReply}\n\nCoba pakai format seperti:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"\n- "berapa pengeluaran bulan ini"`
+}
+
+function buildActionErrorReply(error, { wallets = [], goals = [] } = {}) {
+  const rawMessage = error?.message || 'Gagal memproses permintaan.'
+  const normalizedMessage = rawMessage.toLowerCase()
+  const walletExamples = wallets
+    .slice(0, 3)
+    .map((wallet) => wallet.name)
+    .filter(Boolean)
+  const goalExamples = goals
+    .slice(0, 2)
+    .map((goal) => goal.name)
+    .filter(Boolean)
+
+  if (normalizedMessage.includes('saldo dompet tidak cukup') || normalizedMessage.includes('insufficient wallet balance')) {
+    return 'Saldo dompetnya belum cukup untuk aksi itu.\n\nCoba pakai nominal yang lebih kecil atau pilih dompet lain. Contoh:\n- "beli kopi 25k tunai"\n- "transfer 50k dari BCA ke OVO"'
+  }
+
+  if (normalizedMessage.includes('dompet tidak ditemukan')) {
+    const walletLine = walletExamples.length > 0
+      ? `\n\nDompet yang tersedia saat ini: ${walletExamples.join(', ')}.`
+      : ''
+
+    return `Saya belum menemukan dompet yang dimaksud.${walletLine}\n\nCoba pakai nama dompet yang persis, misalnya:\n- "saldo ${walletExamples[0] || 'Tunai'} berapa"\n- "beli makan 30k ${walletExamples[0] || 'Tunai'}"\n- "transfer 100k dari ${walletExamples[0] || 'BCA'} ke ${walletExamples[1] || 'OVO'}"`
+  }
+
+  if (normalizedMessage.includes('nama dompet ini sudah dipakai') || normalizedMessage.includes('wallet name is already in use')) {
+    return 'Nama dompet itu sudah dipakai, jadi agar chat tidak bingung namanya perlu dibedakan.\n\nContoh yang aman:\n- "buat dompet BCA Utama 500k"\n- "buat dompet OVO Jajan 100k"'
+  }
+
+  if (normalizedMessage.includes('nama target ini sudah dipakai') || normalizedMessage.includes('goal name is already in use')) {
+    const goalLine = goalExamples.length > 0
+      ? `\n\nTarget aktif saat ini: ${goalExamples.join(', ')}.`
+      : ''
+
+    return `Nama target itu sudah dipakai.${goalLine}\n\nCoba pakai nama yang lebih spesifik, misalnya:\n- "buat target Dana Darurat 10jt"\n- "tabung 200k untuk Laptop Kerja"`
+  }
+
+  if (normalizedMessage.includes('nominal') || normalizedMessage.includes('amount') || normalizedMessage.includes('lebih besar dari nol')) {
+    return 'Nominalnya belum kebaca dengan benar.\n\nCoba pakai format seperti:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"'
+  }
+
+  if (normalizedMessage.includes('target tidak ditemukan') || normalizedMessage.includes('goal not found')) {
+    const goalLine = goalExamples.length > 0
+      ? `\n\nTarget aktif saat ini: ${goalExamples.join(', ')}.`
+      : ''
+
+    return `Saya belum menemukan target yang dimaksud.${goalLine}\n\nCoba pakai nama target yang persis, misalnya:\n- "tabung 200k untuk ${goalExamples[0] || 'dana darurat'}"\n- "buat target laptop 12jt"`
+  }
+
+  return `${rawMessage}\n\nContoh input yang bisa dicoba:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"`
 }

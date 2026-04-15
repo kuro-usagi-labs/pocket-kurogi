@@ -33,34 +33,41 @@ export function useWallets() {
       const { data: insertedWallet, error: fetchError } = await fetchWalletById(rpcResult.data.wallet_id)
 
       if (fetchError || !insertedWallet) {
-        return { data: null, error: fetchError ?? new Error('Wallet created but could not be loaded.') }
+        const fallbackWallet = {
+          id: rpcResult.data.wallet_id,
+          user_id: user.id,
+          name: rpcResult.data.wallet_name || name,
+          wallet_type: rpcResult.data.wallet_type || walletType,
+          initial_balance: Number(rpcResult.data.initial_balance ?? normalizedInitialBalance),
+          current_balance: Number(rpcResult.data.current_balance ?? normalizedInitialBalance),
+          tone: rpcResult.data.tone || '#0F172A',
+          is_archived: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        setWallets((prev) => (
+          prev.some((wallet) => wallet.id === fallbackWallet.id)
+            ? prev
+            : [...prev, fallbackWallet]
+        ))
+
+        return { data: fallbackWallet, error: null, ledgerCreated: normalizedInitialBalance > 0 }
       }
 
-      setWallets((prev) => [...prev, insertedWallet])
+      setWallets((prev) => (
+        prev.some((wallet) => wallet.id === insertedWallet.id)
+          ? prev
+          : [...prev, insertedWallet]
+      ))
       return { data: insertedWallet, error: null, ledgerCreated: normalizedInitialBalance > 0 }
     }
 
-    if (normalizedInitialBalance > 0) {
-      return { data: null, error: rpcResult.error ?? new Error('Wallet opening balance failed.'), ledgerCreated: false }
+    return {
+      data: null,
+      error: rpcResult.error ?? new Error('Dompet tidak bisa dibuat saat ini.'),
+      ledgerCreated: false,
     }
-
-    const { data, error } = await supabase
-      .from('wallets')
-      .insert({
-        user_id: user.id,
-        name,
-        wallet_type: walletType,
-        initial_balance: normalizedInitialBalance,
-        current_balance: normalizedInitialBalance,
-      })
-      .select()
-      .single()
-
-    if (!error && data) {
-      setWallets((prev) => [...prev, data])
-    }
-
-    return { data, error, ledgerCreated: false }
   }, [fetchWalletById, user])
 
   const fetchWallets = useCallback(async () => {
@@ -81,12 +88,24 @@ export function useWallets() {
     if (!error && data) {
       setWallets(data)
       if (data.length === 0) {
-        await addWallet('Tunai', 0, 'cash')
+        const ensureResult = await supabase.rpc('ensure_default_wallet')
+        if (!ensureResult.error) {
+          const { data: refreshedWallets, error: refreshError } = await supabase
+            .from('wallets')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_archived', false)
+            .order('created_at', { ascending: true })
+
+          if (!refreshError && refreshedWallets) {
+            setWallets(refreshedWallets)
+          }
+        }
       }
     }
 
     setLoading(false)
-  }, [addWallet, user])
+  }, [user])
 
   useEffect(() => {
     fetchWallets()
@@ -153,35 +172,7 @@ export function useWallets() {
       return { error: null }
     }
 
-    const { data: currentWallet, error: fetchError } = await supabase
-      .from('wallets')
-      .select('current_balance')
-      .eq('id', walletId)
-      .eq('user_id', user.id)
-      .single()
-
-    if (fetchError || !currentWallet) {
-      return { error: fetchError ?? new Error('Wallet not found') }
-    }
-
-    const currentBalance = Number(currentWallet.current_balance)
-    const newBalance = currentBalance + delta
-
-    const { error: updateError } = await supabase
-      .from('wallets')
-      .update({ current_balance: newBalance })
-      .eq('id', walletId)
-      .eq('user_id', user.id)
-
-    if (!updateError) {
-      setWallets((prev) =>
-        prev.map((wallet) =>
-          wallet.id === walletId ? { ...wallet, current_balance: newBalance } : wallet
-        )
-      )
-    }
-
-    return { error: updateError }
+    return { error: rpcResult.error ?? new Error('Saldo dompet tidak bisa diperbarui saat ini.') }
   }, [user])
 
   const totalBalance = wallets.reduce(
