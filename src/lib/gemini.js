@@ -119,6 +119,11 @@ function analyzeWithRegex(text, walletNames, goalNames) {
     return analyticsQuery
   }
 
+  const transferIntent = detectTransfer(normalizedText, walletNames)
+  if (transferIntent) {
+    return transferIntent
+  }
+
   if (/^(buat|bikin|tambah|create)\s+(dompet|rekening|wallet)/i.test(normalizedText)) {
     const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
     let initialBalance = 0
@@ -351,9 +356,101 @@ function detectGoalWithdrawal(normalizedText, walletNames, goalNames) {
   }
 }
 
+function detectTransfer(normalizedText, walletNames) {
+  if (!/(transfer|pindah(?:kan)?|kirim(?:kan)?)/i.test(normalizedText)) {
+    return null
+  }
+
+  const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
+  if (!moneyMatch) {
+    return {
+      type: 'unknown',
+      reply: 'Kalau ingin transfer, tulis nominalnya juga. Contoh: "transfer 100k dari BCA ke DANA".',
+    }
+  }
+
+  let amount = parseFloat(moneyMatch[1].replace(',', '.'))
+  const multiplier = moneyMatch[2]
+
+  if (multiplier) {
+    if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
+    else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
+    else if (multiplier === 'm') amount *= 1000000000
+  } else if (amount > 0 && amount < 1000) {
+    amount *= 1000
+  }
+
+  const fromWallet = findEntityAfterKeyword(normalizedText, walletNames, 'dari')
+  const toWallet = findEntityAfterKeyword(normalizedText, walletNames, 'ke')
+  const mentions = findMentionedEntityNames(normalizedText, walletNames)
+
+  const resolvedFrom = fromWallet || mentions[0] || null
+  const resolvedTo =
+    toWallet ||
+    mentions.find((name) => name && name.toLowerCase() !== String(resolvedFrom || '').toLowerCase()) ||
+    null
+
+  if (!resolvedFrom || !resolvedTo) {
+    return {
+      type: 'unknown',
+      reply: 'Format transfernya belum lengkap. Coba tulis seperti "transfer 100k dari BCA ke DANA".',
+    }
+  }
+
+  if (resolvedFrom.toLowerCase() === resolvedTo.toLowerCase()) {
+    return {
+      type: 'unknown',
+      reply: 'Dompet asal dan tujuan transfer tidak boleh sama. Contoh yang benar: "transfer 100k dari BCA ke DANA".',
+    }
+  }
+
+  return {
+    type: 'transfer',
+    amount,
+    from: resolvedFrom,
+    to: resolvedTo,
+    reply: `Siap, saya akan memindahkan ${formatAmount(amount)} dari ${resolvedFrom} ke ${resolvedTo}.`,
+  }
+}
+
 function findMatchingEntityName(normalizedText, names = []) {
   return [...names]
     .filter(Boolean)
     .sort((left, right) => right.length - left.length)
     .find((name) => normalizedText.includes(name.toLowerCase())) || null
+}
+
+function findEntityAfterKeyword(normalizedText, names = [], keyword) {
+  return [...names]
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length)
+    .find((name) => {
+      const escapedName = escapeRegex(name.toLowerCase())
+      return new RegExp(`\\b${keyword}\\s+${escapedName}\\b`, 'i').test(normalizedText)
+    }) || null
+}
+
+function findMentionedEntityNames(normalizedText, names = []) {
+  return [...names]
+    .filter(Boolean)
+    .map((name) => ({
+      name,
+      index: normalizedText.indexOf(name.toLowerCase()),
+    }))
+    .filter((entry) => entry.index >= 0)
+    .sort((left, right) => left.index - right.index)
+    .map((entry) => entry.name)
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function formatAmount(amount) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
 }
