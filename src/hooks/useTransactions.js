@@ -273,7 +273,12 @@ function deriveAnalyticsBucket({ source, transactionType, analyticsBucket = null
     return 'internal_transfer'
   }
 
-  if (source === 'goal_contribution' || source === 'goal_initial_contribution') {
+  if (
+    source === 'goal_contribution' ||
+    source === 'goal_initial_contribution' ||
+    source === 'goal_refund' ||
+    source === 'goal_withdrawal'
+  ) {
     return 'savings'
   }
 

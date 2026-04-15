@@ -188,8 +188,9 @@ Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, wallet, reply }
 - "advice": { reply }
 - "analytics_query": { metric, period, reply }
-- "goal_contribution": { goalId, amount, reply }
-- "goal_creation_pending": { name, amount, reply }
+ - "goal_contribution": { goalId, amount, reply }
+ - "goal_withdrawal": { goalId, amount, wallet, reply }
+ - "goal_creation_pending": { name, amount, reply }
 - "transfer": { amount, from, to, reply }
 - "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".
 
@@ -197,6 +198,9 @@ INSTRUKSI KHUSUS TABUNGAN (GOALS):
 1. Jika user ingin menabung/menyisihkan uang ke target tertentu, periksa daftar "activeGoals" di konteks.
 2. Jika nama target ADA di daftar: kembalikan "goal_contribution" dengan goalId yang sesuai.
 3. Jika nama target TIDAK ADA: kembalikan "goal_creation_pending", simpan "name" dan "amount", lalu berikan "reply" yang menanyakan berapa target nominal tabungan tersebut.
+4. Jika user ingin mencairkan, menarik, atau mengambil uang dari target yang sudah ada, kembalikan "goal_withdrawal".
+5. Untuk "goal_withdrawal", isi "goalId" dari daftar activeGoals, "amount" dengan nominal pencairan, dan "wallet" dengan nama dompet tujuan.
+6. Jika user tidak menyebut dompet tujuan saat mencairkan target, gunakan "Tunai" sebagai default.
 
 INSTRUKSI KHUSUS TRANSFER:
 1. Jika user ingin memindahkan uang antar dompet, kembalikan "type": "transfer".

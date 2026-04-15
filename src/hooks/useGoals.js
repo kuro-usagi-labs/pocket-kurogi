@@ -83,6 +83,24 @@ export function useGoals() {
     return { data: null, error: rpcResult.error, walletHandled: false }
   }, [fetchGoals, user])
 
+  const withdrawFromGoal = useCallback(async ({ goalId, amount, walletId, description = null }) => {
+    if (!user) return { data: null, error: 'Not authenticated', walletHandled: false }
+
+    const rpcResult = await supabase.rpc('withdraw_from_goal', {
+      p_goal_id: goalId,
+      p_amount: Number(amount),
+      p_wallet_id: walletId,
+      p_description: description,
+    })
+
+    if (!rpcResult.error) {
+      await fetchGoals()
+      return { data: rpcResult.data, error: null, walletHandled: true }
+    }
+
+    return { data: null, error: rpcResult.error, walletHandled: false }
+  }, [fetchGoals, user])
+
   const createGoalWithContribution = useCallback(
     async ({ name, targetAmount, deadline, icon, initialAmount = 0, walletId = null }) => {
       if (!user) return { data: null, error: 'Not authenticated', walletHandled: false }
@@ -135,6 +153,7 @@ export function useGoals() {
     addGoal,
     updateGoalProgress,
     contributeToGoal,
+    withdrawFromGoal,
     createGoalWithContribution,
     deleteGoal,
     refetch: fetchGoals,

@@ -10,13 +10,14 @@ export async function analyzeTransaction(
   text,
   imageBase64 = null,
   walletNames = [],
-  financialContext = ''
+  financialContext = '',
+  goalNames = []
 ) {
   if (imageBase64) {
     return callAnalyzerFunction(text, imageBase64, walletNames, financialContext)
   }
 
-  const regexResult = analyzeWithRegex(text || '', walletNames)
+  const regexResult = analyzeWithRegex(text || '', walletNames, goalNames)
   if (regexResult.type !== 'unknown') {
     return regexResult
   }
@@ -50,9 +51,14 @@ async function callAnalyzerFunction(text, imageBase64, walletNames, financialCon
   return data
 }
 
-function analyzeWithRegex(text, walletNames) {
+function analyzeWithRegex(text, walletNames, goalNames) {
   let normalizedText = text.toLowerCase().trim()
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
+
+  const goalWithdrawal = detectGoalWithdrawal(normalizedText, walletNames, goalNames)
+  if (goalWithdrawal) {
+    return goalWithdrawal
+  }
 
   if (!analyticsQuery && /(tabungan|milestone|target)/i.test(normalizedText)) {
     return {
@@ -300,4 +306,54 @@ function detectAnalyticsPeriod(normalizedText) {
   }
 
   return 'all_time'
+}
+
+function detectGoalWithdrawal(normalizedText, walletNames, goalNames) {
+  if (!/(cairkan|cairin|tarik|ambil)/i.test(normalizedText)) {
+    return null
+  }
+
+  const goalName = findMatchingEntityName(normalizedText, goalNames)
+  if (!goalName) {
+    return {
+      type: 'unknown',
+      reply: 'Kalau ingin mencairkan target, tulis seperti "cairkan 200k dari dana darurat ke tunai".',
+    }
+  }
+
+  const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
+  if (!moneyMatch) {
+    return {
+      type: 'unknown',
+      reply: `Saya belum melihat nominal pencairannya. Coba tulis seperti "cairkan 200k dari ${goalName} ke tunai".`,
+    }
+  }
+
+  let amount = parseFloat(moneyMatch[1].replace(',', '.'))
+  const multiplier = moneyMatch[2]
+
+  if (multiplier) {
+    if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
+    else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
+    else if (multiplier === 'm') amount *= 1000000000
+  } else if (amount > 0 && amount < 1000) {
+    amount *= 1000
+  }
+
+  const destinationWallet = findMatchingEntityName(normalizedText, walletNames) || 'Tunai'
+
+  return {
+    type: 'goal_withdrawal',
+    goalName,
+    amount,
+    wallet: destinationWallet,
+    reply: `Siap, saya akan mencairkan dana dari target ${goalName} ke ${destinationWallet}.`,
+  }
+}
+
+function findMatchingEntityName(normalizedText, names = []) {
+  return [...names]
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length)
+    .find((name) => normalizedText.includes(name.toLowerCase())) || null
 }

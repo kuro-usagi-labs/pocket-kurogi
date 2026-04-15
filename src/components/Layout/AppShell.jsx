@@ -44,6 +44,7 @@ export default function AppShell() {
     goals,
     addGoal,
     contributeToGoal,
+    withdrawFromGoal,
     createGoalWithContribution,
     deleteGoal,
   } = useGoals()
@@ -123,9 +124,10 @@ export default function AppShell() {
 
       try {
         const walletNames = wallets.map((wallet) => wallet.name)
+        const goalNames = goals.map((goal) => goal.name)
         const goalMap = goals.map((goal) => `${goal.name} (id: ${goal.id})`).join(', ')
         const financialContext = `${getContextString()}\nACTIVE GOALS FOR MAPPING: ${goalMap || 'Tidak ada goal aktif'}`
-        const analysis = await analyzeTransaction(text, image, walletNames, financialContext)
+        const analysis = await analyzeTransaction(text, image, walletNames, financialContext, goalNames)
 
         let botResponse
 
@@ -439,6 +441,47 @@ export default function AppShell() {
               reply || `Berhasil menambahkan Rp ${formatRupiah(amount)} ke target Anda. Milestone semakin dekat!`,
             time: currentTime,
           }
+        } else if (analysis.type === 'goal_withdrawal') {
+          const targetGoal = analysis.goalId
+            ? goals.find((goal) => goal.id === analysis.goalId)
+            : goals.find((goal) => goal.name.toLowerCase() === analysis.goalName?.toLowerCase())
+
+          if (!targetGoal) {
+            throw new Error(`Target "${analysis.goalName || 'tersebut'}" tidak ditemukan.`)
+          }
+
+          const destinationWallet = analysis.wallet
+            ? wallets.find((wallet) => wallet.name.toLowerCase() === analysis.wallet.toLowerCase())
+            : wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0]
+
+          if (!destinationWallet) {
+            throw new Error('Dompet tujuan tidak ditemukan.')
+          }
+
+          const withdrawalResult = await withdrawFromGoal({
+            goalId: targetGoal.id,
+            amount: analysis.amount,
+            walletId: destinationWallet.id,
+            description: `Pencairan ${targetGoal.name} ke ${destinationWallet.name}`,
+          })
+
+          if (withdrawalResult.error) {
+            throw withdrawalResult.error
+          }
+
+          await syncFinancialViews({
+            wallets: withdrawalResult.walletHandled,
+            transactions: true,
+            analytics: true,
+          })
+
+          botResponse = {
+            sender: 'bot',
+            text:
+              analysis.reply ||
+              `Berhasil mencairkan ${formatRupiah(analysis.amount)} dari target **${targetGoal.name}** ke dompet **${destinationWallet.name}**.`,
+            time: currentTime,
+          }
         } else if (analysis.type === 'goal_creation_pending') {
           setPendingAction({
             type: 'create_goal',
@@ -522,6 +565,7 @@ export default function AppShell() {
       isTyping,
       pendingAction,
       saveMessage,
+      withdrawFromGoal,
       totalBalance,
       syncFinancialViews,
       transactions,
@@ -703,7 +747,7 @@ export default function AppShell() {
 function buildUnknownInputReply(reply) {
   const baseReply = reply || 'Format pesannya belum cukup jelas untuk saya proses.'
 
-  return `${baseReply}\n\nCoba pakai format seperti:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"\n- "berapa pengeluaran bulan ini"`
+  return `${baseReply}\n\nCoba pakai format seperti:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"\n- "cairkan 200k dari dana darurat ke tunai"\n- "berapa pengeluaran bulan ini"`
 }
 
 function buildActionErrorReply(error, { wallets = [], goals = [] } = {}) {
@@ -718,8 +762,12 @@ function buildActionErrorReply(error, { wallets = [], goals = [] } = {}) {
     .map((goal) => goal.name)
     .filter(Boolean)
 
+  if (normalizedMessage.includes('saldo target tidak cukup') || normalizedMessage.includes('goal balance is insufficient')) {
+    return 'Saldo targetnya belum cukup untuk dicairkan sebesar itu.\n\nCoba pakai nominal yang lebih kecil. Contoh:\n- "cairkan 100k dari dana darurat ke tunai"\n- "cairkan 50k dari laptop ke BCA"'
+  }
+
   if (normalizedMessage.includes('saldo dompet tidak cukup') || normalizedMessage.includes('insufficient wallet balance')) {
-    return 'Saldo dompetnya belum cukup untuk aksi itu.\n\nCoba pakai nominal yang lebih kecil atau pilih dompet lain. Contoh:\n- "beli kopi 25k tunai"\n- "transfer 50k dari BCA ke OVO"'
+    return 'Saldo dompetnya belum cukup untuk aksi itu.\n\nCoba pakai nominal yang lebih kecil atau pilih dompet lain. Contoh:\n- "beli kopi 25k tunai"\n- "transfer 50k dari BCA ke OVO"\n- "tabung 100k untuk dana darurat"'
   }
 
   if (normalizedMessage.includes('dompet tidak ditemukan')) {
@@ -751,8 +799,8 @@ function buildActionErrorReply(error, { wallets = [], goals = [] } = {}) {
       ? `\n\nTarget aktif saat ini: ${goalExamples.join(', ')}.`
       : ''
 
-    return `Saya belum menemukan target yang dimaksud.${goalLine}\n\nCoba pakai nama target yang persis, misalnya:\n- "tabung 200k untuk ${goalExamples[0] || 'dana darurat'}"\n- "buat target laptop 12jt"`
+    return `Saya belum menemukan target yang dimaksud.${goalLine}\n\nCoba pakai nama target yang persis, misalnya:\n- "tabung 200k untuk ${goalExamples[0] || 'dana darurat'}"\n- "cairkan 100k dari ${goalExamples[0] || 'dana darurat'} ke tunai"\n- "buat target laptop 12jt"`
   }
 
-  return `${rawMessage}\n\nContoh input yang bisa dicoba:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"`
+  return `${rawMessage}\n\nContoh input yang bisa dicoba:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"\n- "cairkan 200k dari dana darurat ke tunai"`
 }
