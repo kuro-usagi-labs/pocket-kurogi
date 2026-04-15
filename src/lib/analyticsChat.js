@@ -142,6 +142,7 @@ export function buildAdviceReply({
   snapshot,
   budgets = [],
   goals = [],
+  transactions = [],
   formatRupiah,
 }) {
   const {
@@ -149,6 +150,7 @@ export function buildAdviceReply({
     totalExpense = 0,
     totalSavings = 0,
     netCashflow = 0,
+    transferVolume = 0,
     topExpenseCategories = [],
     topIncomeCategories = [],
   } = snapshot || {}
@@ -160,9 +162,155 @@ export function buildAdviceReply({
     return `Saya belum punya cukup data untuk memberi strategi ${periodLabel}. Coba catat beberapa pemasukan atau pengeluaran dulu, lalu tanya lagi.`
   }
 
+  const focus = query?.focus || 'overall'
   const topExpense = topExpenseCategories[0] || null
   const topIncome = topIncomeCategories[0] || null
-  const budgetAlerts = budgets
+  const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0
+  const budgetAlerts = buildBudgetAlerts({ budgets, topExpenseCategories })
+  const nextGoal = findNextGoal(goals)
+  const recentExpenseExamples = findRecentExpenseExamples({
+    transactions,
+    categoryName: topExpense?.name,
+  })
+  const actionItems = []
+
+  if (netCashflow < 0) {
+    actionItems.push('Tahan komitmen baru dulu sampai arus kas kembali positif.')
+  }
+
+  if (focus === 'expense' || focus === 'overall' || focus === 'budget') {
+    if (topExpense) {
+      const share = resolveCategoryShare(topExpense, totalExpense)
+      const expenseLine = recentExpenseExamples.length > 0
+        ? `Pangkas ${topExpense.name} dulu, terutama transaksi seperti ${formatShortList(recentExpenseExamples)}.`
+        : `Pangkas ${topExpense.name} dulu sekitar 10-15% karena ini pos paling berat di ${periodLabel}.`
+      actionItems.push(expenseLine)
+
+      if (share >= 45) {
+        actionItems.push(`${topExpense.name} sendirian sudah memakan ${formatPercentage(share)} dari pengeluaran inti, jadi ini area tercepat untuk dibenahi.`)
+      }
+    }
+
+    const budgetAlert = query?.period === 'this_month' || query?.period === 'today' || query?.period === 'this_week'
+      ? budgetAlerts[0]
+      : null
+
+    if (budgetAlert) {
+      const remaining = Math.max(budgetAlert.limit - budgetAlert.spent, 0)
+      actionItems.push(
+        `Budget ${budgetAlert.category} sudah ${budgetAlert.percent.toFixed(0)}% terpakai, sisa ruang aman tinggal ${formatRupiah(remaining)}.`
+      )
+    }
+  }
+
+  if (focus === 'savings' || focus === 'overall') {
+    if (totalIncome > 0 && savingsRate < 10) {
+      const suggestedTopUp = Math.max(Math.ceil(((totalIncome * 0.1) - totalSavings) / 1000) * 1000, 0)
+      if (suggestedTopUp > 0) {
+        actionItems.push(
+          `Naikkan alokasi tabungan minimal ${formatRupiah(suggestedTopUp)} lagi agar rasio sisihannya mendekati 10% dari pemasukan.`
+        )
+      }
+    } else if (nextGoal) {
+      const remaining = Math.max(Number(nextGoal.target_amount || 0) - Number(nextGoal.current_amount || 0), 0)
+      actionItems.push(`Kalau ada surplus, arahkan ke target ${nextGoal.name}. Sisa yang perlu dikejar ${formatRupiah(remaining)}.`)
+    }
+  }
+
+  if (focus === 'income' || focus === 'overall') {
+    if (topIncome) {
+      const concentration = resolveCategoryShare(topIncome, totalIncome)
+      actionItems.push(
+        concentration >= 60
+          ? `Pemasukan paling besar masih bertumpu di ${topIncome.name}, jadi jangan tambah komitmen tetap sebelum sumber ini benar-benar stabil.`
+          : `Jaga ritme pemasukan dari ${topIncome.name} karena sejauh ini itu masih sumber terbesar kamu.`
+      )
+    } else if (totalIncome <= 0) {
+      actionItems.push('Belum ada pemasukan tercatat di periode ini, jadi fokus utama sebaiknya menjaga pengeluaran tetap ringan.')
+    }
+  }
+
+  if (focus === 'overall' && netCashflow > 0 && totalSavings <= 0) {
+    actionItems.push('Arus kas masih positif, tapi belum banyak yang diamankan ke tabungan. Sisihkan surplusnya sebelum habis ke pengeluaran variabel.')
+  }
+
+  if (focus === 'overall' && transferVolume > totalExpense && transferVolume > 0) {
+    actionItems.push('Transfer internal sedang tinggi. Pastikan perpindahan antar dompet tidak menyamarkan pengeluaran konsumtif kecil.')
+  }
+
+  const compactActions = dedupeLines(actionItems).filter(Boolean).slice(0, 3)
+
+  return [
+    buildAdviceSummary({
+      focus,
+      periodLabel,
+      netCashflow,
+      totalIncome,
+      totalExpense,
+      totalSavings,
+      topExpense,
+      topIncome,
+      formatRupiah,
+    }),
+    '',
+    compactActions.length > 0 ? 'Fokus terdekat:' : 'Langkah berikutnya:',
+    ...(compactActions.length > 0
+      ? compactActions.map((line) => `- ${line}`)
+      : ['- Pertahankan pencatatan yang rapi dulu supaya strategi berikutnya bisa lebih presisi.']),
+  ].join('\n')
+}
+
+function buildAdviceSummary({
+  focus,
+  periodLabel,
+  netCashflow,
+  totalIncome,
+  totalExpense,
+  totalSavings,
+  topExpense,
+  topIncome,
+  formatRupiah,
+}) {
+  if (focus === 'expense' && topExpense) {
+    return `Untuk ${periodLabel}, pengeluaran paling berat masih di ${topExpense.name} sebesar ${formatRupiah(Number(topExpense.amount || 0))}.`
+  }
+
+  if (focus === 'income' && topIncome) {
+    return `Untuk ${periodLabel}, pemasukan paling besar datang dari ${topIncome.name} sebesar ${formatRupiah(Number(topIncome.amount || 0))}.`
+  }
+
+  if (focus === 'savings') {
+    return totalSavings > 0
+      ? `Untuk ${periodLabel}, tabungan yang sudah dialokasikan baru ${formatRupiah(totalSavings)}.`
+      : `Untuk ${periodLabel}, belum ada tabungan yang benar-benar diamankan dari arus kas.`
+  }
+
+  if (focus === 'budget' && topExpense) {
+    return `Untuk ${periodLabel}, pos yang paling menekan budget masih ${topExpense.name} sebesar ${formatRupiah(Number(topExpense.amount || 0))}.`
+  }
+
+  if (netCashflow < 0) {
+    return `Untuk ${periodLabel}, arus kas kamu sedang negatif ${formatSignedCurrency(netCashflow, formatRupiah)} karena pengeluaran dan tabungan sudah lebih besar dari pemasukan.`
+  }
+
+  if (netCashflow > 0) {
+    const anchor = topExpense
+      ? ` Pengeluaran paling berat tetap ada di ${topExpense.name}.`
+      : totalSavings > 0
+        ? ` Sudah ada ${formatRupiah(totalSavings)} yang masuk ke tabungan.`
+        : ''
+    return `Untuk ${periodLabel}, arus kas kamu masih positif ${formatSignedCurrency(netCashflow, formatRupiah)}.${anchor}`
+  }
+
+  if (totalIncome > 0 || totalExpense > 0 || totalSavings > 0) {
+    return `Untuk ${periodLabel}, arus kas kamu sedang impas ${formatRupiah(0)}.`
+  }
+
+  return `Untuk ${periodLabel}, data keuangannya masih terlalu tipis untuk dibaca lebih dalam.`
+}
+
+function buildBudgetAlerts({ budgets = [], topExpenseCategories = [] }) {
+  return budgets
     .map((budget) => {
       const category = budget.categories?.name
       const matching = topExpenseCategories.find((item) => item.name === category)
@@ -173,48 +321,62 @@ export function buildAdviceReply({
     })
     .filter((item) => item.category && item.percent >= 80)
     .sort((left, right) => right.percent - left.percent)
+}
 
-  const nextGoal = goals
+function findNextGoal(goals = []) {
+  return goals
     .filter((goal) => goal.status !== 'completed')
     .sort((left, right) => {
       const leftRemaining = Number(left.target_amount || 0) - Number(left.current_amount || 0)
       const rightRemaining = Number(right.target_amount || 0) - Number(right.current_amount || 0)
       return leftRemaining - rightRemaining
-    })[0]
+    })[0] || null
+}
 
-  const lines = [`Strategi ${periodLabel}:`]
+function findRecentExpenseExamples({ transactions = [], categoryName = '' }) {
+  const normalizedCategory = String(categoryName || '').toLowerCase()
+  const expenseTransactions = transactions.filter((transaction) => transaction.analyticsBucket === 'expense')
+  const categoryMatches = normalizedCategory
+    ? expenseTransactions.filter(
+        (transaction) => String(transaction.category || '').toLowerCase() === normalizedCategory
+      )
+    : []
+  const source = categoryMatches.length > 0 ? categoryMatches : expenseTransactions
 
-  if (query?.focus === 'expense' || query?.focus === 'overall' || query?.focus === 'budget') {
-    if (topExpense) {
-      lines.push(`1. Tahan ${topExpense.name} dulu, karena ini pengeluaran terbesar di ${periodLabel}: ${formatRupiah(topExpense.amount)}.`)
-    }
+  return dedupeLines(
+    source
+      .slice(0, 3)
+      .map((transaction) => transaction.title || transaction.desc || transaction.category)
+      .filter(Boolean)
+  ).slice(0, 2)
+}
 
-    if (budgetAlerts[0]) {
-      lines.push(`2. Budget ${budgetAlerts[0].category} sudah ${budgetAlerts[0].percent.toFixed(0)}% terpakai. Batasi transaksi kecil di kategori ini.`)
-    }
+function resolveCategoryShare(category, totalAmount) {
+  if (Number(category?.percentage || 0) > 0) {
+    return Number(category.percentage || 0)
   }
 
-  if ((query?.focus === 'savings' || query?.focus === 'overall') && totalIncome > 0) {
-    const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0
-    if (savingsRate < 10) {
-      lines.push(`3. Naikkan alokasi tabungan minimal ke 10% dari pemasukan. Sekarang baru sekitar ${savingsRate.toFixed(1)}%.`)
-    } else if (nextGoal) {
-      const remaining = Math.max(Number(nextGoal.target_amount || 0) - Number(nextGoal.current_amount || 0), 0)
-      lines.push(`3. Fokus selesaikan target ${nextGoal.name}. Sisa yang perlu dikejar ${formatRupiah(remaining)}.`)
-    }
+  if (totalAmount <= 0) {
+    return 0
   }
 
-  if ((query?.focus === 'income' || query?.focus === 'overall') && topIncome) {
-    lines.push(`4. Jaga sumber pemasukan utama di ${topIncome.name} karena kontribusinya paling besar: ${formatRupiah(topIncome.amount)}.`)
+  return (Number(category?.amount || 0) / totalAmount) * 100
+}
+
+function formatShortList(items = []) {
+  if (items.length === 0) {
+    return ''
   }
 
-  if (netCashflow < 0) {
-    lines.push('5. Arus kas sedang negatif. Prioritaskan menahan pengeluaran variabel sebelum menambah target baru.')
-  } else if (netCashflow > 0) {
-    lines.push('5. Arus kas masih positif. Kelebihan bulan ini paling aman diarahkan ke tabungan atau target prioritas.')
+  if (items.length === 1) {
+    return items[0]
   }
 
-  return lines.slice(0, 4).join('\n')
+  return `${items[0]} atau ${items[1]}`
+}
+
+function dedupeLines(items = []) {
+  return [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))]
 }
 
 function buildCategoryRankingReply({ intro, categories, formatRupiah, emptyMessage }) {

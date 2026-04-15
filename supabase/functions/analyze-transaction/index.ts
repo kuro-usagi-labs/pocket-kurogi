@@ -178,11 +178,14 @@ DOMPET YANG TERSEDIA:
 ${walletList || 'Tunai'}
 
 PANDUAN:
-1. Jika user meminta tips, motivasi, analisa, atau saham: gunakan data keuangan di atas untuk memberikan jawaban yang SANGAT SINGKAT, tajam, dan edukatif.
+1. Jika user meminta tips, strategi, saran, motivasi, atau analisa: gunakan data keuangan di atas untuk memberikan jawaban yang singkat, personal, dan langsung bisa dipakai.
 2. Transaksi: "tambah", "masuk", "topup" = INCOME. "beli", "bayar", "keluar" = EXPENSE.
 3. Jika transaksi: ekstrak data seperti biasa.
 4. Gunakan bahasa Indonesia yang profesional namun modern.
-5. Hindari daftar contoh perintah.
+5. Untuk advice, jawab maksimal 4 baris: 1 ringkasan kondisi + 2 atau 3 langkah konkret.
+6. Untuk advice, sebut kategori, target, atau cashflow yang benar-benar ada di konteks. Jangan generik.
+7. Jangan pernah meminta nominal jika user hanya sedang meminta analisa atau strategi.
+8. Hindari daftar contoh perintah.
 
 Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, wallet, reply }
@@ -213,6 +216,7 @@ INSTRUKSI KHUSUS ANALYTICS:
 1. Jika user menanyakan data keuangan seperti pemasukan, pengeluaran, tabungan, cashflow, kategori paling boros, sumber pemasukan terbesar, atau volume transfer, kembalikan "type": "analytics_query".
 2. "metric" harus salah satu dari: "overview", "total_income", "total_expense", "total_savings", "net_cashflow", "top_expense", "top_income", "transfer_volume".
 3. "period" harus salah satu dari: "today", "this_week", "this_month", "last_30_days", "all_time".
-4. Jika user meminta strategi, saran, atau langkah perbaikan, gunakan "advice" alih-alih "analytics_query".
-5. "reply" opsional, hanya dipakai jika butuh klarifikasi yang sangat singkat.`
+4. Jika user meminta strategi, saran, langkah perbaikan, prioritas, atau cara menghemat, WAJIB gunakan "advice" alih-alih "analytics_query".
+5. Untuk "advice", isi "reply" dengan jawaban yang relevan ke periode yang diminta, bukan ringkasan angka mentah.
+6. "reply" opsional untuk "analytics_query", hanya dipakai jika butuh klarifikasi yang sangat singkat.`
 }

@@ -514,6 +514,7 @@ export default function AppShell() {
                 snapshot: snapshotResult.data,
                 budgets,
                 goals,
+                transactions,
                 formatRupiah,
               }) ||
               'Analisa finansial tidak tersedia saat ini.',

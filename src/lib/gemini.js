@@ -21,8 +21,17 @@ export async function analyzeTransaction(
   if (regexResult.type === 'advice_query') {
     try {
       const aiResult = await callAnalyzerFunction(text, null, walletNames, financialContext)
-      if (aiResult?.type === 'advice' || aiResult?.type === 'analytics_query') {
+      if (aiResult?.type === 'advice') {
         return aiResult
+      }
+
+      if (aiResult?.type === 'analytics_query' && aiResult.reply) {
+        return {
+          type: 'advice',
+          period: regexResult.period,
+          focus: regexResult.focus,
+          reply: aiResult.reply,
+        }
       }
     } catch (error) {
       console.error('Analyzer backend error:', error)
@@ -341,8 +350,8 @@ function detectAdviceIntent(normalizedText) {
     return null
   }
 
-  const hasAdviceLanguage = /(tips|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|prioritas|kurangi|bocor|efisien)/i.test(normalizedText)
-  const hasFinancialContext = /(uang|keuangan|cashflow|arus kas|pengeluaran|pemasukan|tabungan|budget|anggaran|data saya|bulan ini|minggu ini|hari ini)/i.test(normalizedText)
+  const hasAdviceLanguage = /(tips|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|prioritas|kurangi|bocor|efisien|nasihat|arahkan|atur lebih baik)/i.test(normalizedText)
+  const hasFinancialContext = /(uang|keuangan|cashflow|arus kas|pengeluaran|pemasukan|tabungan|budget|anggaran|data saya|belanja|spending|boros|bulan ini|minggu ini|hari ini)/i.test(normalizedText)
 
   if (!hasAdviceLanguage || !hasFinancialContext) {
     return null
