@@ -336,7 +336,7 @@ export default function AppShell() {
 
                 botResponse = {
                   sender: 'bot',
-                  text: `Sip! Tabungan **${newGoalName}** berhasil dibuat dengan target **${formatRupiah(targetMatch)}**. Setoran awal **${formatRupiah(pendingAction.payload.amount)}** sudah dimasukkan.`,
+                  text: `Sip! Tabungan ${newGoalName} berhasil dibuat dengan target ${formatRupiah(targetMatch)}. Setoran awal ${formatRupiah(pendingAction.payload.amount)} sudah dimasukkan.`,
                   time: currentTime,
                 }
               } else {
@@ -582,7 +582,7 @@ export default function AppShell() {
 
           botResponse = {
             sender: 'bot',
-            text: `Dompet **${newWallet.name}** berhasil dibuat dengan saldo awal **${formatRupiah(newWallet.current_balance)}**.`,
+            text: `Dompet ${newWallet.name} berhasil dibuat dengan saldo awal ${formatRupiah(newWallet.current_balance)}.`,
             time: currentTime,
           }
           } else if (analysis.type === 'goal_contribution') {
@@ -684,7 +684,7 @@ export default function AppShell() {
             sender: 'bot',
             text:
               analysis.reply ||
-              `Berhasil mencairkan ${formatRupiah(analysis.amount)} dari target **${targetGoal.name}** ke dompet **${destinationWallet.name}**.`,
+              `Berhasil mencairkan ${formatRupiah(analysis.amount)} dari target ${targetGoal.name} ke dompet ${destinationWallet.name}.`,
             time: currentTime,
           }
           } else if (analysis.type === 'goal_creation_pending') {
@@ -697,7 +697,7 @@ export default function AppShell() {
             sender: 'bot',
             text:
               analysis.reply ||
-              `Wah, tabungan baru ya? Target tabungan **${analysis.name}** ini mau di-set berapa nominalnya?`,
+              `Wah, tabungan baru ya? Target tabungan ${analysis.name} ini mau di-set berapa nominalnya?`,
             time: currentTime,
           }
           } else if (analysis.type === 'transfer') {
@@ -727,7 +727,7 @@ export default function AppShell() {
 
           botResponse = {
             sender: 'bot',
-            text: `Transfer sebesar **${formatRupiah(analysis.amount)}** dari **${fromWallet.name}** ke **${toWallet.name}** berhasil diproses.`,
+            text: `Transfer sebesar ${formatRupiah(analysis.amount)} dari ${fromWallet.name} ke ${toWallet.name} berhasil diproses.`,
             time: currentTime,
           }
           } else {

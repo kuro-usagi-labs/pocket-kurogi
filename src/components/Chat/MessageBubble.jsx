@@ -2,6 +2,7 @@ import { CategoryIcon } from '../shared/CategoryIcon'
 
 export default function MessageBubble({ msg, formatRupiah }) {
   const isUser = msg.sender === 'user'
+  const displayText = isUser ? msg.text : stripSimpleFormatting(msg.text)
 
   return (
     <div className={`flex flex-col w-full mb-6 animate-fade-in ${isUser ? 'items-end' : 'items-start'}`}>
@@ -17,7 +18,7 @@ export default function MessageBubble({ msg, formatRupiah }) {
             <img src={msg.image} alt="Uploaded Receipt" className="w-full max-w-[240px] object-cover hover:scale-105 transition-transform duration-500" />
           </div>
         )}
-        <div className="whitespace-pre-wrap font-medium leading-[1.65] tracking-tight">{msg.text}</div>
+        <div className="whitespace-pre-wrap font-medium leading-[1.65] tracking-tight">{displayText}</div>
 
         {/* Receipt card for transactions */}
         {msg.card && (
@@ -55,4 +56,12 @@ export default function MessageBubble({ msg, formatRupiah }) {
       </span>
     </div>
   )
+}
+
+function stripSimpleFormatting(text = '') {
+  return String(text)
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\*\*/g, '')
 }
