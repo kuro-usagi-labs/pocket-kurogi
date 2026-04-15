@@ -1,5 +1,5 @@
 import { Sparkles, X } from 'lucide-react'
-import { CategoryIcon } from '../shared/CategoryIcon'
+import { TransactionIcon } from '../shared/CategoryIcon'
 
 export default function HistoryView({ transactions, formatRupiah, onDeleteTransaction }) {
   return (
@@ -43,17 +43,22 @@ export default function HistoryView({ transactions, formatRupiah, onDeleteTransa
 
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-[50px] h-[50px] rounded-2xl bg-ivory flex items-center justify-center text-midnight border border-midnight/5 shadow-sm shrink-0">
-                      <CategoryIcon category={transaction.category} size={22} />
+                      <TransactionIcon
+                        iconKey={transaction.iconKey}
+                        category={transaction.category}
+                        size={22}
+                      />
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-midnight font-jakarta text-[14.5px] tracking-tight truncate">
                         {transaction.title || transaction.desc}
                       </h3>
                       <p className="text-[11.5px] font-medium text-muted/60 mt-0.5 truncate">
-                        {[transaction.subtitle, transaction.date, transaction.time].filter(Boolean).join(' • ')}
+                        {[transaction.subtitle, transaction.date, transaction.time].filter(Boolean).join(' - ')}
                       </p>
                     </div>
                   </div>
+
                   <div className="text-right shrink-0 pl-4">
                     <p
                       className={`font-jakarta font-extrabold text-[15.5px] tracking-tight ${

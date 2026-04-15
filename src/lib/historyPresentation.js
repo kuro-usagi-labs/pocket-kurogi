@@ -61,6 +61,7 @@ export function buildHistoryPresentation({
     return {
       title: `Saldo Awal ${walletName || 'Dompet'}`,
       subtitle: 'Saldo awal',
+      iconKey: 'wallet_opening_balance',
     }
   }
 
@@ -83,6 +84,7 @@ function buildTransferPresentation({ merchant, transactionType, walletName }) {
     return {
       title: directTo ? `Transfer ke ${directTo}` : 'Transfer Keluar',
       subtitle: walletName ? `Dari ${walletName}` : 'Transfer keluar',
+      iconKey: 'transfer_out',
     }
   }
 
@@ -93,6 +95,7 @@ function buildTransferPresentation({ merchant, transactionType, walletName }) {
       : walletName
         ? `Masuk ke ${walletName}`
         : 'Transfer masuk',
+    iconKey: 'transfer_in',
   }
 }
 
@@ -105,6 +108,7 @@ function buildGoalContributionPresentation({ merchant, walletName, initial }) {
   return {
     title: goalName ? `${initial ? 'Setoran Awal' : 'Setoran'} ${goalName}` : initial ? 'Setoran Awal Target' : 'Setoran Target',
     subtitle: walletName ? `Dari ${walletName}` : 'Alokasi tabungan',
+    iconKey: initial ? 'goal_initial_contribution' : 'goal_contribution',
   }
 }
 
@@ -116,6 +120,7 @@ function buildGoalWithdrawalPresentation({ merchant, walletName }) {
   return {
     title: goalName ? `Pencairan ${goalName}` : 'Pencairan Tabungan',
     subtitle: walletName ? `Ke ${walletName}` : 'Dana dicairkan',
+    iconKey: 'goal_withdrawal',
   }
 }
 
@@ -127,6 +132,7 @@ function buildGoalRefundPresentation({ merchant, walletName }) {
   return {
     title: goalName ? `Pengembalian ${goalName}` : 'Dana Dikembalikan',
     subtitle: walletName ? `Ke ${walletName}` : 'Dana kembali',
+    iconKey: 'goal_refund',
   }
 }
 
@@ -148,7 +154,71 @@ function buildRegularPresentation({ merchant, notes, transactionType, categoryNa
       : transactionType === 'income'
         ? 'Pemasukan'
         : 'Pengeluaran',
+    iconKey: inferRegularIconKey({
+      title: cleanedLabel || fallbackTitle,
+      notes,
+      transactionType,
+      categoryName,
+    }),
   }
+}
+
+function inferRegularIconKey({ title = '', notes = '', transactionType = '', categoryName = '' }) {
+  const haystack = normalizeForLookup([title, notes, categoryName].filter(Boolean).join(' '))
+
+  if (transactionType === 'income') {
+    if (/\b(gaji|salary|payroll|kantor|client|proyek|freelance|fee|komisi)\b/.test(haystack)) {
+      return 'income_salary'
+    }
+
+    if (/\b(bonus|thr|gift|hadiah|reward|cashback)\b/.test(haystack)) {
+      return 'income_bonus'
+    }
+
+    return 'income_general'
+  }
+
+  if (/\b(kopi|coffee|cafe|minum)\b/.test(haystack)) {
+    return 'expense_coffee'
+  }
+
+  if (/\b(makan|food|gofood|grabfood|resto|restoran|warteg|bakso|mie|nasi)\b/.test(haystack)) {
+    return 'expense_food'
+  }
+
+  if (/\b(jajan|snack|camilan|roti|pizza|burger)\b/.test(haystack)) {
+    return 'expense_snack'
+  }
+
+  if (/\b(belanja|shopping|mart|store|toko|supermarket|minimarket|alfamart|indomaret)\b/.test(haystack)) {
+    return 'expense_shopping'
+  }
+
+  if (/\b(transport|bensin|bbm|parkir|ojek|grab|gocar|gojek|taxi|bus|kereta)\b/.test(haystack)) {
+    return 'expense_transport'
+  }
+
+  if (/\b(travel|pesawat|flight|hotel|liburan)\b/.test(haystack)) {
+    return 'expense_travel'
+  }
+
+  if (/\b(listrik|air|wifi|internet|tagihan|pln)\b/.test(haystack)) {
+    return 'expense_bills'
+  }
+
+  if (/\b(rumah|kos|kontrakan|sewa|rent)\b/.test(haystack)) {
+    return 'expense_home'
+  }
+
+  if (/\b(pulsa|paket|data|dana|ovo|gopay|shopeepay|topup)\b/.test(haystack)) {
+    return 'expense_digital'
+  }
+
+  if (/\b(obat|dokter|klinik|rs|rumah sakit|kesehatan)\b/.test(haystack)) {
+    return 'expense_health'
+  }
+
+  return 'expense_general'
 }
 
 function cleanFreeformLabel(value, { categoryName = '' } = {}) {
@@ -177,6 +247,14 @@ function tokenizeRawText(value) {
     .split(/\s+/)
     .map((word) => word.trim())
     .filter(Boolean)
+}
+
+function normalizeForLookup(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function tokenizePlainText(value) {
