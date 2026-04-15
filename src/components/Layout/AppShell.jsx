@@ -18,7 +18,7 @@ import DesktopRightPanel from './DesktopRightPanel'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
-import { buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
+import { buildAdviceReply, buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
 import {
   buildWalletClarificationReply,
   resolveTransactionWithLearning,
@@ -489,9 +489,34 @@ export default function AppShell() {
             time: currentTime,
           }
           } else if (analysis.type === 'advice') {
+          const timeframe = resolveAnalyticsTimeframe(analysis.period)
+          const snapshotResult =
+            timeframe.key === 'all_time'
+              ? { data: analytics, error: null }
+              : await getSnapshot({
+                  startAt: timeframe.startAt,
+                  endAt: timeframe.endAt,
+                })
+
+          if (snapshotResult.error) {
+            throw snapshotResult.error
+          }
+
           botResponse = {
             sender: 'bot',
-            text: analysis.reply || 'Analisa finansial tidak tersedia saat ini.',
+            text:
+              analysis.reply ||
+              buildAdviceReply({
+                query: {
+                  ...analysis,
+                  periodLabel: timeframe.label,
+                },
+                snapshot: snapshotResult.data,
+                budgets,
+                goals,
+                formatRupiah,
+              }) ||
+              'Analisa finansial tidak tersedia saat ini.',
             time: currentTime,
           }
           } else if (analysis.type === 'undo_transaction') {
@@ -756,6 +781,7 @@ export default function AppShell() {
     [
       addWallet,
       analytics,
+      budgets,
       categories,
       categoryRules,
       clearAllTransactions,

@@ -18,6 +18,24 @@ export async function analyzeTransaction(
   }
 
   const regexResult = analyzeWithRegex(text || '', walletNames, goalNames)
+  if (regexResult.type === 'advice_query') {
+    try {
+      const aiResult = await callAnalyzerFunction(text, null, walletNames, financialContext)
+      if (aiResult?.type === 'advice' || aiResult?.type === 'analytics_query') {
+        return aiResult
+      }
+    } catch (error) {
+      console.error('Analyzer backend error:', error)
+    }
+
+    return {
+      type: 'advice',
+      period: regexResult.period,
+      focus: regexResult.focus,
+      reply: null,
+    }
+  }
+
   if (regexResult.type !== 'unknown') {
     return regexResult
   }
@@ -54,6 +72,7 @@ async function callAnalyzerFunction(text, imageBase64, walletNames, financialCon
 function analyzeWithRegex(text, walletNames, goalNames) {
   let normalizedText = text.toLowerCase().trim()
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
+  const adviceIntent = detectAdviceIntent(normalizedText)
 
   const goalWithdrawal = detectGoalWithdrawal(normalizedText, walletNames, goalNames)
   if (goalWithdrawal) {
@@ -117,6 +136,10 @@ function analyzeWithRegex(text, walletNames, goalNames) {
 
   if (analyticsQuery) {
     return analyticsQuery
+  }
+
+  if (adviceIntent) {
+    return adviceIntent
   }
 
   const transferIntent = detectTransfer(normalizedText, walletNames)
@@ -311,6 +334,45 @@ function detectAnalyticsPeriod(normalizedText) {
   }
 
   return 'all_time'
+}
+
+function detectAdviceIntent(normalizedText) {
+  if (!normalizedText) {
+    return null
+  }
+
+  const hasAdviceLanguage = /(tips|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|prioritas|kurangi|bocor|efisien)/i.test(normalizedText)
+  const hasFinancialContext = /(uang|keuangan|cashflow|arus kas|pengeluaran|pemasukan|tabungan|budget|anggaran|data saya|bulan ini|minggu ini|hari ini)/i.test(normalizedText)
+
+  if (!hasAdviceLanguage || !hasFinancialContext) {
+    return null
+  }
+
+  return {
+    type: 'advice_query',
+    period: detectAnalyticsPeriod(normalizedText),
+    focus: detectAdviceFocus(normalizedText),
+  }
+}
+
+function detectAdviceFocus(normalizedText) {
+  if (/(pengeluaran|boros|hemat|expense)/i.test(normalizedText)) {
+    return 'expense'
+  }
+
+  if (/(pemasukan|income|pendapatan)/i.test(normalizedText)) {
+    return 'income'
+  }
+
+  if (/(tabungan|saving|target|goal)/i.test(normalizedText)) {
+    return 'savings'
+  }
+
+  if (/(budget|anggaran)/i.test(normalizedText)) {
+    return 'budget'
+  }
+
+  return 'overall'
 }
 
 function detectGoalWithdrawal(normalizedText, walletNames, goalNames) {

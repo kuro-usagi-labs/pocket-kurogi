@@ -137,6 +137,86 @@ export function buildAnalyticsReply({
   }
 }
 
+export function buildAdviceReply({
+  query,
+  snapshot,
+  budgets = [],
+  goals = [],
+  formatRupiah,
+}) {
+  const {
+    totalIncome = 0,
+    totalExpense = 0,
+    totalSavings = 0,
+    netCashflow = 0,
+    topExpenseCategories = [],
+    topIncomeCategories = [],
+  } = snapshot || {}
+
+  const periodLabel = query?.periodLabel || PERIOD_LABELS[query?.period] || PERIOD_LABELS.all_time
+  const trackedTotal = totalIncome + totalExpense + Math.abs(totalSavings)
+
+  if (trackedTotal <= 0) {
+    return `Saya belum punya cukup data untuk memberi strategi ${periodLabel}. Coba catat beberapa pemasukan atau pengeluaran dulu, lalu tanya lagi.`
+  }
+
+  const topExpense = topExpenseCategories[0] || null
+  const topIncome = topIncomeCategories[0] || null
+  const budgetAlerts = budgets
+    .map((budget) => {
+      const category = budget.categories?.name
+      const matching = topExpenseCategories.find((item) => item.name === category)
+      const spent = Number(matching?.amount || 0)
+      const limit = Number(budget.monthly_limit || 0)
+      const percent = limit > 0 ? (spent / limit) * 100 : 0
+      return { category, spent, limit, percent }
+    })
+    .filter((item) => item.category && item.percent >= 80)
+    .sort((left, right) => right.percent - left.percent)
+
+  const nextGoal = goals
+    .filter((goal) => goal.status !== 'completed')
+    .sort((left, right) => {
+      const leftRemaining = Number(left.target_amount || 0) - Number(left.current_amount || 0)
+      const rightRemaining = Number(right.target_amount || 0) - Number(right.current_amount || 0)
+      return leftRemaining - rightRemaining
+    })[0]
+
+  const lines = [`Strategi ${periodLabel}:`]
+
+  if (query?.focus === 'expense' || query?.focus === 'overall' || query?.focus === 'budget') {
+    if (topExpense) {
+      lines.push(`1. Tahan ${topExpense.name} dulu, karena ini pengeluaran terbesar di ${periodLabel}: ${formatRupiah(topExpense.amount)}.`)
+    }
+
+    if (budgetAlerts[0]) {
+      lines.push(`2. Budget ${budgetAlerts[0].category} sudah ${budgetAlerts[0].percent.toFixed(0)}% terpakai. Batasi transaksi kecil di kategori ini.`)
+    }
+  }
+
+  if ((query?.focus === 'savings' || query?.focus === 'overall') && totalIncome > 0) {
+    const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0
+    if (savingsRate < 10) {
+      lines.push(`3. Naikkan alokasi tabungan minimal ke 10% dari pemasukan. Sekarang baru sekitar ${savingsRate.toFixed(1)}%.`)
+    } else if (nextGoal) {
+      const remaining = Math.max(Number(nextGoal.target_amount || 0) - Number(nextGoal.current_amount || 0), 0)
+      lines.push(`3. Fokus selesaikan target ${nextGoal.name}. Sisa yang perlu dikejar ${formatRupiah(remaining)}.`)
+    }
+  }
+
+  if ((query?.focus === 'income' || query?.focus === 'overall') && topIncome) {
+    lines.push(`4. Jaga sumber pemasukan utama di ${topIncome.name} karena kontribusinya paling besar: ${formatRupiah(topIncome.amount)}.`)
+  }
+
+  if (netCashflow < 0) {
+    lines.push('5. Arus kas sedang negatif. Prioritaskan menahan pengeluaran variabel sebelum menambah target baru.')
+  } else if (netCashflow > 0) {
+    lines.push('5. Arus kas masih positif. Kelebihan bulan ini paling aman diarahkan ke tabungan atau target prioritas.')
+  }
+
+  return lines.slice(0, 4).join('\n')
+}
+
 function buildCategoryRankingReply({ intro, categories, formatRupiah, emptyMessage }) {
   if (!Array.isArray(categories) || categories.length === 0) {
     return emptyMessage
