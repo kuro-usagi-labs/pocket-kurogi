@@ -140,6 +140,7 @@ export default function AppShell() {
         type: draft.transactionType,
         amount: draft.amount,
         desc: draft.desc,
+        notes: rawText,
         walletId: finalWallet.id,
         categoryId: resolvedCategory?.id || null,
         source: image ? 'ocr' : 'chat',

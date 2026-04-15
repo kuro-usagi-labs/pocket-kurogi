@@ -4,7 +4,6 @@ import { CategoryIcon } from '../shared/CategoryIcon'
 export default function HistoryView({ transactions, formatRupiah, onDeleteTransaction }) {
   return (
     <div className="pt-8 px-6 pb-[140px]">
-      {/* Search bar */}
       <div className="relative flex items-center bg-white border border-midnight/10 shadow-[0_8px_30px_rgba(15,23,42,0.03)] rounded-2xl p-1.5 mb-8">
         <div className="px-3 text-muted">
           <Sparkles size={18} strokeWidth={2} />
@@ -27,14 +26,14 @@ export default function HistoryView({ transactions, formatRupiah, onDeleteTransa
                 Belum ada aktivitas terekam.
               </p>
             ) : (
-              transactions.map((t) => (
+              transactions.map((transaction) => (
                 <div
-                  key={t.id}
+                  key={transaction.id}
                   className="bg-white p-5 rounded-[20px] flex items-center justify-between border border-midnight/5 hover:shadow-[0_8px_30px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 transition-all duration-300 relative group"
                 >
-                  {t.canDelete && (
+                  {transaction.canDelete && (
                     <button
-                      onClick={() => onDeleteTransaction(t.id)}
+                      onClick={() => onDeleteTransaction(transaction.id)}
                       className="absolute top-3 right-3 p-1.5 text-muted/20 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
                       title="Hapus transaksi"
                     >
@@ -42,30 +41,30 @@ export default function HistoryView({ transactions, formatRupiah, onDeleteTransa
                     </button>
                   )}
 
-                  <div className="flex items-center gap-4">
-                    <div className="w-[50px] h-[50px] rounded-2xl bg-ivory flex items-center justify-center text-midnight border border-midnight/5 shadow-sm">
-                      <CategoryIcon category={t.category} size={22} />
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-[50px] h-[50px] rounded-2xl bg-ivory flex items-center justify-center text-midnight border border-midnight/5 shadow-sm shrink-0">
+                      <CategoryIcon category={transaction.category} size={22} />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-midnight font-jakarta text-[14.5px] capitalize tracking-tight">
-                        {t.desc}
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-midnight font-jakarta text-[14.5px] tracking-tight truncate">
+                        {transaction.title || transaction.desc}
                       </h3>
-                      <p className="text-[11.5px] font-medium text-muted/60 mt-0.5">
-                        {t.date} • {t.time}
+                      <p className="text-[11.5px] font-medium text-muted/60 mt-0.5 truncate">
+                        {[transaction.subtitle, transaction.date, transaction.time].filter(Boolean).join(' • ')}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0 pl-4">
                     <p
                       className={`font-jakarta font-extrabold text-[15.5px] tracking-tight ${
-                        t.type === 'income' ? 'text-gold' : 'text-midnight'
+                        transaction.type === 'income' ? 'text-gold' : 'text-midnight'
                       }`}
                     >
-                      {t.type === 'income' ? '+' : '-'}
-                      {formatRupiah(t.amount)}
+                      {transaction.type === 'income' ? '+' : '-'}
+                      {formatRupiah(transaction.amount)}
                     </p>
                     <p className="text-[9.5px] text-muted/50 uppercase font-extrabold tracking-widest mt-1">
-                      {t.wallet}
+                      {transaction.wallet}
                     </p>
                   </div>
                 </div>

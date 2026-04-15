@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { buildHistoryPresentation } from '../lib/historyPresentation'
 
 const TRANSACTION_SELECT = `
   *,
@@ -20,15 +21,29 @@ export function useTransactions() {
       transactionType: transaction.transaction_type,
       analyticsBucket: transaction.analytics_bucket,
     })
+    const walletName = transaction.wallets?.name || 'Unknown'
+    const categoryName = transaction.categories?.name || 'Lainnya'
+    const historyPresentation = buildHistoryPresentation({
+      merchant: transaction.merchant,
+      notes: transaction.notes,
+      source: normalizedSource,
+      transactionType: transaction.transaction_type,
+      walletName,
+      categoryName,
+    })
 
     return {
       id: transaction.id,
       type: transaction.transaction_type,
       amount: Number(transaction.amount),
       desc: transaction.merchant || transaction.notes || 'Transaksi',
-      category: transaction.categories?.name || 'Lainnya',
+      title: historyPresentation.title,
+      subtitle: historyPresentation.subtitle,
+      merchant: transaction.merchant || null,
+      notes: transaction.notes || null,
+      category: categoryName,
       categoryIcon: transaction.categories?.icon || null,
-      wallet: transaction.wallets?.name || 'Unknown',
+      wallet: walletName,
       walletId: transaction.wallet_id,
       categoryId: transaction.category_id,
       time: new Date(transaction.occurred_at).toLocaleTimeString('id-ID', {
@@ -69,7 +84,11 @@ export function useTransactions() {
   }, [mapTransactionRow, user])
 
   useEffect(() => {
-    fetchTransactions()
+    const timeoutId = setTimeout(() => {
+      fetchTransactions().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchTransactions])
 
   const fetchTransactionById = useCallback(async (id) => {
@@ -91,6 +110,7 @@ export function useTransactions() {
     type,
     amount,
     desc,
+    notes = null,
     walletId,
     categoryId,
     source = 'chat',
@@ -111,6 +131,7 @@ export function useTransactions() {
       p_transaction_type: normalizedType,
       p_amount: normalizedAmount,
       p_merchant: desc,
+      p_notes: notes || null,
       p_source: normalizedSource,
     })
 
@@ -127,6 +148,10 @@ export function useTransactions() {
             type: normalizedType,
             amount: normalizedAmount,
             desc,
+            title: desc,
+            subtitle: categoryId ? 'Transaksi' : normalizedType === 'income' ? 'Pemasukan' : 'Pengeluaran',
+            merchant: desc,
+            notes: notes || null,
             category: 'Lainnya',
             categoryIcon: null,
             wallet: 'Unknown',
