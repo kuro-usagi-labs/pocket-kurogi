@@ -18,7 +18,7 @@ import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
 import { useNameConflicts } from '../../hooks/useNameConflicts'
-import { buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
+import { buildAdviceReply, buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
 import {
   buildGoalOptions,
   buildWalletOptions,
@@ -430,8 +430,34 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'advice') {
+        const timeframe = resolveAnalyticsTimeframe(analysis.period)
+        const snapshotResult =
+          timeframe.key === 'all_time'
+            ? { data: analytics, error: null }
+            : await getSnapshot({
+                startAt: timeframe.startAt,
+                endAt: timeframe.endAt,
+              })
+
+        if (snapshotResult.error) {
+          throw snapshotResult.error
+        }
+
         return {
-          text: analysis.reply || 'Analisa finansial tidak tersedia saat ini.',
+          text:
+            analysis.reply ||
+            buildAdviceReply({
+              query: {
+                ...analysis,
+                periodLabel: timeframe.label,
+              },
+              snapshot: snapshotResult.data,
+              budgets,
+              goals,
+              transactions,
+              formatRupiah,
+            }) ||
+            'Analisa finansial tidak tersedia saat ini.',
         }
       }
 
@@ -702,6 +728,7 @@ export default function AppShell() {
       addTransaction,
       addWallet,
       analytics,
+      budgets,
       contributeToGoal,
       formatRupiah,
       getSnapshot,

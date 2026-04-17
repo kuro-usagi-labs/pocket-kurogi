@@ -78,6 +78,11 @@ async function callAnalyzerFunction(text, imageBase64, walletOptions, goalOption
 function analyzeWithRegex(text, walletOptions, goalOptions = []) {
   let normalizedText = normalizeNumericText(text.toLowerCase().trim())
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
+  const adviceQuery = detectAdviceQuery(normalizedText)
+
+  if (adviceQuery) {
+    return adviceQuery
+  }
 
   const goalWithdrawal = detectGoalWithdrawalIntent(normalizedText, walletOptions, goalOptions)
   if (goalWithdrawal) {
@@ -801,7 +806,7 @@ function detectAnalyticsQuery(normalizedText) {
     return null
   }
 
-  if (/(tips|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|bantu saya atur)/i.test(normalizedText)) {
+  if (detectAdviceQuery(normalizedText)) {
     return null
   }
 
@@ -816,6 +821,42 @@ function detectAnalyticsQuery(normalizedText) {
     metric,
     period: detectAnalyticsPeriod(normalizedText),
   }
+}
+
+function detectAdviceQuery(normalizedText) {
+  if (!normalizedText) {
+    return null
+  }
+
+  if (!/(tips|tip|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|bantu saya atur|langkah terbaik|apa yang harus saya lakukan)/i.test(normalizedText)) {
+    return null
+  }
+
+  return {
+    type: 'advice',
+    period: detectAnalyticsPeriod(normalizedText),
+    focus: detectAdviceFocus(normalizedText),
+  }
+}
+
+function detectAdviceFocus(normalizedText) {
+  if (/(pengeluaran|boros|hemat|spending|expense|belanja)/i.test(normalizedText)) {
+    return 'expense'
+  }
+
+  if (/(pemasukan|income|penghasilan|pendapatan|gaji|bonus)/i.test(normalizedText)) {
+    return 'income'
+  }
+
+  if (/(tabungan|saving|savings|sisih|milestone|goal|target)/i.test(normalizedText)) {
+    return 'savings'
+  }
+
+  if (/(budget|anggaran|limit)/i.test(normalizedText)) {
+    return 'budget'
+  }
+
+  return 'overall'
 }
 
 function detectAnalyticsMetric(normalizedText) {
