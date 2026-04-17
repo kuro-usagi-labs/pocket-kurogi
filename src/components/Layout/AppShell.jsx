@@ -792,8 +792,38 @@ export default function AppShell() {
           }
         }
 
+        const resolution = resolveOptionReference({
+          input: text,
+          options: walletOptions,
+        })
+
+        if (resolution.match) {
+          setPendingAction(null)
+
+          if (!pendingAction.intent) {
+            return {
+              text: `Baik, saya gunakan dompet **${resolution.match.name}** yang sudah ada.`,
+            }
+          }
+
+          const resumedIntent = withWalletAttached(pendingAction.intent, resolution.match)
+          const resumedResponse = await executeIntent(resumedIntent, { source: 'chat' })
+
+          return {
+            ...resumedResponse,
+            text: `Baik, saya pakai dompet **${resolution.match.name}** yang sudah ada.\n\n${resumedResponse.text}`,
+          }
+        }
+
+        if (resolution.candidates.length > 0) {
+          return {
+            text: `Nama dompetnya masih ambigu. Pilih salah satu: ${formatCandidateNames(resolution.candidates)}.`,
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
         return {
-          text: 'Ketik "Ya" jika dompet baru memang ingin dibuat, atau "Batal" jika tidak.',
+          text: 'Ketik "Ya" jika dompet baru memang ingin dibuat, sebut nama dompet aktif yang benar, atau "Batal" jika tidak.',
           intentStatus: 'needs_confirmation',
         }
       }
@@ -983,18 +1013,19 @@ export default function AppShell() {
       }
 
       const userMessageText = text.trim() || 'Lampiran gambar'
-      const savedUserMessage = await saveMessage('user', userMessageText, {
-        imageFile,
-        imagePreview,
-      })
-
-      if (savedUserMessage?.error) {
-        throw savedUserMessage.error
-      }
-
-      setIsTyping(true)
 
       try {
+        const savedUserMessage = await saveMessage('user', userMessageText, {
+          imageFile,
+          imagePreview,
+        })
+
+        if (savedUserMessage?.error) {
+          throw savedUserMessage.error
+        }
+
+        setIsTyping(true)
+
         let response
 
         if (pendingAction) {

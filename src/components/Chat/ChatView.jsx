@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
 
@@ -11,11 +11,66 @@ export default function ChatView({
   loadingMore = false,
   onLoadMore,
 }) {
+  const containerRef = useRef(null)
   const messagesEndRef = useRef(null)
+  const isLoadingOlderRef = useRef(false)
+  const previousScrollHeightRef = useRef(0)
+  const previousLastMessageIdRef = useRef(messages.at(-1)?.id || null)
+
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
+  }, [])
+
+  const handleLoadMore = useCallback(() => {
+    if (!onLoadMore || loadingMore) {
+      return
+    }
+
+    const container = containerRef.current
+    if (container) {
+      isLoadingOlderRef.current = true
+      previousScrollHeightRef.current = container.scrollHeight
+    }
+
+    onLoadMore()
+  }, [loadingMore, onLoadMore])
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) {
+      previousLastMessageIdRef.current = messages.at(-1)?.id || null
+      return
+    }
+
+    if (isLoadingOlderRef.current) {
+      const nextScrollHeight = container.scrollHeight
+      const heightDelta = nextScrollHeight - previousScrollHeightRef.current
+      container.scrollTop += Math.max(heightDelta, 0)
+      isLoadingOlderRef.current = false
+      previousLastMessageIdRef.current = messages.at(-1)?.id || null
+      return
+    }
+
+    const lastMessageId = messages.at(-1)?.id || null
+    if (lastMessageId && lastMessageId !== previousLastMessageIdRef.current) {
+      scrollToBottom()
+    }
+
+    previousLastMessageIdRef.current = lastMessageId
+  }, [messages, scrollToBottom])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isTyping])
+    if (isTyping) {
+      scrollToBottom()
+    }
+  }, [isTyping, scrollToBottom])
+
+  useEffect(() => {
+    if (!loadingMore) {
+      isLoadingOlderRef.current = false
+      previousScrollHeightRef.current = 0
+    }
+  }, [loadingMore])
 
   return (
     <div className="absolute inset-0 h-full w-full">
@@ -23,12 +78,15 @@ export default function ChatView({
       <div className="absolute bottom-[80px] md:bottom-0 left-0 w-full h-[180px] md:h-[140px] bg-gradient-to-t from-champagne via-champagne/90 to-transparent z-30 pointer-events-none" />
 
       {/* Messages container */}
-      <div className="absolute inset-0 overflow-y-auto px-5 md:px-24 pt-6 pb-[260px] md:pb-[160px] scroll-smooth no-scrollbar z-20 flex flex-col max-w-4xl mx-auto w-full">
+      <div
+        ref={containerRef}
+        className="absolute inset-0 overflow-y-auto px-5 md:px-24 pt-6 pb-[260px] md:pb-[160px] scroll-smooth no-scrollbar z-20 flex flex-col max-w-4xl mx-auto w-full"
+      >
         {hasMore && (
           <div className="flex justify-center mb-5">
             <button
               type="button"
-              onClick={onLoadMore}
+              onClick={handleLoadMore}
               className="px-4 py-2 rounded-full bg-white/80 border border-midnight/10 text-[11px] font-extrabold uppercase tracking-[0.18em] text-midnight/60 font-jakarta shadow-sm hover:bg-white transition-colors"
             >
               {loadingMore ? 'Memuat...' : 'Muat Percakapan Lama'}

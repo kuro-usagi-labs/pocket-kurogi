@@ -13,6 +13,14 @@ export function useChat() {
   const [hasMore, setHasMore] = useState(false)
   const oldestCursorRef = useRef(null)
 
+  const removeAttachment = useCallback(async (path) => {
+    if (!path) {
+      return
+    }
+
+    await supabase.storage.from(CHAT_BUCKET).remove([path])
+  }, [])
+
   const hydrateMessages = useCallback(async (rows) => {
     const hydrated = rows.map((message) => {
       const metadata = message.metadata && typeof message.metadata === 'object' ? message.metadata : {}
@@ -150,18 +158,23 @@ export function useChat() {
       .from(CHAT_BUCKET)
       .createSignedUrl(objectPath, 60 * 60)
 
+    if (signedError) {
+      await removeAttachment(objectPath)
+    }
+
     return {
       path: objectPath,
       signedUrl: signedData?.signedUrl || null,
       error: signedError,
     }
-  }, [user])
+  }, [removeAttachment, user])
 
   const saveMessage = useCallback(async (sender, text, extras = {}) => {
     if (!user) return { error: 'Not authenticated' }
 
     let imagePath = extras.imagePath || null
     let imageUrl = extras.image || null
+    let uploadedImagePath = null
 
     if (extras.imageFile && !imagePath) {
       const uploadResult = await uploadAttachment(extras.imageFile)
@@ -171,6 +184,7 @@ export function useChat() {
 
       imagePath = uploadResult.path
       imageUrl = uploadResult.signedUrl || extras.imagePreview || null
+      uploadedImagePath = uploadResult.path
     }
 
     const metadata = {
@@ -209,8 +223,12 @@ export function useChat() {
       return { data: formatted, error: null }
     }
 
+    if (uploadedImagePath) {
+      await removeAttachment(uploadedImagePath)
+    }
+
     return { error }
-  }, [uploadAttachment, user])
+  }, [removeAttachment, uploadAttachment, user])
 
   const clearMessages = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
