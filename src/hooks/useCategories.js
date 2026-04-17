@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { normalizeEntityName } from '../lib/chatEntities'
 
 export function useCategories() {
   const { user } = useAuth()
@@ -28,22 +29,40 @@ export function useCategories() {
    * Find the best matching category by name (case-insensitive fuzzy match).
    * Returns the category object or null.
    */
-  const findCategory = (categoryName) => {
-    if (!categoryName) return null
-    const lower = categoryName.toLowerCase()
+  const resolveCategory = useCallback((categoryName) => {
+    if (!categoryName) {
+      return { category: null, ambiguous: false }
+    }
 
-    // Exact match first
-    const exact = categories.find((c) => c.name.toLowerCase() === lower)
-    if (exact) return exact
+    const normalizedName = normalizeEntityName(categoryName)
+    const exact = categories.find((category) => normalizeEntityName(category.name) === normalizedName)
 
-    // Partial match
-    const partial = categories.find(
-      (c) =>
-        c.name.toLowerCase().includes(lower) ||
-        lower.includes(c.name.toLowerCase())
-    )
-    return partial || null
-  }
+    if (exact) {
+      return { category: exact, ambiguous: false }
+    }
 
-  return { categories, loading, findCategory, refetch: fetchCategories }
+    const partialMatches = categories.filter((category) => {
+      const normalizedCategory = normalizeEntityName(category.name)
+      return normalizedCategory.includes(normalizedName) || normalizedName.includes(normalizedCategory)
+    })
+
+    if (partialMatches.length === 1) {
+      return { category: partialMatches[0], ambiguous: false }
+    }
+
+    const fallbackCategory =
+      categories.find((category) => normalizeEntityName(category.name) === 'lainnya') || null
+
+    return {
+      category: fallbackCategory,
+      ambiguous: partialMatches.length > 1,
+    }
+  }, [categories])
+
+  const findCategory = useCallback(
+    (categoryName) => resolveCategory(categoryName).category,
+    [resolveCategory]
+  )
+
+  return { categories, loading, findCategory, resolveCategory, refetch: fetchCategories }
 }

@@ -13,7 +13,11 @@ export default function ChatInput({ onSend, isTyping }) {
   const handleSubmit = (e) => {
     e?.preventDefault()
     if ((!inputValue.trim() && !selectedImage) || isTyping) return
-    onSend({ text: inputValue.trim(), image: selectedImage })
+    onSend({
+      text: inputValue.trim(),
+      imageFile: selectedImage?.file || null,
+      imagePreview: selectedImage?.previewUrl || null,
+    })
     setInputValue('')
     setSelectedImage(null)
   }
@@ -24,7 +28,10 @@ export default function ChatInput({ onSend, isTyping }) {
 
     const reader = new FileReader()
     reader.onloadend = () => {
-      setSelectedImage(reader.result)
+      setSelectedImage({
+        file,
+        previewUrl: reader.result,
+      })
     }
     reader.readAsDataURL(file)
     e.target.value = '' // Reset input
@@ -63,7 +70,11 @@ export default function ChatInput({ onSend, isTyping }) {
       setInputValue(transcript);
       // Auto send if confident
       if (transcript.trim() && !isTyping) {
-        onSend({ text: transcript.trim(), image: selectedImage });
+        onSend({
+          text: transcript.trim(),
+          imageFile: selectedImage?.file || null,
+          imagePreview: selectedImage?.previewUrl || null,
+        });
         setInputValue('');
         setSelectedImage(null);
       }
@@ -90,7 +101,7 @@ export default function ChatInput({ onSend, isTyping }) {
         {/* Image Preview */}
         {selectedImage && (
           <div className="self-end relative w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2 border-white pointer-events-auto bg-midnight/5">
-            <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
+            <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
             <button
               onClick={() => setSelectedImage(null)}
               className="absolute top-1 right-1 bg-midnight/60 text-white rounded-full p-1 backdrop-blur-md hover:bg-midnight transition-colors"

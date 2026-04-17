@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X, Target, Flag } from 'lucide-react'
+import { Plus, X, Target, Flag, Pencil, AlertTriangle } from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
 import AddGoalModal from './AddGoalModal'
@@ -8,17 +8,69 @@ export default function WalletsView({
   wallets, 
   totalBalance, 
   goals = [], 
+  conflicts = { wallets: [], goals: [] },
   onAddWallet, 
   onDeleteWallet, 
+  onRenameWallet,
   onAddGoal, 
   onDeleteGoal, 
+  onRenameGoal,
   formatRupiah 
 }) {
   const [showAddWallet, setShowAddWallet] = useState(false)
   const [showAddGoal, setShowAddGoal] = useState(false)
+  const hasConflicts = conflicts.wallets.length > 0 || conflicts.goals.length > 0
+
+  const handleRenameWallet = async (wallet) => {
+    const nextName = window.prompt('Nama baru untuk dompet ini:', wallet.name)
+    if (!nextName || nextName.trim() === wallet.name) return
+
+    const result = await onRenameWallet(wallet.id, nextName)
+    if (result?.error) {
+      window.alert(result.error.message || 'Nama dompet belum bisa diubah.')
+    }
+  }
+
+  const handleRenameGoal = async (goal) => {
+    const nextName = window.prompt('Nama baru untuk target ini:', goal.name)
+    if (!nextName || nextName.trim() === goal.name) return
+
+    const result = await onRenameGoal(goal.id, nextName)
+    if (result?.error) {
+      window.alert(result.error.message || 'Nama target belum bisa diubah.')
+    }
+  }
 
   return (
     <div className="pt-8 px-6 pb-[140px]">
+      {hasConflicts ? (
+        <div className="mb-6 rounded-[24px] border border-amber-200 bg-amber-50/90 px-5 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700">
+              <AlertTriangle size={16} />
+            </div>
+            <div className="space-y-2">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-amber-800 font-jakarta">
+                Audit Nama Diperlukan
+              </p>
+              <p className="text-[13px] font-medium leading-relaxed text-amber-900/80">
+                Ada dompet atau target dengan nama aktif yang bentrok. Rename item terkait dulu supaya index unik backend bisa aktif dengan aman.
+              </p>
+              {conflicts.wallets.map((conflict) => (
+                <p key={`wallet-${conflict.normalizedName}`} className="text-[12px] font-semibold text-amber-900/80">
+                  Dompet: {conflict.items.map((item) => item.name).join(', ')}
+                </p>
+              ))}
+              {conflicts.goals.map((conflict) => (
+                <p key={`goal-${conflict.normalizedName}`} className="text-[12px] font-semibold text-amber-900/80">
+                  Target: {conflict.items.map((item) => item.name).join(', ')}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Total Balance */}
       <div className="mb-8 pl-1">
         <h2 className="text-[10px] font-extrabold text-muted uppercase tracking-[0.25em] mb-2 font-jakarta opacity-80">
@@ -38,6 +90,13 @@ export default function WalletsView({
             key={w.id}
             className="bg-white border border-midnight/5 rounded-[24px] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.03)] relative group hover:border-midnight/10 transition-colors"
           >
+            <button
+              onClick={() => handleRenameWallet(w)}
+              className="absolute top-3 left-3 p-1.5 text-muted/30 hover:text-midnight hover:bg-ivory rounded-full transition-all"
+              title="Ubah nama dompet"
+            >
+              <Pencil size={13} strokeWidth={2} />
+            </button>
             <button
               onClick={() => onDeleteWallet(w.id)}
               className="absolute top-3 right-3 p-1.5 text-muted/30 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
@@ -93,12 +152,21 @@ export default function WalletsView({
                         </p>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => onDeleteGoal(goal.id)}
-                      className="p-1.5 text-midnight/10 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                    >
-                      <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => handleRenameGoal(goal)}
+                        className="p-1.5 text-midnight/20 hover:text-midnight hover:bg-ivory rounded-full transition-all"
+                        title="Ubah nama target"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button 
+                        onClick={() => onDeleteGoal(goal.id)}
+                        className="p-1.5 text-midnight/10 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Progress Bar */}

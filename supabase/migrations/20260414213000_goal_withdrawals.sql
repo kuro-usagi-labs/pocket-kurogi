@@ -103,5 +103,7 @@ begin
   );
 end;
 $$;
+
 revoke all on function public.withdraw_from_goal(uuid, numeric, uuid, text, timestamptz) from public;
+
 grant execute on function public.withdraw_from_goal(uuid, numeric, uuid, text, timestamptz) to authenticated, service_role;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { normalizeEntityName } from '../lib/chatEntities'
 
 const DEFAULT_GOAL_ICON = '🎯'
 
@@ -35,7 +36,7 @@ export function useGoals() {
   }, [fetchGoals])
 
   const addGoal = useCallback(async ({ name, targetAmount, deadline, icon, initialAmount = 0 }) => {
-    if (!user) return { error: 'Not authenticated' }
+    if (!user) return { data: null, error: 'Not authenticated' }
 
     const rpcResult = await supabase.rpc('create_goal_with_contribution', {
       p_name: name,
@@ -51,10 +52,7 @@ export function useGoals() {
       return { data: rpcResult.data, error: null }
     }
 
-    return {
-      data: null,
-      error: rpcResult.error ?? new Error('Target tidak bisa dibuat saat ini.'),
-    }
+    return { data: null, error: rpcResult.error }
   }, [fetchGoals, user])
 
   const updateGoalProgress = useCallback(async (id) => {
@@ -84,7 +82,9 @@ export function useGoals() {
   }, [fetchGoals, user])
 
   const withdrawFromGoal = useCallback(async ({ goalId, amount, walletId, description = null }) => {
-    if (!user) return { data: null, error: 'Not authenticated', walletHandled: false }
+    if (!user) {
+      return { data: null, error: 'Not authenticated', walletHandled: false, ledgerHandled: false }
+    }
 
     const rpcResult = await supabase.rpc('withdraw_from_goal', {
       p_goal_id: goalId,
@@ -95,10 +95,10 @@ export function useGoals() {
 
     if (!rpcResult.error) {
       await fetchGoals()
-      return { data: rpcResult.data, error: null, walletHandled: true }
+      return { data: rpcResult.data, error: null, walletHandled: true, ledgerHandled: true }
     }
 
-    return { data: null, error: rpcResult.error, walletHandled: false }
+    return { data: null, error: rpcResult.error, walletHandled: false, ledgerHandled: false }
   }, [fetchGoals, user])
 
   const createGoalWithContribution = useCallback(
@@ -147,6 +147,27 @@ export function useGoals() {
     return { data: null, error: rpcResult.error, walletHandled: false, ledgerHandled: false }
   }, [user])
 
+  const renameGoal = useCallback(async (goalId, nextName) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const normalizedName = normalizeEntityName(nextName)
+    if (!normalizedName) {
+      return { error: new Error('Nama target wajib diisi.') }
+    }
+
+    const rpcResult = await supabase.rpc('rename_goal', {
+      p_goal_id: goalId,
+      p_name: nextName,
+    })
+
+    if (!rpcResult.error) {
+      await fetchGoals()
+      return { error: null }
+    }
+
+    return { error: rpcResult.error }
+  }, [fetchGoals, user])
+
   return {
     goals,
     loading,
@@ -156,6 +177,7 @@ export function useGoals() {
     withdrawFromGoal,
     createGoalWithContribution,
     deleteGoal,
+    renameGoal,
     refetch: fetchGoals,
   }
 }

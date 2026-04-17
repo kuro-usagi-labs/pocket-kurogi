@@ -5,13 +5,24 @@ const corsHeaders = {
 
 const MAX_TEXT_LENGTH = 2_000
 const MAX_CONTEXT_LENGTH = 12_000
-const MAX_WALLET_NAMES = 50
+const MAX_OPTIONS = 50
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+
+type EntityOption = {
+  id?: string
+  name?: string
+  normalizedName?: string
+  isArchived?: boolean
+  status?: string
+}
 
 type AnalyzePayload = {
   text?: string
   imageBase64?: string | null
+  walletOptions?: EntityOption[]
+  goalOptions?: EntityOption[]
   walletNames?: string[]
+  goalNames?: string[]
   financialContext?: string
 }
 
@@ -25,7 +36,7 @@ Deno.serve(async (request) => {
   try {
     const body = (await request.json()) as AnalyzePayload
     validatePayload(body)
-    const result = await callGeminiAPI(body)
+  const result = await callGeminiAPI(body)
 
     return new Response(JSON.stringify(result), {
       headers: {
@@ -53,7 +64,10 @@ Deno.serve(async (request) => {
 async function callGeminiAPI({
   text = '',
   imageBase64 = null,
+  walletOptions = [],
+  goalOptions = [],
   walletNames = [],
+  goalNames = [],
   financialContext = '',
 }: AnalyzePayload) {
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
@@ -62,7 +76,14 @@ async function callGeminiAPI({
     throw new Error('GEMINI_API_KEY is not configured in Supabase Edge Functions.')
   }
 
-  const prompt = buildPrompt(text, financialContext, walletNames)
+  const prompt = buildPrompt({
+    text,
+    financialContext,
+    walletOptions,
+    goalOptions,
+    walletNames,
+    goalNames,
+  })
   const parts: Array<Record<string, unknown>> = [{ text: prompt }]
 
   if (imageBase64) {
@@ -120,7 +141,10 @@ async function callGeminiAPI({
 function validatePayload({
   text = '',
   imageBase64 = null,
+  walletOptions = [],
+  goalOptions = [],
   walletNames = [],
+  goalNames = [],
   financialContext = '',
 }: AnalyzePayload) {
   if (typeof text !== 'string') {
@@ -139,12 +163,23 @@ function validatePayload({
     throw new ValidationError('Konteks keuangan terlalu besar. Coba muat data yang lebih ringkas.')
   }
 
-  if (!Array.isArray(walletNames) || walletNames.length > MAX_WALLET_NAMES) {
+  validateEntityOptions(walletOptions, 'dompet')
+  validateEntityOptions(goalOptions, 'target tabungan')
+
+  if (!Array.isArray(walletNames) || walletNames.length > MAX_OPTIONS) {
     throw new ValidationError('Daftar dompet tidak valid.')
   }
 
   if (walletNames.some((walletName) => typeof walletName !== 'string' || walletName.length > 100)) {
     throw new ValidationError('Nama dompet tidak valid.')
+  }
+
+  if (!Array.isArray(goalNames) || goalNames.length > MAX_OPTIONS) {
+    throw new ValidationError('Daftar target tabungan tidak valid.')
+  }
+
+  if (goalNames.some((goalName) => typeof goalName !== 'string' || goalName.length > 100)) {
+    throw new ValidationError('Nama target tabungan tidak valid.')
   }
 
   if (!imageBase64) {
@@ -166,8 +201,37 @@ function validatePayload({
   }
 }
 
-function buildPrompt(text: string, financialContext: string, walletNames: string[]) {
-  const walletList = [...walletNames, 'Tunai'].join(', ')
+function validateEntityOptions(options: EntityOption[], label: string) {
+  if (!Array.isArray(options) || options.length > MAX_OPTIONS) {
+    throw new ValidationError(`Daftar ${label} tidak valid.`)
+  }
+
+  const invalidOption = options.find((option) => {
+    return !option || typeof option !== 'object' || typeof option.name !== 'string' || option.name.length > 100
+  })
+
+  if (invalidOption) {
+    throw new ValidationError(`Ada ${label} dengan format yang tidak valid.`)
+  }
+}
+
+function buildPrompt({
+  text,
+  financialContext,
+  walletOptions = [],
+  goalOptions = [],
+  walletNames = [],
+  goalNames = [],
+}: {
+  text: string
+  financialContext: string
+  walletOptions: EntityOption[]
+  goalOptions: EntityOption[]
+  walletNames: string[]
+  goalNames: string[]
+}) {
+  const walletList = buildOptionList(walletOptions, walletNames, 'Tunai')
+  const goalList = buildOptionList(goalOptions, goalNames)
 
   return `Kamu adalah AI Financial Advisor yang cerdas, minimalis, dan berkelas.
 Ekstrak informasi atau berikan analisa keuangan dari: "${text || 'Berkas Terlampir'}"
@@ -177,46 +241,84 @@ ${financialContext}
 DOMPET YANG TERSEDIA:
 ${walletList || 'Tunai'}
 
+TARGET TABUNGAN YANG TERSEDIA:
+${goalList || 'Belum ada target tabungan aktif'}
+
 PANDUAN:
-1. Jika user meminta tips, strategi, saran, motivasi, atau analisa: gunakan data keuangan di atas untuk memberikan jawaban yang singkat, personal, dan langsung bisa dipakai.
+1. Jika user meminta tips, motivasi, analisa, atau saham: gunakan data keuangan di atas untuk memberikan jawaban yang SANGAT SINGKAT, tajam, dan edukatif.
 2. Transaksi: "tambah", "masuk", "topup" = INCOME. "beli", "bayar", "keluar" = EXPENSE.
 3. Jika transaksi: ekstrak data seperti biasa.
 4. Gunakan bahasa Indonesia yang profesional namun modern.
-5. Untuk advice, jawab maksimal 4 baris: 1 ringkasan kondisi + 2 atau 3 langkah konkret.
-6. Untuk advice, sebut kategori, target, atau cashflow yang benar-benar ada di konteks. Jangan generik.
-7. Jangan pernah meminta nominal jika user hanya sedang meminta analisa atau strategi.
-8. Hindari daftar contoh perintah.
+5. Hindari daftar contoh perintah.
 
 Kembalikan HANYA JSON tanpa markdown. Tipe:
-- "transaction": { transactionType, amount, desc, category, wallet, reply }
+- "transaction": { transactionType, amount, desc, category, walletId, wallet, reply }
 - "advice": { reply }
 - "analytics_query": { metric, period, reply }
- - "goal_contribution": { goalId, amount, reply }
- - "goal_withdrawal": { goalId, amount, wallet, reply }
- - "goal_creation_pending": { name, amount, reply }
-- "transfer": { amount, from, to, reply }
-- "delete_wallet", "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "check_balance", "unknown".
+- "goal_contribution": { goalId, goal, amount, sourceWalletId, sourceWallet, reply }
+- "goal_creation_pending": { name, amount, sourceWalletId, sourceWallet, reply }
+- "goal_withdrawal": { goalId, goal, amount, destinationWalletId, wallet, reply }
+- "transfer": { amount, fromWalletId, from, toWalletId, to, reply }
+- "delete_wallet": { walletId, wallet }
+- "check_balance": { targetWalletId, target, reply }
+- "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "unknown".
 
 INSTRUKSI KHUSUS TABUNGAN (GOALS):
-1. Jika user ingin menabung/menyisihkan uang ke target tertentu, periksa daftar "activeGoals" di konteks.
+1. Jika user ingin menabung/menyisihkan uang ke target tertentu, cocokkan nama target terhadap daftar target aktif di bawah.
 2. Jika nama target ADA di daftar: kembalikan "goal_contribution" dengan goalId yang sesuai.
-3. Jika nama target TIDAK ADA: kembalikan "goal_creation_pending", simpan "name" dan "amount", lalu berikan "reply" yang menanyakan berapa target nominal tabungan tersebut.
-4. Jika user ingin mencairkan, menarik, atau mengambil uang dari target yang sudah ada, kembalikan "goal_withdrawal".
-5. Untuk "goal_withdrawal", isi "goalId" dari daftar activeGoals, "amount" dengan nominal pencairan, dan "wallet" dengan nama dompet tujuan.
-6. Jika user tidak menyebut dompet tujuan saat mencairkan target, gunakan "Tunai" sebagai default.
+3. Jika user juga menyebut dompet sumber, isi sourceWalletId dan sourceWallet dari daftar dompet.
+4. Jika nama target TIDAK ADA: kembalikan "goal_creation_pending", simpan "name" dan "amount", lalu berikan "reply" yang menanyakan berapa target nominal tabungan tersebut.
+
+INSTRUKSI KHUSUS PENCAIRAN TABUNGAN:
+1. Jika user ingin menarik, mencairkan, memindahkan, atau transfer dana DARI target tabungan ke dompet tertentu, gunakan "goal_withdrawal".
+2. "goalId" harus mengambil id target yang cocok dari daftar target aktif.
+3. "destinationWalletId" dan "wallet" harus mengambil id + nama dompet tujuan dari daftar dompet.
+4. Jangan gunakan "transfer" jika sumber dana berasal dari target tabungan. "transfer" hanya untuk perpindahan antar dompet.
 
 INSTRUKSI KHUSUS TRANSFER:
 1. Jika user ingin memindahkan uang antar dompet, kembalikan "type": "transfer".
 2. "amount": nominal yang dipindahkan.
-3. "from": nama dompet asal.
-4. "to": nama dompet tujuan.
+3. "fromWalletId" dan "from" harus mengambil dompet asal dari daftar dompet.
+4. "toWalletId" dan "to" harus mengambil dompet tujuan dari daftar dompet.
 5. "reply": konfirmasi singkat yang merangkum rencana transfer tersebut.
 
 INSTRUKSI KHUSUS ANALYTICS:
 1. Jika user menanyakan data keuangan seperti pemasukan, pengeluaran, tabungan, cashflow, kategori paling boros, sumber pemasukan terbesar, atau volume transfer, kembalikan "type": "analytics_query".
 2. "metric" harus salah satu dari: "overview", "total_income", "total_expense", "total_savings", "net_cashflow", "top_expense", "top_income", "transfer_volume".
 3. "period" harus salah satu dari: "today", "this_week", "this_month", "last_30_days", "all_time".
-4. Jika user meminta strategi, saran, langkah perbaikan, prioritas, atau cara menghemat, WAJIB gunakan "advice" alih-alih "analytics_query".
-5. Untuk "advice", isi "reply" dengan jawaban yang relevan ke periode yang diminta, bukan ringkasan angka mentah.
-6. "reply" opsional untuk "analytics_query", hanya dipakai jika butuh klarifikasi yang sangat singkat.`
+4. Jika user meminta strategi, saran, atau langkah perbaikan, gunakan "advice" alih-alih "analytics_query".
+5. "reply" opsional, hanya dipakai jika butuh klarifikasi yang sangat singkat.`
+}
+
+function buildOptionList(options: EntityOption[], fallbackNames: string[] = [], extraName?: string) {
+  const seen = new Set<string>()
+  const items: string[] = []
+
+  for (const option of options) {
+    const name = typeof option?.name === 'string' ? option.name.trim() : ''
+    if (!name) continue
+
+    const key = `${name.toLowerCase()}::${option.id || ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    items.push(option.id ? `${name} [${option.id}]` : name)
+  }
+
+  for (const fallbackName of fallbackNames) {
+    const normalized = fallbackName.trim()
+    if (!normalized) continue
+    const key = `${normalized.toLowerCase()}::`
+    if (seen.has(key)) continue
+    seen.add(key)
+    items.push(normalized)
+  }
+
+  if (extraName) {
+    const key = `${extraName.toLowerCase()}::`
+    if (!seen.has(key)) {
+      items.push(extraName)
+    }
+  }
+
+  return items.join(', ')
 }

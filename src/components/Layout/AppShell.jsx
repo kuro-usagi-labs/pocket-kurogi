@@ -1,11 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
 import { useGoals } from '../../hooks/useGoals'
 import { useBudgets } from '../../hooks/useBudgets'
-import { useInputLearning } from '../../hooks/useInputLearning'
 import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
 import ChatView from '../Chat/ChatView'
@@ -18,13 +17,194 @@ import DesktopRightPanel from './DesktopRightPanel'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
-import { buildAdviceReply, buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
+import { useNameConflicts } from '../../hooks/useNameConflicts'
+import { buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
 import {
-  buildWalletClarificationReply,
-  resolveTransactionWithLearning,
-  resolveWalletForMessage,
-  resolveWalletSelection,
-} from '../../lib/chatLearning'
+  buildGoalOptions,
+  buildWalletOptions,
+  formatCandidateNames,
+  matchMoney,
+  parseMoneyMatch,
+  resolveOptionReference,
+} from '../../lib/chatEntities'
+
+const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
+const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
+const WELCOME_MESSAGE = {
+  id: 'welcome',
+  sender: 'bot',
+  text: 'Halo! Saya asisten keuangan Anda. Anda bisa mencatat transaksi atau langsung bertanya seperti "bulan ini boros di mana?"',
+}
+
+function isAffirmative(text = '') {
+  return YES_PATTERN.test(String(text || '').trim())
+}
+
+function isNegative(text = '') {
+  return NO_PATTERN.test(String(text || '').trim())
+}
+
+function getCurrentTimeLabel() {
+  return new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function withWalletAttached(intent, wallet) {
+  if (!intent || !wallet) {
+    return intent
+  }
+
+  if (intent.type === 'transaction') {
+    return {
+      ...intent,
+      walletId: wallet.id,
+      wallet: wallet.name,
+    }
+  }
+
+  if (intent.type === 'transfer') {
+    if (intent.unresolvedRole === 'source' || !intent.fromWalletId) {
+      return {
+        ...intent,
+        fromWalletId: wallet.id,
+        from: wallet.name,
+      }
+    }
+
+    return {
+      ...intent,
+      toWalletId: wallet.id,
+      to: wallet.name,
+    }
+  }
+
+  if (intent.type === 'goal_withdrawal') {
+    return {
+      ...intent,
+      destinationWalletId: wallet.id,
+      wallet: wallet.name,
+    }
+  }
+
+  if (intent.type === 'goal_contribution') {
+    return {
+      ...intent,
+      sourceWalletId: wallet.id,
+      sourceWallet: wallet.name,
+    }
+  }
+
+  return intent
+}
+
+function attachResolvedWallet(intent, wallet) {
+  if (!intent || !wallet) {
+    return intent
+  }
+
+  if (intent.type === 'transaction') {
+    return {
+      ...intent,
+      walletId: wallet.id,
+      wallet: wallet.name,
+    }
+  }
+
+  if (intent.type === 'goal_contribution') {
+    return {
+      ...intent,
+      sourceWalletId: wallet.id,
+      sourceWallet: wallet.name,
+    }
+  }
+
+  if (intent.type === 'goal_withdrawal') {
+    return {
+      ...intent,
+      destinationWalletId: wallet.id,
+      wallet: wallet.name,
+    }
+  }
+
+  if (intent.type === 'transfer') {
+    if (intent.unresolvedRole === 'destination' || intent.toWalletId) {
+      return {
+        ...intent,
+        toWalletId: wallet.id,
+        to: wallet.name,
+      }
+    }
+
+    return {
+      ...intent,
+      fromWalletId: wallet.id,
+      from: wallet.name,
+    }
+  }
+
+  return withWalletAttached(intent, wallet)
+}
+
+function mapDomainError(error) {
+  const rawMessage = String(error?.message || error || '').trim()
+  const message = rawMessage.toLowerCase()
+
+  if (!rawMessage) {
+    return 'Terjadi kesalahan saat memproses permintaan.'
+  }
+
+  if (message.includes('insufficient wallet balance')) {
+    return 'Saldo dompet tidak cukup untuk menjalankan aksi ini.'
+  }
+
+  if (message.includes('goal balance is insufficient')) {
+    return 'Saldo target tabungan tidak cukup untuk pencairan itu.'
+  }
+
+  if (message.includes('wallet not found') || message.includes('source wallet not found') || message.includes('destination wallet not found')) {
+    return 'Dompet yang dimaksud tidak ditemukan atau sudah diarsipkan.'
+  }
+
+  if (message.includes('goal not found')) {
+    return 'Target tabungan yang dimaksud tidak ditemukan.'
+  }
+
+  if (message.includes('wallet name is already in use')) {
+    return 'Nama dompet itu sudah dipakai. Gunakan nama lain atau rename dompet yang bentrok.'
+  }
+
+  if (message.includes('goal name is already in use')) {
+    return 'Nama target itu sudah dipakai. Gunakan nama lain atau rename target yang bentrok.'
+  }
+
+  if (message.includes('category not found')) {
+    return 'Kategori yang dipilih tidak ditemukan. Transaksi belum disimpan.'
+  }
+
+  if (message.includes('amount must be greater than zero')) {
+    return 'Nominal harus lebih besar dari nol.'
+  }
+
+  if (message.includes('initial balance must not be negative') || message.includes('initial amount must not be negative')) {
+    return 'Saldo awal tidak boleh negatif.'
+  }
+
+  if (message.includes('wallet is required')) {
+    return 'Aksi ini butuh dompet sumber atau tujuan yang jelas.'
+  }
+
+  if (message.includes('goal name is required')) {
+    return 'Nama target wajib diisi.'
+  }
+
+  if (message.includes('wallet name is required')) {
+    return 'Nama dompet wajib diisi.'
+  }
+
+  return rawMessage
+}
 
 export default function AppShell() {
   const {
@@ -32,7 +212,7 @@ export default function AppShell() {
     totalBalance,
     addWallet,
     deleteWallet,
-    clearAllWallets,
+    renameWallet,
     refetch: refetchWallets,
   } = useWallets()
 
@@ -40,13 +220,14 @@ export default function AppShell() {
     transactions,
     addTransaction,
     deleteTransaction,
-    clearTransactionsInRange,
-    clearAllTransactions,
     transferBetweenWallets,
+    hasMore: hasMoreTransactions,
+    loadingMore: loadingMoreTransactions,
+    loadMore: loadMoreTransactions,
     refetch: refetchTransactions,
   } = useTransactions()
 
-  const { categories, findCategory } = useCategories()
+  const { resolveCategory } = useCategories()
   const {
     goals,
     addGoal,
@@ -54,11 +235,19 @@ export default function AppShell() {
     withdrawFromGoal,
     createGoalWithContribution,
     deleteGoal,
+    renameGoal,
+    refetch: refetchGoals,
   } = useGoals()
   const { budgets } = useBudgets()
-  const { categoryRules, walletRules, learnFromInput } = useInputLearning()
-  const { messages, saveMessage } = useChat()
+  const {
+    messages,
+    saveMessage,
+    hasMore: hasMoreMessages,
+    loadingMore: loadingMoreMessages,
+    loadMore: loadMoreMessages,
+  } = useChat()
   const { analytics, getSnapshot, refetch: refetchAnalytics } = useAnalytics()
+  const { conflicts, refetch: refetchNameConflicts } = useNameConflicts()
 
   const advisor = useAdvisor({
     wallets,
@@ -75,6 +264,9 @@ export default function AppShell() {
   const [isTyping, setIsTyping] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
 
+  const walletOptions = buildWalletOptions(wallets)
+  const goalOptions = buildGoalOptions(goals)
+
   const formatRupiah = useCallback((number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -85,791 +277,871 @@ export default function AppShell() {
   }, [])
 
   const syncFinancialViews = useCallback(
-    async ({ wallets: shouldRefreshWallets = false, transactions: shouldRefreshTransactions = false, analytics: shouldRefreshAnalytics = true } = {}) => {
+    async ({
+      wallets: shouldRefreshWallets = false,
+      transactions: shouldRefreshTransactions = false,
+      goals: shouldRefreshGoals = false,
+      analytics: shouldRefreshAnalytics = true,
+      names: shouldRefreshNames = false,
+    } = {}) => {
       const tasks = []
 
-      if (shouldRefreshWallets) {
-        tasks.push(refetchWallets())
-      }
-
-      if (shouldRefreshTransactions) {
-        tasks.push(refetchTransactions())
-      }
-
-      if (shouldRefreshAnalytics) {
-        tasks.push(refetchAnalytics())
-      }
+      if (shouldRefreshWallets) tasks.push(refetchWallets())
+      if (shouldRefreshTransactions) tasks.push(refetchTransactions())
+      if (shouldRefreshGoals) tasks.push(refetchGoals())
+      if (shouldRefreshAnalytics) tasks.push(refetchAnalytics())
+      if (shouldRefreshNames) tasks.push(refetchNameConflicts())
 
       if (tasks.length > 0) {
         await Promise.all(tasks)
       }
     },
-    [refetchAnalytics, refetchTransactions, refetchWallets]
+    [refetchAnalytics, refetchGoals, refetchNameConflicts, refetchTransactions, refetchWallets]
   )
 
-  const recordTransactionDraft = useCallback(
-    async ({ draft, rawText, image = null, forcedWallet = null }) => {
-      const resolvedCategory =
-        draft.categoryResolution?.category ||
-        findCategory(draft.category) ||
-        null
+  const persistBotResponse = useCallback(async (response) => {
+    if (!response?.text) {
+      return
+    }
 
-      let finalWallet = forcedWallet || draft.walletResolution?.wallet || null
-      let isNewWallet = false
+    const extras = {}
 
-      if (
-        !finalWallet &&
-        draft.walletResolution?.resolution === 'explicit_missing' &&
-        draft.walletResolution?.missingName
-      ) {
-        const walletCreation = await addWallet(draft.walletResolution.missingName, 0, 'bank')
+    if (response.card) {
+      extras.card = response.card
+    }
 
-        if (walletCreation.error) {
-          throw walletCreation.error
+    if (response.intentStatus) {
+      extras.intentStatus = response.intentStatus
+    }
+
+    if (response.metadata) {
+      extras.metadata = response.metadata
+    }
+
+    await saveMessage('bot', response.text, extras)
+  }, [saveMessage])
+
+  const handleDeleteTransaction = useCallback(async (transactionId) => {
+    const result = await deleteTransaction(transactionId)
+
+    if (result.error) {
+      window.alert(mapDomainError(result.error))
+      return result
+    }
+
+    await syncFinancialViews({
+      wallets: result.balanceUpdated,
+      analytics: true,
+    })
+
+    return result
+  }, [deleteTransaction, syncFinancialViews])
+
+  const executeIntent = useCallback(
+    async (analysis, { source = 'chat' } = {}) => {
+      if (!analysis || typeof analysis !== 'object') {
+        return {
+          text: 'Maaf, permintaan tersebut belum bisa saya pahami.',
+        }
+      }
+
+      if (analysis.type === 'transaction') {
+        const resolvedWalletId = analysis.walletId || (wallets.length === 1 ? wallets[0].id : null)
+        const resolvedWallet = wallets.find((wallet) => wallet.id === resolvedWalletId)
+
+        if (!resolvedWalletId || !resolvedWallet) {
+          return {
+            text: analysis.reply || 'Dompet untuk transaksi ini belum jelas. Sebutkan dompetnya secara spesifik.',
+            intentStatus: 'needs_confirmation',
+          }
         }
 
-        finalWallet = walletCreation.data || null
-        isNewWallet = Boolean(finalWallet)
+        const categoryResolution = resolveCategory(analysis.category)
+        const category = categoryResolution.category
+        const categoryName = category?.name || analysis.category || 'Lainnya'
+        const description = analysis.desc || categoryName
+
+        const transactionResult = await addTransaction({
+          type: analysis.transactionType || 'expense',
+          amount: analysis.amount,
+          desc: description,
+          walletId: resolvedWalletId,
+          categoryId: category?.id || null,
+          source,
+        })
+
+        if (transactionResult.error) {
+          throw transactionResult.error
+        }
+
+        await syncFinancialViews({
+          wallets: true,
+          analytics: true,
+        })
+
+        const note = categoryResolution.ambiguous
+          ? '\n\nKategori saya simpan ke **Lainnya** karena pilihannya masih ambigu.'
+          : ''
+
+        return {
+          text:
+            (analysis.transactionType === 'income'
+              ? `Pemasukan sebesar **${formatRupiah(analysis.amount)}** masuk ke dompet **${resolvedWallet.name}**.`
+              : `Pengeluaran sebesar **${formatRupiah(analysis.amount)}** dicatat dari dompet **${resolvedWallet.name}**.`) +
+            note,
+          card: {
+            type: analysis.transactionType,
+            amount: analysis.amount,
+            category: categoryName,
+            wallet: resolvedWallet.name,
+            desc: description,
+          },
+        }
       }
 
-      if (!finalWallet) {
-        throw new Error('Dompet tidak ditemukan.')
+      if (analysis.type === 'analytics_query') {
+        const timeframe = resolveAnalyticsTimeframe(analysis.period)
+        const snapshotResult =
+          timeframe.key === 'all_time'
+            ? { data: analytics, error: null }
+            : await getSnapshot({
+                startAt: timeframe.startAt,
+                endAt: timeframe.endAt,
+              })
+
+        if (snapshotResult.error) {
+          throw snapshotResult.error
+        }
+
+        return {
+          text:
+            buildAnalyticsReply({
+              query: {
+                ...analysis,
+                periodLabel: timeframe.label,
+              },
+              snapshot: snapshotResult.data,
+              formatRupiah,
+              goals,
+            }) ||
+            analysis.reply ||
+            'Saya belum bisa membaca ringkasan data untuk pertanyaan itu saat ini.',
+        }
       }
 
-      const { error: transactionError } = await addTransaction({
-        type: draft.transactionType,
-        amount: draft.amount,
-        desc: draft.desc,
-        notes: rawText,
-        walletId: finalWallet.id,
-        categoryId: resolvedCategory?.id || null,
-        source: image ? 'ocr' : 'chat',
-      })
-
-      if (transactionError) {
-        throw transactionError
+      if (analysis.type === 'advice') {
+        return {
+          text: analysis.reply || 'Analisa finansial tidak tersedia saat ini.',
+        }
       }
 
-      learnFromInput({
-        rawText,
-        walletId: finalWallet.id,
-        categoryId: resolvedCategory?.id || null,
-      }).catch(() => null)
+      if (analysis.type === 'undo_transaction') {
+        if (transactions.length === 0) {
+          throw new Error('Tidak ada transaksi yang bisa dibatalkan.')
+        }
 
-      await syncFinancialViews({
-        wallets: true,
-        analytics: true,
-      })
+        const lastTransaction = transactions[0]
+        const deleteResult = await handleDeleteTransaction(lastTransaction.id)
+
+        if (deleteResult.error) {
+          throw deleteResult.error
+        }
+
+        return {
+          text: `Transaksi terakhir (${lastTransaction.desc}) telah dibatalkan.`,
+        }
+      }
+
+      if (analysis.type === 'delete_wallet') {
+        const walletToDelete = wallets.find((wallet) =>
+          analysis.walletId ? wallet.id === analysis.walletId : wallet.name === analysis.wallet
+        )
+
+        if (!walletToDelete) {
+          throw new Error('Wallet not found')
+        }
+
+        setPendingAction({
+          type: 'delete_wallet',
+          walletId: walletToDelete.id,
+          walletName: walletToDelete.name,
+        })
+
+        return {
+          text: `Anda yakin ingin mengarsipkan dompet **${walletToDelete.name}**? Dompet hanya bisa diarsipkan saat saldonya sudah nol.\n\nKetik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.`,
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (analysis.type === 'bulk_delete_wallets') {
+        return {
+          text: 'Dompet tidak bisa dihapus massal lagi. Arsipkan satu per satu setelah saldonya dipindahkan sampai nol agar ledger tetap aman.',
+        }
+      }
+
+      if (analysis.type === 'bulk_delete_transactions') {
+        return {
+          text: 'Riwayat ledger tidak bisa dihapus massal lagi. Jika ada transaksi salah, hapus satu per satu dari riwayat agar saldo ikut direvert dengan aman.',
+        }
+      }
+
+      if (analysis.type === 'check_balance') {
+        if (!analysis.targetWalletId || analysis.target === 'all') {
+          return {
+            text: `Total gabungan saldo Anda adalah **${formatRupiah(totalBalance)}**.`,
+          }
+        }
+
+        const matchedWallet = wallets.find((wallet) => wallet.id === analysis.targetWalletId)
+        if (!matchedWallet) {
+          return {
+            text: 'Dompet yang dimaksud tidak ditemukan.',
+          }
+        }
+
+        return {
+          text: `Saldo di dompet **${matchedWallet.name}** adalah **${formatRupiah(matchedWallet.current_balance || 0)}**.`,
+        }
+      }
+
+      if (analysis.type === 'create_wallet') {
+        const walletResult = await addWallet(
+          analysis.name,
+          analysis.initial_balance || 0,
+          analysis.wallet_type || 'bank'
+        )
+
+        if (walletResult.error) {
+          throw walletResult.error
+        }
+
+        await syncFinancialViews({
+          transactions: walletResult.ledgerCreated,
+          analytics: true,
+          names: true,
+        })
+
+        return {
+          text: `Dompet **${walletResult.data.name}** berhasil dibuat dengan saldo awal **${formatRupiah(walletResult.data.current_balance)}**.`,
+        }
+      }
+
+      if (analysis.type === 'goal_contribution') {
+        const targetGoal = goals.find((goal) => goal.id === analysis.goalId)
+        const sourceWallet = wallets.find((wallet) => wallet.id === analysis.sourceWalletId)
+
+        if (!targetGoal) {
+          throw new Error('Goal not found')
+        }
+
+        if (!sourceWallet) {
+          return {
+            text: `Setoran untuk target **${targetGoal.name}** perlu dompet sumber yang jelas. Sebutkan dompetnya, misalnya "tabung 100rb dari BCA ke ${targetGoal.name}".`,
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        const contributionResult = await contributeToGoal({
+          goalId: targetGoal.id,
+          amount: analysis.amount,
+          walletId: sourceWallet.id,
+        })
+
+        if (contributionResult.error) {
+          throw contributionResult.error
+        }
+
+        await syncFinancialViews({
+          wallets: contributionResult.walletHandled,
+          transactions: true,
+          analytics: true,
+        })
+
+        return {
+          text:
+            analysis.reply ||
+            `Dana sebesar **${formatRupiah(analysis.amount)}** berhasil dipindahkan dari dompet **${sourceWallet.name}** ke target **${targetGoal.name}**.`,
+        }
+      }
+
+      if (analysis.type === 'goal_creation_pending') {
+        setPendingAction({
+          type: 'create_goal_target',
+          name: analysis.name,
+          initialAmount: Number(analysis.amount || 0),
+          sourceWalletId: analysis.sourceWalletId || null,
+        })
+
+        return {
+          text:
+            analysis.reply ||
+            `Target tabungan **${analysis.name}** belum ada. Berapa nominal target totalnya? Contoh: 50jt atau 1000000.`,
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (analysis.type === 'goal_withdrawal') {
+        const targetGoal = goals.find((goal) => goal.id === analysis.goalId)
+        const destinationWallet = wallets.find((wallet) => wallet.id === analysis.destinationWalletId)
+
+        if (!targetGoal) {
+          throw new Error('Goal not found')
+        }
+
+        if (!destinationWallet) {
+          return {
+            text: `Dompet tujuan untuk pencairan **${targetGoal.name}** belum jelas. Sebutkan dompet tujuannya secara spesifik.`,
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        const withdrawResult = await withdrawFromGoal({
+          goalId: targetGoal.id,
+          amount: analysis.amount,
+          walletId: destinationWallet.id,
+        })
+
+        if (withdrawResult.error) {
+          throw withdrawResult.error
+        }
+
+        await syncFinancialViews({
+          wallets: withdrawResult.walletHandled,
+          transactions: withdrawResult.ledgerHandled,
+          analytics: true,
+        })
+
+        return {
+          text:
+            analysis.reply ||
+            `Dana sebesar **${formatRupiah(analysis.amount)}** berhasil dipindahkan dari target **${targetGoal.name}** ke dompet **${destinationWallet.name}**.`,
+        }
+      }
+
+      if (analysis.type === 'transfer') {
+        const fromWallet = wallets.find((wallet) => wallet.id === analysis.fromWalletId)
+        const toWallet = wallets.find((wallet) => wallet.id === analysis.toWalletId)
+
+        if (!fromWallet || !toWallet) {
+          return {
+            text: 'Transfer antar dompet butuh dompet asal dan tujuan yang jelas. Sebutkan keduanya secara spesifik.',
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        const transferResult = await transferBetweenWallets({
+          fromWalletId: fromWallet.id,
+          toWalletId: toWallet.id,
+          amount: analysis.amount,
+          description: `Transfer ${fromWallet.name} ke ${toWallet.name}`,
+        })
+
+        if (transferResult.error) {
+          throw transferResult.error
+        }
+
+        await syncFinancialViews({
+          wallets: true,
+          analytics: true,
+        })
+
+        return {
+          text:
+            analysis.reply ||
+            `Transfer sebesar **${formatRupiah(analysis.amount)}** dari **${fromWallet.name}** ke **${toWallet.name}** berhasil diproses.`,
+        }
+      }
+
+      if (analysis.type === 'needs_confirmation') {
+        if (analysis.reason === 'unknown_wallet' && analysis.action === 'create_wallet' && analysis.walletName) {
+          setPendingAction({
+            type: 'confirm_create_wallet',
+            walletName: analysis.walletName,
+            intent: analysis.intent || null,
+          })
+        } else if (analysis.intent) {
+          setPendingAction({
+            type: 'resolve_intent',
+            reason: analysis.reason,
+            intent: analysis.intent,
+            candidates: analysis.candidates || [],
+          })
+        }
+
+        return {
+          text: analysis.prompt || 'Saya masih butuh klarifikasi sebelum memproses aksi ini.',
+          intentStatus: 'needs_confirmation',
+          metadata: analysis.candidates?.length
+            ? {
+                candidates: analysis.candidates.map((candidate) => ({
+                  id: candidate.id,
+                  name: candidate.name,
+                })),
+              }
+            : undefined,
+        }
+      }
+
+      if (analysis.type === 'confirm') {
+        return {
+          text: 'Belum ada aksi yang menunggu konfirmasi.',
+        }
+      }
+
+      if (analysis.type === 'cancel') {
+        return {
+          text: 'Tidak ada aksi yang sedang menunggu untuk dibatalkan.',
+        }
+      }
 
       return {
-        wallet: finalWallet,
-        category: resolvedCategory,
-        isNewWallet,
+        text: analysis.reply || 'Maaf, permintaan tersebut kurang jelas.',
       }
     },
-    [addTransaction, addWallet, findCategory, learnFromInput, syncFinancialViews]
+    [
+      addTransaction,
+      addWallet,
+      analytics,
+      contributeToGoal,
+      formatRupiah,
+      getSnapshot,
+      goals,
+      handleDeleteTransaction,
+      resolveCategory,
+      syncFinancialViews,
+      totalBalance,
+      transactions,
+      transferBetweenWallets,
+      wallets,
+      withdrawFromGoal,
+    ]
+  )
+
+  const processPendingAction = useCallback(
+    async ({ text }) => {
+      if (!pendingAction) {
+        return null
+      }
+
+      if (pendingAction.type === 'delete_wallet') {
+        if (isAffirmative(text)) {
+          const deleteResult = await deleteWallet(pendingAction.walletId)
+
+          if (deleteResult.error) {
+            throw deleteResult.error
+          }
+
+          setPendingAction(null)
+          await syncFinancialViews({
+            analytics: true,
+            names: true,
+          })
+
+          return {
+            text: `Dompet **${pendingAction.walletName}** berhasil diarsipkan.`,
+          }
+        }
+
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, pengarsipan dompet dibatalkan.',
+          }
+        }
+
+        return {
+          text: 'Ketik "Ya" untuk mengarsipkan dompet atau "Batal" untuk membatalkannya.',
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (pendingAction.type === 'confirm_create_wallet') {
+        if (isAffirmative(text)) {
+          const createResult = await addWallet(pendingAction.walletName, 0, 'bank')
+
+          if (createResult.error) {
+            throw createResult.error
+          }
+
+          await syncFinancialViews({
+            analytics: true,
+            names: true,
+          })
+
+          setPendingAction(null)
+
+          if (!pendingAction.intent) {
+            return {
+              text: `Dompet **${createResult.data.name}** berhasil dibuat.`,
+            }
+          }
+
+          const resumedIntent = withWalletAttached(pendingAction.intent, createResult.data)
+          const resumedResponse = await executeIntent(resumedIntent, { source: 'chat' })
+
+          return {
+            ...resumedResponse,
+            text: `Dompet **${createResult.data.name}** berhasil dibuat.\n\n${resumedResponse.text}`,
+          }
+        }
+
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, dompet baru tidak jadi dibuat dan aksi sebelumnya dibatalkan.',
+          }
+        }
+
+        return {
+          text: 'Ketik "Ya" jika dompet baru memang ingin dibuat, atau "Batal" jika tidak.',
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (pendingAction.type === 'resolve_intent') {
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, aksi sebelumnya saya batalkan.',
+          }
+        }
+
+        const resolution = resolveOptionReference({
+          input: text,
+          options: pendingAction.candidates?.length > 0 ? pendingAction.candidates : walletOptions,
+        })
+
+        if (resolution.match) {
+          const resumedIntent = attachResolvedWallet(pendingAction.intent, resolution.match)
+          setPendingAction(null)
+          return executeIntent(resumedIntent, { source: 'chat' })
+        }
+
+        if (resolution.candidates.length > 0) {
+          return {
+            text: `Pilihan dompetnya masih ambigu. Pilih salah satu: ${formatCandidateNames(resolution.candidates)}.`,
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        return {
+          text: `Saya tidak menemukan dompet itu. Pilih salah satu: ${formatCandidateNames(pendingAction.candidates?.length > 0 ? pendingAction.candidates : walletOptions)}.`,
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (pendingAction.type === 'create_goal_target') {
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, pembuatan target tabungan saya batalkan.',
+          }
+        }
+
+        const amountMatch = matchMoney(text)
+        const targetAmount = parseMoneyMatch(amountMatch)
+
+        if (!targetAmount || targetAmount <= 0) {
+          return {
+            text: 'Saya masih butuh nominal target totalnya. Contoh: 50jt atau 1000000.',
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        const sourceWallet =
+          pendingAction.initialAmount > 0
+            ? wallets.find((wallet) => wallet.id === pendingAction.sourceWalletId) ||
+              (wallets.length === 1 ? wallets[0] : null)
+            : null
+
+        if (pendingAction.initialAmount > 0 && !sourceWallet) {
+          setPendingAction({
+            type: 'create_goal_source_wallet',
+            name: pendingAction.name,
+            targetAmount,
+            initialAmount: pendingAction.initialAmount,
+          })
+
+          return {
+            text: `Setoran awal **${formatRupiah(pendingAction.initialAmount)}** mau diambil dari dompet mana? Pilihan aktif Anda: ${formatCandidateNames(walletOptions)}.`,
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        const createGoalResult = await createGoalWithContribution({
+          name: pendingAction.name,
+          targetAmount,
+          initialAmount: pendingAction.initialAmount,
+          walletId: sourceWallet?.id || null,
+        })
+
+        if (createGoalResult.error) {
+          throw createGoalResult.error
+        }
+
+        setPendingAction(null)
+        await syncFinancialViews({
+          wallets: createGoalResult.walletHandled,
+          transactions: createGoalResult.walletHandled,
+          analytics: true,
+          names: true,
+        })
+
+        return {
+          text:
+            pendingAction.initialAmount > 0
+              ? `Target **${pendingAction.name}** berhasil dibuat dengan target **${formatRupiah(targetAmount)}** dan setoran awal **${formatRupiah(pendingAction.initialAmount)}**.`
+              : `Target **${pendingAction.name}** berhasil dibuat dengan target **${formatRupiah(targetAmount)}**.`,
+        }
+      }
+
+      if (pendingAction.type === 'create_goal_source_wallet') {
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, pembuatan target tabungan saya batalkan.',
+          }
+        }
+
+        const resolution = resolveOptionReference({
+          input: text,
+          options: walletOptions,
+        })
+
+        if (resolution.match) {
+          const createGoalResult = await createGoalWithContribution({
+            name: pendingAction.name,
+            targetAmount: pendingAction.targetAmount,
+            initialAmount: pendingAction.initialAmount,
+            walletId: resolution.match.id,
+          })
+
+          if (createGoalResult.error) {
+            throw createGoalResult.error
+          }
+
+          setPendingAction(null)
+          await syncFinancialViews({
+            wallets: createGoalResult.walletHandled,
+            transactions: createGoalResult.walletHandled,
+            analytics: true,
+            names: true,
+          })
+
+          return {
+            text: `Target **${pendingAction.name}** berhasil dibuat. Setoran awal **${formatRupiah(pendingAction.initialAmount)}** diambil dari dompet **${resolution.match.name}**.`,
+          }
+        }
+
+        if (resolution.candidates.length > 0) {
+          return {
+            text: `Nama dompetnya masih ambigu. Pilih salah satu: ${formatCandidateNames(resolution.candidates)}.`,
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        return {
+          text: `Saya tidak menemukan dompet itu. Pilih salah satu dompet aktif Anda: ${formatCandidateNames(walletOptions)}.`,
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      setPendingAction(null)
+      return {
+        text: 'Aksi yang menunggu konfirmasi sudah dibatalkan.',
+      }
+    },
+    [
+      addWallet,
+      createGoalWithContribution,
+      deleteWallet,
+      executeIntent,
+      formatRupiah,
+      pendingAction,
+      syncFinancialViews,
+      walletOptions,
+      wallets,
+    ]
   )
 
   const handleSend = useCallback(
     async (payload) => {
-      let text = ''
-      let image = null
+      const text =
+        typeof payload === 'string'
+          ? payload
+          : typeof payload?.text === 'string'
+            ? payload.text
+            : ''
+      const imageFile = payload && typeof payload === 'object' ? payload.imageFile || null : null
+      const imagePreview =
+        payload && typeof payload === 'object'
+          ? payload.imagePreview || payload.image || null
+          : null
 
-      if (typeof payload === 'string') {
-        text = payload
-      } else if (payload && typeof payload === 'object') {
-        text = payload.text || ''
-        image = payload.image || null
+      if ((!text.trim() && !imageFile && !imagePreview) || isTyping) {
+        return
       }
 
-      if ((!text && !image) || isTyping) return
-
-      const currentTime = new Date().toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
+      const userMessageText = text.trim() || 'Lampiran gambar'
+      const savedUserMessage = await saveMessage('user', userMessageText, {
+        imageFile,
+        imagePreview,
       })
 
-      const userMessageText = text || 'Lampiran gambar'
-      await saveMessage('user', userMessageText, image ? { image } : {})
+      if (savedUserMessage?.error) {
+        throw savedUserMessage.error
+      }
+
       setIsTyping(true)
 
       try {
-        let botResponse
+        let response
 
         if (pendingAction) {
-          let shouldClearPendingAction = true
-
-          if (pendingAction.type === 'clarify_transaction_wallet') {
-            if (isNegativeReply(text)) {
-              botResponse = {
-                sender: 'bot',
-                text: 'Baik, pencatatan saya batalkan dulu. Kalau mau, kirim lagi dengan nama dompet yang diinginkan.',
-                time: currentTime,
-              }
-            } else {
-              const selectedWallet = resolveWalletSelection(text, wallets)
-
-              if (!selectedWallet) {
-                shouldClearPendingAction = false
-                botResponse = {
-                  sender: 'bot',
-                  text: buildWalletClarificationReply({
-                    draft: pendingAction.payload.draft,
-                    wallets,
-                    formatRupiah,
-                  }),
-                  time: currentTime,
-                }
-              } else {
-                const transactionResult = await recordTransactionDraft({
-                  draft: pendingAction.payload.draft,
-                  rawText: pendingAction.payload.rawText,
-                  image: pendingAction.payload.image,
-                  forcedWallet: selectedWallet,
-                })
-
-                botResponse = {
-                  sender: 'bot',
-                  text:
-                    (pendingAction.payload.draft.transactionType === 'income'
-                      ? `Pemasukan divalidasi. Dana sebesar ${formatRupiah(pendingAction.payload.draft.amount)} dialokasikan ke ${selectedWallet.name.toUpperCase()}.`
-                      : `Alokasi dana diproses. ${formatRupiah(pendingAction.payload.draft.amount)} ditarik dari ${selectedWallet.name.toUpperCase()}.`) +
-                    (transactionResult.isNewWallet
-                      ? `\n\n*(Catatan: Dompet ${selectedWallet.name.toUpperCase()} baru saja dibuat otomatis)*`
-                      : ''),
-                  time: currentTime,
-                  card: {
-                    type: pendingAction.payload.draft.transactionType,
-                    amount: pendingAction.payload.draft.amount,
-                    category: transactionResult.category?.name || pendingAction.payload.draft.category || 'Lainnya',
-                    wallet: selectedWallet.name,
-                    desc: pendingAction.payload.draft.desc,
-                  },
-                }
-              }
-            }
-          } else if (pendingAction.type === 'clarify_goal_contribution_wallet') {
-            if (isNegativeReply(text)) {
-              botResponse = {
-                sender: 'bot',
-                text: 'Baik, setoran target saya batalkan dulu.',
-                time: currentTime,
-              }
-            } else {
-              const selectedWallet = resolveWalletSelection(text, wallets)
-
-              if (!selectedWallet) {
-                shouldClearPendingAction = false
-                botResponse = {
-                  sender: 'bot',
-                  text: `Mau saya ambil ${formatRupiah(pendingAction.payload.amount)} dari dompet yang mana?\n\nPilih salah satu: ${wallets.map((wallet) => wallet.name).slice(0, 4).join(', ')}.`,
-                  time: currentTime,
-                }
-              } else {
-                const rpcContributionResult = await contributeToGoal({
-                  goalId: pendingAction.payload.goalId,
-                  amount: pendingAction.payload.amount,
-                  walletId: selectedWallet.id,
-                })
-
-                if (rpcContributionResult.error) {
-                  throw rpcContributionResult.error
-                }
-
-                await syncFinancialViews({
-                  wallets: rpcContributionResult.walletHandled,
-                  transactions: true,
-                  analytics: true,
-                })
-
-                learnFromInput({
-                  rawText: pendingAction.payload.rawText,
-                  walletId: selectedWallet.id,
-                  categoryId: null,
-                }).catch(() => null)
-
-                botResponse = {
-                  sender: 'bot',
-                  text:
-                    pendingAction.payload.reply ||
-                    `Berhasil menambahkan ${formatRupiah(pendingAction.payload.amount)} ke target Anda dari dompet ${selectedWallet.name}.`,
-                  time: currentTime,
-                }
-              }
-            }
-          } else if (pendingAction.type === 'create_goal') {
-            if (isNegativeReply(text)) {
-              botResponse = {
-                sender: 'bot',
-                text: 'Baik, pembuatan target saya batalkan dulu.',
-                time: currentTime,
-              }
-            } else {
-              const amountMatch = text.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
-
-              if (amountMatch) {
-                let targetMatch = parseFloat(amountMatch[1].replace(',', '.'))
-                const multiplier = amountMatch[2]
-                if (['k', 'rb', 'ribu'].includes(multiplier)) targetMatch *= 1000
-                if (['jt', 'juta'].includes(multiplier)) targetMatch *= 1000000
-                if (multiplier === 'm') targetMatch *= 1000000000
-
-                const sourceWallet =
-                  wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0]
-
-                const rpcGoalResult = await createGoalWithContribution({
-                  name: pendingAction.payload.name,
-                  targetAmount: targetMatch,
-                  initialAmount: pendingAction.payload.amount,
-                  walletId: pendingAction.payload.amount > 0 ? sourceWallet?.id || null : null,
-                })
-
-                if (rpcGoalResult.error) {
-                  throw rpcGoalResult.error
-                }
-
-                const newGoalName = rpcGoalResult.data?.goal_name || pendingAction.payload.name
-                await syncFinancialViews({
-                  wallets: rpcGoalResult.walletHandled,
-                  transactions: rpcGoalResult.walletHandled,
-                  analytics: rpcGoalResult.walletHandled,
-                })
-
-                botResponse = {
-                  sender: 'bot',
-                  text: `Sip! Tabungan ${newGoalName} berhasil dibuat dengan target ${formatRupiah(targetMatch)}. Setoran awal ${formatRupiah(pendingAction.payload.amount)} sudah dimasukkan.`,
-                  time: currentTime,
-                }
-              } else {
-                shouldClearPendingAction = false
-                botResponse = {
-                  sender: 'bot',
-                  text: 'Berapa target nominalnya? (Contoh: 50jt atau 1000000)',
-                  time: currentTime,
-                }
-              }
-            }
-          } else if (isAffirmativeReply(text)) {
-            const { type, payload: pendingPayload } = pendingAction
-
-            if (type === 'delete_wallet') {
-              const { error } = await deleteWallet(pendingPayload.id)
-              if (error) throw error
-              await syncFinancialViews({
-                analytics: true,
-              })
-            } else if (type === 'bulk_delete_wallets') {
-              const { error } = await clearAllWallets()
-              if (error) throw error
-              await syncFinancialViews({
-                transactions: true,
-                analytics: true,
-              })
-            } else if (type === 'bulk_delete_transactions') {
-              const { error } =
-                pendingPayload.startDate && pendingPayload.endDate
-                  ? await clearTransactionsInRange(pendingPayload.startDate, pendingPayload.endDate)
-                  : await clearAllTransactions()
-              if (error) throw error
-              await syncFinancialViews({
-                transactions: true,
-                analytics: true,
-              })
-            }
-
-            botResponse = {
-              sender: 'bot',
-              text: `Selesai. ${pendingAction.successMessage}`,
-              time: currentTime,
-            }
-          } else {
-            botResponse = {
-              sender: 'bot',
-              text: 'Baik, operasi dibatalkan. Data Anda aman.',
-              time: currentTime,
-            }
-          }
-
-          if (shouldClearPendingAction) {
-            setPendingAction(null)
-          }
+          response = await processPendingAction({ text: userMessageText })
         } else {
-          const walletNames = wallets.map((wallet) => wallet.name)
-          const goalNames = goals.map((goal) => goal.name)
-          const goalMap = goals.map((goal) => `${goal.name} (id: ${goal.id})`).join(', ')
-          const financialContext = `${getContextString()}\nACTIVE GOALS FOR MAPPING: ${goalMap || 'Tidak ada goal aktif'}`
-          const analysis = await analyzeTransaction(text, image, walletNames, financialContext, goalNames)
-          const resolvedTransaction =
-            analysis.type === 'transaction' || analysis.type === 'unknown'
-              ? resolveTransactionWithLearning({
-                  text,
-                  analysis,
-                  wallets,
-                  categories,
-                  walletRules,
-                  categoryRules,
-                })
-              : null
+          const financialContext = `${getContextString()}\nACTIVE GOALS: ${
+            goalOptions.length > 0
+              ? goalOptions.map((goal) => `${goal.name} [${goal.id}]`).join(', ')
+              : 'Tidak ada goal aktif'
+          }`
 
-          if (resolvedTransaction) {
-            if (resolvedTransaction.walletResolution?.resolution === 'needs_clarification') {
-              setPendingAction({
-                type: 'clarify_transaction_wallet',
-                payload: {
-                  draft: resolvedTransaction,
-                  rawText: text,
-                  image,
-                },
-              })
-
-              botResponse = {
-                sender: 'bot',
-                text: buildWalletClarificationReply({
-                  draft: resolvedTransaction,
-                  wallets,
-                  formatRupiah,
-                }),
-                time: currentTime,
-              }
-            } else {
-              const transactionResult = await recordTransactionDraft({
-                draft: resolvedTransaction,
-                rawText: text,
-                image,
-              })
-
-              const walletDisplayName = (transactionResult.wallet?.name || resolvedTransaction.wallet || 'Dompet').toUpperCase()
-              botResponse = {
-                sender: 'bot',
-                text:
-                  (resolvedTransaction.transactionType === 'income'
-                    ? `Pemasukan divalidasi. Dana sebesar ${formatRupiah(resolvedTransaction.amount)} dialokasikan ke ${walletDisplayName}.`
-                    : `Alokasi dana diproses. ${formatRupiah(resolvedTransaction.amount)} ditarik dari ${walletDisplayName}.`) +
-                  (transactionResult.isNewWallet
-                    ? `\n\n*(Catatan: Dompet ${walletDisplayName} baru saja dibuat otomatis)*`
-                    : ''),
-                time: currentTime,
-                card: {
-                  type: resolvedTransaction.transactionType,
-                  amount: resolvedTransaction.amount,
-                  category: transactionResult.category?.name || resolvedTransaction.category || 'Lainnya',
-                  wallet: transactionResult.wallet?.name || resolvedTransaction.wallet || 'Tunai',
-                  desc: resolvedTransaction.desc,
-                },
-              }
-            }
-          } else if (analysis.type === 'analytics_query') {
-          const timeframe = resolveAnalyticsTimeframe(analysis.period)
-          const snapshotResult =
-            timeframe.key === 'all_time'
-              ? { data: analytics, error: null }
-              : await getSnapshot({
-                  startAt: timeframe.startAt,
-                  endAt: timeframe.endAt,
-                })
-
-          if (snapshotResult.error) {
-            throw snapshotResult.error
-          }
-
-          botResponse = {
-            sender: 'bot',
-            text:
-              buildAnalyticsReply({
-                query: {
-                  ...analysis,
-                  periodLabel: timeframe.label,
-                },
-                snapshot: snapshotResult.data,
-                formatRupiah,
-                goals,
-              }) ||
-              analysis.reply ||
-              'Saya belum bisa membaca ringkasan data untuk pertanyaan itu saat ini.',
-            time: currentTime,
-          }
-          } else if (analysis.type === 'advice') {
-          const timeframe = resolveAnalyticsTimeframe(analysis.period)
-          const snapshotResult =
-            timeframe.key === 'all_time'
-              ? { data: analytics, error: null }
-              : await getSnapshot({
-                  startAt: timeframe.startAt,
-                  endAt: timeframe.endAt,
-                })
-
-          if (snapshotResult.error) {
-            throw snapshotResult.error
-          }
-
-          botResponse = {
-            sender: 'bot',
-            text:
-              analysis.reply ||
-              buildAdviceReply({
-                query: {
-                  ...analysis,
-                  periodLabel: timeframe.label,
-                },
-                snapshot: snapshotResult.data,
-                budgets,
-                goals,
-                transactions,
-                formatRupiah,
-              }) ||
-              'Analisa finansial tidak tersedia saat ini.',
-            time: currentTime,
-          }
-          } else if (analysis.type === 'undo_transaction') {
-          if (transactions.length === 0) throw new Error('Tidak ada transaksi yang bisa dibatalkan.')
-
-          const lastTransaction = transactions[0]
-          const { error } = await deleteTransaction(lastTransaction.id)
-          if (error) throw error
-
-          await syncFinancialViews({
-            wallets: true,
-            analytics: true,
-          })
-
-          botResponse = {
-            sender: 'bot',
-            text: `Transaksi terakhir (${lastTransaction.desc}) telah dibatalkan.`,
-            time: currentTime,
-          }
-          } else if (analysis.type === 'delete_wallet') {
-          const walletToDelete = wallets.find(
-            (wallet) => wallet.name.toLowerCase() === (analysis.wallet || '').toLowerCase()
-          )
-
-          if (!walletToDelete) throw new Error(`Dompet ${analysis.wallet} tidak ditemukan.`)
-
-          setPendingAction({
-            type: 'delete_wallet',
-            payload: { id: walletToDelete.id },
-            successMessage: `Dompet ${walletToDelete.name} telah diarsipkan.`,
-          })
-
-          botResponse = {
-            sender: 'bot',
-            text: `Anda yakin ingin mengarsipkan dompet ${walletToDelete.name}? Dompet hanya bisa diarsipkan saat saldonya sudah nol.\n\nKetik "Ya" untuk konfirmasi.`,
-            time: currentTime,
-          }
-          } else if (analysis.type === 'bulk_delete_wallets') {
-          botResponse = {
-            sender: 'bot',
-            text: 'Dompet tidak bisa dihapus massal lagi. Jika ada dompet yang sudah tidak dipakai, pindahkan dulu saldonya sampai nol lalu arsipkan satu per satu agar ledger tetap aman.',
-            time: currentTime,
-          }
-          } else if (analysis.type === 'bulk_delete_transactions') {
-          botResponse = {
-            sender: 'bot',
-            text: 'Riwayat ledger tidak bisa dihapus massal lagi karena itu bisa membuat saldo dompet dan analytics tidak sinkron. Jika ada transaksi yang salah, hapus satu per satu dari riwayat agar saldo ikut direvert dengan aman.',
-            time: currentTime,
-          }
-          } else if (analysis.type === 'check_balance') {
-          if (analysis.target === 'all') {
-            botResponse = {
-              sender: 'bot',
-              text: `Total gabungan saldo Anda adalah ${formatRupiah(totalBalance)}.`,
-              time: currentTime,
-            }
-          } else {
-            const matchedWallet = wallets.find((wallet) =>
-              wallet.name.toLowerCase().includes(analysis.target.toLowerCase())
-            )
-
-            botResponse = matchedWallet
-              ? {
-                  sender: 'bot',
-                  text: `Saldo di dompet ${matchedWallet.name} adalah ${formatRupiah(matchedWallet.current_balance || 0)}.`,
-                  time: currentTime,
-                }
-              : {
-                  sender: 'bot',
-                  text: `Dompet "${analysis.target}" tidak ditemukan.`,
-                  time: currentTime,
-                }
-          }
-          } else if (analysis.type === 'create_wallet') {
-          const { data: newWallet, error: walletError, ledgerCreated } = await addWallet(
-            analysis.name,
-            analysis.initial_balance,
-            analysis.wallet_type
-          )
-
-          if (walletError) throw walletError
-
-          if (ledgerCreated) {
-            await syncFinancialViews({
-              transactions: true,
-              analytics: true,
-            })
-          }
-
-          botResponse = {
-            sender: 'bot',
-            text: `Dompet ${newWallet.name} berhasil dibuat dengan saldo awal ${formatRupiah(newWallet.current_balance)}.`,
-            time: currentTime,
-          }
-          } else if (analysis.type === 'goal_contribution') {
-          const sourceWalletResolution = resolveWalletForMessage({
+          const analysis = await analyzeTransaction(
             text,
-            wallets,
-            walletRules,
-          })
-
-          const { goalId, amount, reply } = analysis
-          const sourceWallet = sourceWalletResolution.wallet
-
-          if (!sourceWallet && sourceWalletResolution.resolution === 'needs_clarification') {
-            setPendingAction({
-              type: 'clarify_goal_contribution_wallet',
-              payload: {
-                goalId,
-                amount,
-                reply,
-                rawText: text,
-              },
-            })
-
-            botResponse = {
-              sender: 'bot',
-              text: `Mau saya ambil ${formatRupiah(amount)} dari dompet yang mana?\n\nPilih salah satu: ${wallets.map((wallet) => wallet.name).slice(0, 4).join(', ')}.`,
-              time: currentTime,
-            }
-          } else {
-            const fallbackWallet =
-              wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0]
-            const activeWallet = sourceWallet || fallbackWallet
-            const rpcContributionResult = activeWallet
-              ? await contributeToGoal({
-                  goalId,
-                  amount,
-                  walletId: activeWallet.id,
-                })
-              : { error: new Error('Dompet sumber tidak ditemukan.'), walletHandled: false }
-
-            if (rpcContributionResult.error) {
-              throw rpcContributionResult.error
-            }
-
-            await syncFinancialViews({
-              wallets: rpcContributionResult.walletHandled,
-              transactions: true,
-              analytics: true,
-            })
-
-            learnFromInput({
-              rawText: text,
-              walletId: activeWallet.id,
-              categoryId: null,
-            }).catch(() => null)
-
-            botResponse = {
-              sender: 'bot',
-              text:
-                reply || `Berhasil menambahkan Rp ${formatRupiah(amount)} ke target Anda. Milestone semakin dekat!`,
-              time: currentTime,
-            }
-          }
-          } else if (analysis.type === 'goal_withdrawal') {
-          const targetGoal = analysis.goalId
-            ? goals.find((goal) => goal.id === analysis.goalId)
-            : goals.find((goal) => goal.name.toLowerCase() === analysis.goalName?.toLowerCase())
-
-          if (!targetGoal) {
-            throw new Error(`Target "${analysis.goalName || 'tersebut'}" tidak ditemukan.`)
-          }
-
-          const destinationWallet = analysis.wallet
-            ? wallets.find((wallet) => wallet.name.toLowerCase() === analysis.wallet.toLowerCase())
-            : wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0]
-
-          if (!destinationWallet) {
-            throw new Error('Dompet tujuan tidak ditemukan.')
-          }
-
-          const withdrawalResult = await withdrawFromGoal({
-            goalId: targetGoal.id,
-            amount: analysis.amount,
-            walletId: destinationWallet.id,
-            description: `Pencairan ${targetGoal.name} ke ${destinationWallet.name}`,
-          })
-
-          if (withdrawalResult.error) {
-            throw withdrawalResult.error
-          }
-
-          await syncFinancialViews({
-            wallets: withdrawalResult.walletHandled,
-            transactions: true,
-            analytics: true,
-          })
-
-          botResponse = {
-            sender: 'bot',
-            text:
-              analysis.reply ||
-              `Berhasil mencairkan ${formatRupiah(analysis.amount)} dari target ${targetGoal.name} ke dompet ${destinationWallet.name}.`,
-            time: currentTime,
-          }
-          } else if (analysis.type === 'goal_creation_pending') {
-          setPendingAction({
-            type: 'create_goal',
-            payload: { name: analysis.name, amount: analysis.amount },
-          })
-
-          botResponse = {
-            sender: 'bot',
-            text:
-              analysis.reply ||
-              `Wah, tabungan baru ya? Target tabungan ${analysis.name} ini mau di-set berapa nominalnya?`,
-            time: currentTime,
-          }
-          } else if (analysis.type === 'transfer') {
-          const fromWallet = wallets.find(
-            (wallet) => wallet.name.toLowerCase() === analysis.from?.toLowerCase()
-          )
-          const toWallet = wallets.find(
-            (wallet) => wallet.name.toLowerCase() === analysis.to?.toLowerCase()
+            imagePreview,
+            walletOptions,
+            goalOptions,
+            financialContext
           )
 
-          if (!fromWallet) throw new Error(`Dompet asal "${analysis.from}" tidak ditemukan.`)
-          if (!toWallet) throw new Error(`Dompet tujuan "${analysis.to}" tidak ditemukan.`)
-
-          const { error } = await transferBetweenWallets({
-            fromWalletId: fromWallet.id,
-            toWalletId: toWallet.id,
-            amount: analysis.amount,
-            description: `Transfer ${fromWallet.name} ke ${toWallet.name}`,
+          response = await executeIntent(analysis, {
+            source: imagePreview ? 'ocr' : 'chat',
           })
-
-          if (error) throw error
-
-          await syncFinancialViews({
-            wallets: true,
-            analytics: true,
-          })
-
-          botResponse = {
-            sender: 'bot',
-            text: `Transfer sebesar ${formatRupiah(analysis.amount)} dari ${fromWallet.name} ke ${toWallet.name} berhasil diproses.`,
-            time: currentTime,
-          }
-          } else {
-            botResponse = {
-              sender: 'bot',
-              text: buildUnknownInputReply(analysis.reply),
-              time: currentTime,
-            }
-          }
         }
 
-        if (botResponse) {
-          await saveMessage('bot', botResponse.text, botResponse.card ? { card: botResponse.card } : {})
-        }
+        await persistBotResponse(response)
       } catch (error) {
         console.error('Chat Error:', error)
-        await saveMessage(
-          'bot',
-          buildActionErrorReply(error, { wallets, goals })
-        ).catch(() => null)
+        await persistBotResponse({
+          text: `Maaf, ${mapDomainError(error)}`,
+        })
       } finally {
         setIsTyping(false)
       }
     },
     [
-      addWallet,
-      analytics,
-      budgets,
-      categories,
-      categoryRules,
-      clearAllTransactions,
-      clearAllWallets,
-      clearTransactionsInRange,
-      contributeToGoal,
-      createGoalWithContribution,
-      deleteWallet,
-      deleteTransaction,
-      formatRupiah,
+      executeIntent,
       getContextString,
-      getSnapshot,
-      goals,
+      goalOptions,
       isTyping,
-      learnFromInput,
       pendingAction,
-      recordTransactionDraft,
+      persistBotResponse,
+      processPendingAction,
       saveMessage,
-      withdrawFromGoal,
-      totalBalance,
-      syncFinancialViews,
-      transactions,
-      transferBetweenWallets,
-      walletRules,
-      wallets,
+      walletOptions,
     ]
   )
 
-  const handleAddGoal = async (goalData) => {
-    const { error } = await addGoal(goalData)
-    if (error) {
-      console.error('Error adding goal:', error)
-    }
-  }
+  const handleAddGoal = useCallback(async (goalData) => {
+    const result = await addGoal(goalData)
 
-  const handleDeleteGoal = async (id) => {
+    if (!result.error) {
+      await syncFinancialViews({
+        names: true,
+      })
+    }
+
+    return result
+  }, [addGoal, syncFinancialViews])
+
+  const handleDeleteGoal = useCallback(async (id) => {
     const targetGoal = goals.find((goal) => goal.id === id)
-    const preferredWallet = wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0] || null
+    const preferredWallet =
+      wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0] || null
     const refundAmount = Number(targetGoal?.current_amount || 0)
     const refundTargetName = preferredWallet?.name || 'Tunai'
-    const confirmationMessage = refundAmount > 0
-      ? `Hapus target milestone ini dan kembalikan ${formatRupiah(refundAmount)} ke dompet ${refundTargetName}?`
-      : 'Hapus target milestone ini?'
+    const confirmationMessage =
+      refundAmount > 0
+        ? `Hapus target milestone ini dan kembalikan ${formatRupiah(refundAmount)} ke dompet ${refundTargetName}?`
+        : 'Hapus target milestone ini?'
 
-    if (window.confirm(confirmationMessage)) {
-      const { error, walletHandled, ledgerHandled } = await deleteGoal({
-        goalId: id,
-        walletId: refundAmount > 0 ? preferredWallet?.id || null : null,
-      })
-
-      if (error) {
-        console.error('Error deleting goal:', error)
-        return
-      }
-
-      if (walletHandled || ledgerHandled) {
-        await syncFinancialViews({
-          wallets: true,
-          transactions: true,
-          analytics: true,
-        })
-      }
-    }
-  }
-
-  const handleAddWallet = async (name, balance) => {
-    const { error, ledgerCreated } = await addWallet(name, balance)
-    if (error) {
-      console.error('Error adding wallet:', error)
-      return
+    if (!window.confirm(confirmationMessage)) {
+      return { error: null }
     }
 
-    if (ledgerCreated) {
+    const result = await deleteGoal({
+      goalId: id,
+      walletId: refundAmount > 0 ? preferredWallet?.id || null : null,
+    })
+
+    if (result.error) {
+      window.alert(mapDomainError(result.error))
+      return result
+    }
+
+    await syncFinancialViews({
+      wallets: result.walletHandled,
+      transactions: result.ledgerHandled,
+      analytics: true,
+      names: true,
+    })
+
+    return result
+  }, [deleteGoal, formatRupiah, goals, syncFinancialViews, wallets])
+
+  const handleAddWallet = useCallback(async (name, balance) => {
+    const result = await addWallet(name, balance)
+
+    if (!result.error) {
       await syncFinancialViews({
-        transactions: true,
+        transactions: result.ledgerCreated,
         analytics: true,
+        names: true,
       })
     }
-  }
 
-  const handleDeleteWallet = async (id) => {
-    const { error } = await deleteWallet(id)
+    return result
+  }, [addWallet, syncFinancialViews])
 
-    if (error) {
-      window.alert(error.message || 'Dompet belum bisa diarsipkan.')
+  const handleDeleteWallet = useCallback(async (id) => {
+    const result = await deleteWallet(id)
+
+    if (result.error) {
+      window.alert(mapDomainError(result.error))
+      return result
     }
-  }
+
+    await syncFinancialViews({
+      analytics: true,
+      names: true,
+    })
+
+    return result
+  }, [deleteWallet, syncFinancialViews])
+
+  const handleRenameWallet = useCallback(async (walletId, nextName) => {
+    const result = await renameWallet(walletId, nextName)
+
+    if (!result.error) {
+      await syncFinancialViews({
+        names: true,
+      })
+    }
+
+    return result
+  }, [renameWallet, syncFinancialViews])
+
+  const handleRenameGoal = useCallback(async (goalId, nextName) => {
+    const result = await renameGoal(goalId, nextName)
+
+    if (!result.error) {
+      await syncFinancialViews({
+        names: true,
+      })
+    }
+
+    return result
+  }, [renameGoal, syncFinancialViews])
 
   return (
     <div className="bg-champagne font-inter text-midnight overflow-hidden h-[100dvh] flex selection:bg-gold/20 selection:text-midnight">
@@ -905,19 +1177,17 @@ export default function AppShell() {
                         ? messages
                         : [
                             {
-                              id: 'welcome',
-                              sender: 'bot',
-                              text: 'Halo! Saya asisten keuangan Anda. Anda bisa mencatat transaksi atau langsung bertanya seperti "bulan ini boros di mana?"',
-                              time: new Date().toLocaleTimeString('id-ID', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              }),
+                              ...WELCOME_MESSAGE,
+                              time: getCurrentTimeLabel(),
                             },
                           ]
                     }
                     isTyping={isTyping}
                     onSend={handleSend}
                     formatRupiah={formatRupiah}
+                    hasMore={hasMoreMessages}
+                    loadingMore={loadingMoreMessages}
+                    onLoadMore={loadMoreMessages}
                   />
                 </div>
 
@@ -929,7 +1199,10 @@ export default function AppShell() {
                   <HistoryView
                     transactions={transactions}
                     formatRupiah={formatRupiah}
-                    onDeleteTransaction={deleteTransaction}
+                    onDeleteTransaction={handleDeleteTransaction}
+                    hasMore={hasMoreTransactions}
+                    loadingMore={loadingMoreTransactions}
+                    onLoadMore={loadMoreTransactions}
                   />
                 </div>
 
@@ -942,10 +1215,13 @@ export default function AppShell() {
                     wallets={wallets}
                     totalBalance={grandTotalBalance}
                     goals={goals}
+                    conflicts={conflicts}
                     onAddWallet={handleAddWallet}
                     onDeleteWallet={handleDeleteWallet}
+                    onRenameWallet={handleRenameWallet}
                     onAddGoal={handleAddGoal}
                     onDeleteGoal={handleDeleteGoal}
+                    onRenameGoal={handleRenameGoal}
                     formatRupiah={formatRupiah}
                   />
                 </div>
@@ -979,73 +1255,4 @@ export default function AppShell() {
       </main>
     </div>
   )
-}
-
-function buildUnknownInputReply(reply) {
-  const baseReply = reply || 'Format pesannya belum cukup jelas untuk saya proses.'
-
-  return `${baseReply}\n\nCoba pakai format seperti:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"\n- "cairkan 200k dari dana darurat ke tunai"\n- "berapa pengeluaran bulan ini"`
-}
-
-function buildActionErrorReply(error, { wallets = [], goals = [] } = {}) {
-  const rawMessage = error?.message || 'Gagal memproses permintaan.'
-  const normalizedMessage = rawMessage.toLowerCase()
-  const walletExamples = wallets
-    .slice(0, 3)
-    .map((wallet) => wallet.name)
-    .filter(Boolean)
-  const goalExamples = goals
-    .slice(0, 2)
-    .map((goal) => goal.name)
-    .filter(Boolean)
-
-  if (normalizedMessage.includes('saldo target tidak cukup') || normalizedMessage.includes('goal balance is insufficient')) {
-    return 'Saldo targetnya belum cukup untuk dicairkan sebesar itu.\n\nCoba pakai nominal yang lebih kecil. Contoh:\n- "cairkan 100k dari dana darurat ke tunai"\n- "cairkan 50k dari laptop ke BCA"'
-  }
-
-  if (normalizedMessage.includes('saldo dompet tidak cukup') || normalizedMessage.includes('insufficient wallet balance')) {
-    return 'Saldo dompetnya belum cukup untuk aksi itu.\n\nCoba pakai nominal yang lebih kecil atau pilih dompet lain. Contoh:\n- "beli kopi 25k tunai"\n- "transfer 50k dari BCA ke OVO"\n- "tabung 100k untuk dana darurat"'
-  }
-
-  if (normalizedMessage.includes('dompet tidak ditemukan')) {
-    const walletLine = walletExamples.length > 0
-      ? `\n\nDompet yang tersedia saat ini: ${walletExamples.join(', ')}.`
-      : ''
-
-    return `Saya belum menemukan dompet yang dimaksud.${walletLine}\n\nCoba pakai nama dompet yang persis, misalnya:\n- "saldo ${walletExamples[0] || 'Tunai'} berapa"\n- "beli makan 30k ${walletExamples[0] || 'Tunai'}"\n- "transfer 100k dari ${walletExamples[0] || 'BCA'} ke ${walletExamples[1] || 'OVO'}"`
-  }
-
-  if (normalizedMessage.includes('nama dompet ini sudah dipakai') || normalizedMessage.includes('wallet name is already in use')) {
-    return 'Nama dompet itu sudah dipakai, jadi agar chat tidak bingung namanya perlu dibedakan.\n\nContoh yang aman:\n- "buat dompet BCA Utama 500k"\n- "buat dompet OVO Jajan 100k"'
-  }
-
-  if (normalizedMessage.includes('nama target ini sudah dipakai') || normalizedMessage.includes('goal name is already in use')) {
-    const goalLine = goalExamples.length > 0
-      ? `\n\nTarget aktif saat ini: ${goalExamples.join(', ')}.`
-      : ''
-
-    return `Nama target itu sudah dipakai.${goalLine}\n\nCoba pakai nama yang lebih spesifik, misalnya:\n- "buat target Dana Darurat 10jt"\n- "tabung 200k untuk Laptop Kerja"`
-  }
-
-  if (normalizedMessage.includes('nominal') || normalizedMessage.includes('amount') || normalizedMessage.includes('lebih besar dari nol')) {
-    return 'Nominalnya belum kebaca dengan benar.\n\nCoba pakai format seperti:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"'
-  }
-
-  if (normalizedMessage.includes('target tidak ditemukan') || normalizedMessage.includes('goal not found')) {
-    const goalLine = goalExamples.length > 0
-      ? `\n\nTarget aktif saat ini: ${goalExamples.join(', ')}.`
-      : ''
-
-    return `Saya belum menemukan target yang dimaksud.${goalLine}\n\nCoba pakai nama target yang persis, misalnya:\n- "tabung 200k untuk ${goalExamples[0] || 'dana darurat'}"\n- "cairkan 100k dari ${goalExamples[0] || 'dana darurat'} ke tunai"\n- "buat target laptop 12jt"`
-  }
-
-  return `${rawMessage}\n\nContoh input yang bisa dicoba:\n- "beli kopi 25k tunai"\n- "gaji 5jt BCA"\n- "transfer 100k dari BCA ke OVO"\n- "tabung 200k untuk dana darurat"\n- "cairkan 200k dari dana darurat ke tunai"`
-}
-
-function isAffirmativeReply(value = '') {
-  return /^(ya|iy|yes|ok|oke|siap|betul|benar)$/i.test(String(value).trim())
-}
-
-function isNegativeReply(value = '') {
-  return /^(tidak|gak|ga|no|batal|cancel|nggak)$/i.test(String(value).trim())
 }

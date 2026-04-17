@@ -5,16 +5,29 @@ export default function AddGoalModal({ onClose, onSubmit }) {
   const [name, setName] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!name || !targetAmount) return
-    onSubmit({
+    if (!name || !targetAmount || submitting) return
+
+    setSubmitting(true)
+    setErrorMessage('')
+    const result = await onSubmit({
       name,
       targetAmount: Number(targetAmount),
       deadline: deadline || null,
       icon: 'target'
     })
+
+    if (result?.error) {
+      setErrorMessage(result.error.message || 'Target belum bisa dibuat.')
+      setSubmitting(false)
+      return
+    }
+
+    setSubmitting(false)
     onClose()
   }
 
@@ -93,10 +106,16 @@ export default function AddGoalModal({ onClose, onSubmit }) {
 
             <button
               type="submit"
+              disabled={submitting}
               className="w-full bg-midnight text-white py-4 rounded-2xl font-extrabold text-[12px] uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-midnight/20 mt-4"
             >
-              Simpan Target
+              {submitting ? 'Memproses...' : 'Simpan Target'}
             </button>
+            {errorMessage ? (
+              <p className="text-[12px] font-semibold text-red-600">
+                {errorMessage}
+              </p>
+            ) : null}
           </form>
         </div>
       </div>

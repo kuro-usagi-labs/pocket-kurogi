@@ -1,4 +1,27 @@
 import { supabase } from './supabase'
+import {
+  findOptionAfterKeyword,
+  formatCandidateNames,
+  matchMoney,
+  normalizeEntityName,
+  normalizeNumericText,
+  parseMoneyMatch,
+  resolveOptionByIdOrName,
+  resolveOptionReference,
+} from './chatEntities'
+
+const TRANSACTION_CATEGORIES = [
+  'makan',
+  'minum',
+  'kopi',
+  'bensin',
+  'transport',
+  'belanja',
+  'gaji',
+  'bonus',
+  'jajan',
+  'listrik',
+]
 
 /**
  * Analyze user text for transaction/advice intents.
@@ -9,60 +32,34 @@ import { supabase } from './supabase'
 export async function analyzeTransaction(
   text,
   imageBase64 = null,
-  walletNames = [],
-  financialContext = '',
-  goalNames = []
+  walletOptions = [],
+  goalOptions = [],
+  financialContext = ''
 ) {
   if (imageBase64) {
-    return callAnalyzerFunction(text, imageBase64, walletNames, financialContext)
+    return callAnalyzerFunction(text, imageBase64, walletOptions, goalOptions, financialContext)
   }
 
-  const regexResult = analyzeWithRegex(text || '', walletNames, goalNames)
-  if (regexResult.type === 'advice_query') {
-    try {
-      const aiResult = await callAnalyzerFunction(text, null, walletNames, financialContext)
-      if (aiResult?.type === 'advice') {
-        return aiResult
-      }
-
-      if (aiResult?.type === 'analytics_query' && aiResult.reply) {
-        return {
-          type: 'advice',
-          period: regexResult.period,
-          focus: regexResult.focus,
-          reply: aiResult.reply,
-        }
-      }
-    } catch (error) {
-      console.error('Analyzer backend error:', error)
-    }
-
-    return {
-      type: 'advice',
-      period: regexResult.period,
-      focus: regexResult.focus,
-      reply: null,
-    }
-  }
-
+  const regexResult = analyzeWithRegex(text || '', walletOptions, goalOptions)
   if (regexResult.type !== 'unknown') {
     return regexResult
   }
 
   try {
-    return await callAnalyzerFunction(text, null, walletNames, financialContext)
+    return await callAnalyzerFunction(text, null, walletOptions, goalOptions, financialContext)
   } catch (error) {
     console.error('Analyzer backend error:', error)
     return regexResult
   }
 }
 
-async function callAnalyzerFunction(text, imageBase64, walletNames, financialContext) {
+async function callAnalyzerFunction(text, imageBase64, walletOptions, goalOptions, financialContext) {
   const { data, error } = await supabase.functions.invoke('analyze-transaction', {
     body: {
       text,
       imageBase64,
-      walletNames,
+      walletOptions,
+      goalOptions,
       financialContext,
     },
   })
@@ -75,24 +72,30 @@ async function callAnalyzerFunction(text, imageBase64, walletNames, financialCon
     throw new Error('Analyzer response was empty.')
   }
 
-  return data
+  return normalizeAnalysisResult(data, walletOptions, goalOptions, text)
 }
 
-function analyzeWithRegex(text, walletNames, goalNames) {
-  let normalizedText = text.toLowerCase().trim()
+function analyzeWithRegex(text, walletOptions, goalOptions = []) {
+  let normalizedText = normalizeNumericText(text.toLowerCase().trim())
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
-  const adviceIntent = detectAdviceIntent(normalizedText)
 
-  const goalWithdrawal = detectGoalWithdrawal(normalizedText, walletNames, goalNames)
+  const goalWithdrawal = detectGoalWithdrawalIntent(normalizedText, walletOptions, goalOptions)
   if (goalWithdrawal) {
     return goalWithdrawal
   }
 
+  const goalContribution = detectGoalContributionIntent(normalizedText, walletOptions, goalOptions)
+  if (goalContribution) {
+    return goalContribution
+  }
+
+  const walletTransfer = detectWalletTransferIntent(normalizedText, walletOptions)
+  if (walletTransfer) {
+    return walletTransfer
+  }
+
   if (!analyticsQuery && /(tabungan|milestone|target)/i.test(normalizedText)) {
-    return {
-      type: 'unknown',
-      reply: 'Kalau ingin mengatur target, tulis dengan format seperti "tabung 200k untuk dana darurat" atau "buat target laptop 12jt".',
-    }
+    return { type: 'unknown' }
   }
 
   if (/^(halo|hai|hi|hey|pagi|siang|sore|malam)/.test(normalizedText) && !/\d/.test(normalizedText)) {
@@ -119,27 +122,38 @@ function analyzeWithRegex(text, walletNames, goalNames) {
   }
 
   const deleteWalletMatch = normalizedText.match(
-    /^(?:hapus|buang|delete|hilangkan)\s+(?:dompet|rekening|wallet)\s+([a-z0-9]+)/i
+    /^(?:hapus|buang|delete|hilangkan)\s+(?:dompet|rekening|wallet)\s+(.+)$/i
   )
 
-  if (deleteWalletMatch) {
-    return {
-      type: 'delete_wallet',
-      wallet: deleteWalletMatch[1],
+  if (deleteWalletMatch?.[1]) {
+    const walletResolution = resolveOptionReference({
+      input: deleteWalletMatch[1],
+      options: walletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        type: 'delete_wallet',
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+      }
     }
   }
 
   if (
     !/(pengeluaran|pemasukan|tabungan|cashflow|arus kas|transfer)/i.test(normalizedText) &&
-    (
-      /^(cek|berapa|lihat|tampilkan)\s+(saldo|sisa|uang|total)/i.test(normalizedText) ||
-    /saldo \w+ berapa/i.test(normalizedText)
-    )
+    (/^(cek|berapa|lihat|tampilkan)\s+(saldo|sisa|uang|total)/i.test(normalizedText) ||
+      /saldo .+ berapa/i.test(normalizedText))
   ) {
-    const walletMatch = walletNames.find((wallet) => normalizedText.includes(wallet.toLowerCase()))
+    const resolution = resolveOptionReference({
+      input: normalizedText,
+      options: walletOptions,
+    })
+
     return {
       type: 'check_balance',
-      target: walletMatch || 'all',
+      target: resolution.match?.name || 'all',
+      targetWalletId: resolution.match?.id || null,
     }
   }
 
@@ -147,27 +161,9 @@ function analyzeWithRegex(text, walletNames, goalNames) {
     return analyticsQuery
   }
 
-  if (adviceIntent) {
-    return adviceIntent
-  }
-
-  const transferIntent = detectTransfer(normalizedText, walletNames)
-  if (transferIntent) {
-    return transferIntent
-  }
-
   if (/^(buat|bikin|tambah|create)\s+(dompet|rekening|wallet)/i.test(normalizedText)) {
-    const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
-    let initialBalance = 0
-
-    if (moneyMatch) {
-      let parsed = parseFloat(moneyMatch[1].replace(',', '.'))
-      const multiplier = moneyMatch[2]
-      if (['k', 'rb', 'ribu'].includes(multiplier)) parsed *= 1000
-      else if (['jt', 'juta'].includes(multiplier)) parsed *= 1000000
-      else if (parsed > 0 && parsed < 1000) parsed *= 1000
-      initialBalance = parsed
-    }
+    const moneyMatch = matchMoney(normalizedText)
+    const initialBalance = moneyMatch ? parseMoneyMatch(moneyMatch) : 0
 
     const nameMatch = text.match(
       /(?:dompet|rekening|wallet)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:isi|saldo|dengan|sebesar)\s*|\s*$|\s+(?:rp\s*)?(?:\d+))/i
@@ -189,71 +185,54 @@ function analyzeWithRegex(text, walletNames, goalNames) {
     }
   }
 
-  normalizedText = normalizedText.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2')
-  normalizedText = normalizedText.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2')
+  const amountMatch = matchMoney(normalizedText)
 
-  const moneyRegex = /(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i
-  const match = normalizedText.match(moneyRegex)
-
-  if (!match) {
+  if (!amountMatch) {
     return {
       type: 'unknown',
       reply: 'Sistem membutuhkan nominal spesifik untuk memproses ledger. Contoh: "Beli kopi 50k tunai"',
     }
   }
 
-  let amount = parseFloat(match[1].replace(',', '.'))
-  const multiplier = match[2]
-
-  if (multiplier) {
-    if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
-    else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-    else if (multiplier === 'm') amount *= 1000000000
-  } else if (amount > 0 && amount < 1000) {
-    amount *= 1000
-  }
-
-  const allWallets = [...walletNames.map((wallet) => wallet.toLowerCase()), 'tunai', 'cash']
-  const walletRegex = new RegExp(`\\b(${allWallets.join('|')})\\b`, 'i')
-  let walletMatch = normalizedText.match(walletRegex)?.[1]?.toLowerCase()
-
-  if (walletMatch === 'cash') walletMatch = 'tunai'
-
-  if (!walletMatch) {
-    const prepositionMatch = normalizedText.match(/(?:ke|di|dari|pakai|pake|bank)\s+([a-z0-9]+)/i)
-    if (prepositionMatch) {
-      walletMatch = prepositionMatch[1]
-    } else {
-      const words = normalizedText.split(/\s+/)
-      const lastWord = words[words.length - 1]
-      const categories = ['makan', 'minum', 'kopi', 'bensin', 'transport', 'belanja', 'gaji', 'bonus', 'jajan', 'listrik']
-      if (lastWord && lastWord.length > 2 && !categories.includes(lastWord) && !lastWord.match(/\d/)) {
-        walletMatch = lastWord
-      }
-    }
-  }
-
-  const wallet = walletMatch || (walletNames.length > 0 ? walletNames[0].toLowerCase() : 'tunai')
-
+  const amount = parseMoneyMatch(amountMatch)
+  const walletResolution = resolveWalletForTransaction(normalizedText, walletOptions)
   const category =
     normalizedText.match(/\b(kopi|makan|minum|bensin|transport|belanja|gaji|bonus|jajan|listrik)\b/i)?.[1]?.toLowerCase() ||
     'lainnya'
 
-  let desc = text.replace(match[0], '').trim()
-  desc = desc.replace(new RegExp(`\\b${wallet}\\b`, 'i'), '')
+  let desc = text.replace(amountMatch[0], '').trim()
+  const resolvedWalletName = walletResolution.match?.name || walletResolution.walletName || null
+  if (resolvedWalletName) {
+    desc = desc.replace(new RegExp(`\\b${escapeRegExp(resolvedWalletName)}\\b`, 'i'), '')
+  }
   desc = desc.replace(new RegExp(`\\b${category}\\b`, 'i'), '')
   desc = desc.replace(/^(beli|bayar|buat|dari|terima|dapat|pake|pakai|-|\+)\s+/gi, '').trim()
+  if (/^(dari|ke|pakai|pake|via|bank)$/i.test(desc)) {
+    desc = ''
+  }
   if (!desc) desc = category.charAt(0).toUpperCase() + category.slice(1)
 
   const isIncome = /(gaji|dapat|terima|masuk|bonus|topup|pemasukan|tambah|plus|add|\+)/i.test(normalizedText)
   const isExplicitExpense = /(beli|bayar|keluar|tarif|biaya|spent|-\s*\d)/i.test(normalizedText)
+  const wallet = walletResolution.match
   const hasLowConfidence =
-    !isIncome && !isExplicitExpense && category === 'lainnya' && !normalizedText.match(walletRegex)
+    !isIncome && !isExplicitExpense && category === 'lainnya' && !wallet
 
   if (hasLowConfidence) {
+    return { type: 'unknown' }
+  }
+
+  if (walletResolution.type === 'needs_confirmation') {
     return {
-      type: 'unknown',
-      reply: 'Formatnya belum cukup jelas. Coba tulis seperti "beli kopi 25k tunai", "gaji 5jt BCA", atau "transfer 100k dari BCA ke OVO".',
+      ...walletResolution,
+      intent: {
+        ...(walletResolution.intent || {}),
+        type: 'transaction',
+        transactionType: isIncome ? 'income' : 'expense',
+        amount,
+        desc: desc.charAt(0).toUpperCase() + desc.slice(1),
+        category,
+      },
     }
   }
 
@@ -263,8 +242,558 @@ function analyzeWithRegex(text, walletNames, goalNames) {
     amount,
     desc: desc.charAt(0).toUpperCase() + desc.slice(1),
     category,
-    wallet,
+    wallet: wallet?.name || null,
+    walletId: wallet?.id || null,
   }
+}
+
+function detectGoalContributionIntent(normalizedText, walletOptions = [], goalOptions = []) {
+  const mentionsGoal = /(tabung|nabung|setor|sisih|simpan|alokasi|masukin|masukkan)/i.test(normalizedText)
+  if (!mentionsGoal) {
+    return null
+  }
+
+  const goalResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: goalOptions,
+    keywords: ['ke', 'buat', 'untuk', 'target', 'tabungan', 'goal', 'milestone'],
+  })
+
+  if (!goalResolution.match) {
+    return null
+  }
+
+  const amountMatch = matchMoney(normalizedText)
+  if (!amountMatch) {
+    return null
+  }
+
+  const sourceResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: walletOptions,
+    keywords: ['dari', 'pakai', 'pake', 'via'],
+    stopKeywords: ['ke', 'buat', 'untuk', 'target', 'tabungan', 'goal', 'milestone'],
+  })
+
+  if (!sourceResolution.match) {
+    if (sourceResolution.reason === 'ambiguous') {
+      return createNeedsConfirmation({
+        reason: 'ambiguous_wallet',
+        prompt: `Dompet sumber untuk setoran goal belum jelas. Pilih salah satu: ${formatCandidateNames(sourceResolution.candidates)}.`,
+        candidates: sourceResolution.candidates,
+        intent: {
+          type: 'goal_contribution',
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          amount: parseMoneyMatch(amountMatch),
+        },
+      })
+    }
+
+    const rawWalletName = extractRawReferenceAfterKeyword(normalizedText, ['dari', 'pakai', 'pake', 'via'])
+    if (rawWalletName) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${rawWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: rawWalletName,
+        intent: {
+          type: 'goal_contribution',
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          amount: parseMoneyMatch(amountMatch),
+          sourceWallet: rawWalletName,
+        },
+      })
+    }
+
+    if (walletOptions.length === 1) {
+      sourceResolution.match = walletOptions[0]
+    } else {
+      return createNeedsConfirmation({
+        reason: 'missing_source_wallet',
+        prompt: `Setoran untuk target ${goalResolution.match.name} perlu dompet sumber. Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+        candidates: walletOptions,
+        intent: {
+          type: 'goal_contribution',
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          amount: parseMoneyMatch(amountMatch),
+        },
+      })
+    }
+  }
+
+  return {
+    type: 'goal_contribution',
+    goalId: goalResolution.match.id,
+    goal: goalResolution.match.name,
+    amount: parseMoneyMatch(amountMatch),
+    sourceWalletId: sourceResolution.match.id,
+    sourceWallet: sourceResolution.match.name,
+    reply: `Siap, saya akan memindahkan dana dari ${sourceResolution.match.name} ke target ${goalResolution.match.name}.`,
+  }
+}
+
+function detectGoalWithdrawalIntent(normalizedText, walletOptions = [], goalOptions = []) {
+  const mentionsGoal = /(tabungan|goal|milestone|target)/i.test(normalizedText)
+  const mentionsWithdrawal = /(transfer|pindah|tarik|ambil|cair|keluarkan|balikin|kembalikan)/i.test(normalizedText)
+
+  if (!mentionsGoal || !mentionsWithdrawal) {
+    return null
+  }
+
+  const goalResolution = resolveOptionReference({
+    input: normalizedText,
+    options: goalOptions,
+  })
+
+  if (!goalResolution.match) {
+    return null
+  }
+
+  const destinationResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: walletOptions,
+    keywords: ['ke', 'ke dompet', 'ke rekening', 'ke wallet'],
+  })
+
+  if (!destinationResolution.match) {
+    if (destinationResolution.reason === 'ambiguous') {
+      return createNeedsConfirmation({
+        reason: 'ambiguous_wallet',
+        prompt: `Dompet tujuan untuk pencairan ${goalResolution.match.name} belum jelas. Pilih salah satu: ${formatCandidateNames(destinationResolution.candidates)}.`,
+        candidates: destinationResolution.candidates,
+        intent: {
+          type: 'goal_withdrawal',
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          amount: parseMoneyMatch(matchMoney(normalizedText)),
+          unresolvedRole: 'destination',
+        },
+      })
+    }
+
+    const rawWalletName = extractRawReferenceAfterKeyword(normalizedText, ['ke'])
+    if (rawWalletName) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${rawWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: rawWalletName,
+        intent: {
+          type: 'goal_withdrawal',
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          amount: parseMoneyMatch(matchMoney(normalizedText)),
+          destinationWalletName: rawWalletName,
+        },
+      })
+    }
+
+    return null
+  }
+
+  const amountMatch = matchMoney(normalizedText)
+  if (!amountMatch) {
+    return null
+  }
+
+  return {
+    type: 'goal_withdrawal',
+    goalId: goalResolution.match.id,
+    goal: goalResolution.match.name,
+    amount: parseMoneyMatch(amountMatch),
+    destinationWalletId: destinationResolution.match.id,
+    wallet: destinationResolution.match.name,
+    reply: `Siap, saya akan memindahkan dana dari tabungan ${goalResolution.match.name} ke dompet ${destinationResolution.match.name}.`,
+  }
+}
+
+function detectWalletTransferIntent(normalizedText, walletOptions = []) {
+  if (!/(transfer|pindah|geser|kirim)/i.test(normalizedText)) {
+    return null
+  }
+
+  const sourceResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: walletOptions,
+    keywords: ['dari'],
+    stopKeywords: ['ke'],
+  })
+  const destinationResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: walletOptions,
+    keywords: ['ke'],
+  })
+
+  const amountMatch = matchMoney(normalizedText)
+  if (!amountMatch) {
+    return null
+  }
+
+  if (!sourceResolution.match || !destinationResolution.match) {
+    const missingWalletName =
+      extractRawReferenceAfterKeyword(normalizedText, ['dari']) ||
+      extractRawReferenceAfterKeyword(normalizedText, ['ke'])
+
+    if (missingWalletName) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${missingWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: missingWalletName,
+        intent: {
+          type: 'transfer',
+          fromWalletId: sourceResolution.match?.id || null,
+          from: sourceResolution.match?.name || null,
+          toWalletId: destinationResolution.match?.id || null,
+          to: destinationResolution.match?.name || null,
+          unresolvedWalletName: missingWalletName,
+          unresolvedRole: sourceResolution.match ? 'destination' : 'source',
+          amount: parseMoneyMatch(amountMatch),
+        },
+      })
+    }
+
+    const candidateList = sourceResolution.candidates.length > 0
+      ? sourceResolution.candidates
+      : destinationResolution.candidates
+
+    if (candidateList.length > 0) {
+      return createNeedsConfirmation({
+        reason: 'ambiguous_wallet',
+        prompt: `Transfer antar dompet belum jelas. Kandidat yang cocok: ${formatCandidateNames(candidateList)}.`,
+        candidates: candidateList,
+        intent: {
+          type: 'transfer',
+          fromWalletId: sourceResolution.match?.id || null,
+          from: sourceResolution.match?.name || null,
+          toWalletId: destinationResolution.match?.id || null,
+          to: destinationResolution.match?.name || null,
+          unresolvedRole: sourceResolution.match ? 'destination' : 'source',
+          amount: parseMoneyMatch(amountMatch),
+        },
+      })
+    }
+
+    return null
+  }
+
+  return {
+    type: 'transfer',
+    amount: parseMoneyMatch(amountMatch),
+    from: sourceResolution.match.name,
+    fromWalletId: sourceResolution.match.id,
+    to: destinationResolution.match.name,
+    toWalletId: destinationResolution.match.id,
+    reply: `Siap, saya akan memindahkan dana dari ${sourceResolution.match.name} ke ${destinationResolution.match.name}.`,
+  }
+}
+
+function resolveWalletForTransaction(normalizedText, walletOptions) {
+  const walletResolution = resolveOptionReference({
+    input: normalizedText,
+    options: walletOptions,
+  })
+
+  if (walletResolution.match) {
+    return walletResolution
+  }
+
+  if (walletResolution.candidates.length > 0) {
+    return createNeedsConfirmation({
+      reason: 'ambiguous_wallet',
+      prompt: `Dompet untuk transaksi ini belum jelas. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`,
+      candidates: walletResolution.candidates,
+    })
+  }
+
+  const rawWalletName =
+    extractRawReferenceAfterKeyword(normalizedText, ['dari', 'pakai', 'pake', 'via', 'bank']) ||
+    extractPotentialTrailingWalletName(normalizedText)
+
+  if (rawWalletName) {
+    return createNeedsConfirmation({
+      reason: 'unknown_wallet',
+      prompt: `Dompet "${rawWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+      action: 'create_wallet',
+      walletName: rawWalletName,
+      intent: {
+        type: 'transaction',
+        originalText: normalizedText,
+      },
+    })
+  }
+
+  if (walletOptions.length === 1) {
+    return {
+      match: walletOptions[0],
+      candidates: [walletOptions[0]],
+      reason: 'single',
+    }
+  }
+
+  return createNeedsConfirmation({
+    reason: 'missing_wallet',
+    prompt: `Dompet untuk transaksi ini belum disebutkan. Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+    candidates: walletOptions,
+  })
+}
+
+function normalizeAnalysisResult(analysis, walletOptions, goalOptions, rawText) {
+  if (!analysis || typeof analysis !== 'object') {
+    return {
+      type: 'unknown',
+      reply: 'Analisa tidak menghasilkan payload yang valid.',
+    }
+  }
+
+  if (analysis.type === 'transaction') {
+    const walletResolution = resolveOptionByIdOrName({
+      id: analysis.walletId,
+      name: analysis.wallet,
+      options: walletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        ...analysis,
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+      }
+    }
+
+    if (analysis.wallet) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${analysis.wallet}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: analysis.wallet,
+        intent: {
+          ...analysis,
+        },
+      })
+    }
+
+    return resolveWalletForTransaction(normalizeNumericText(String(rawText || '').toLowerCase()), walletOptions)
+  }
+
+  if (analysis.type === 'transfer') {
+    const fromResolution = resolveOptionByIdOrName({
+      id: analysis.fromWalletId,
+      name: analysis.from,
+      options: walletOptions,
+    })
+    const toResolution = resolveOptionByIdOrName({
+      id: analysis.toWalletId,
+      name: analysis.to,
+      options: walletOptions,
+    })
+
+    if (fromResolution.match && toResolution.match) {
+      return {
+        ...analysis,
+        fromWalletId: fromResolution.match.id,
+        from: fromResolution.match.name,
+        toWalletId: toResolution.match.id,
+        to: toResolution.match.name,
+      }
+    }
+
+    if (analysis.from && !fromResolution.match) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${analysis.from}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: analysis.from,
+        intent: {
+          ...analysis,
+          unresolvedRole: 'source',
+        },
+      })
+    }
+
+    if (analysis.to && !toResolution.match) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${analysis.to}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: analysis.to,
+        intent: {
+          ...analysis,
+          unresolvedRole: 'destination',
+        },
+      })
+    }
+  }
+
+  if (analysis.type === 'goal_contribution') {
+    const goalResolution = resolveOptionByIdOrName({
+      id: analysis.goalId,
+      name: analysis.goal || analysis.name,
+      options: goalOptions,
+    })
+    const sourceResolution = resolveOptionByIdOrName({
+      id: analysis.sourceWalletId || analysis.walletId,
+      name: analysis.sourceWallet || analysis.wallet,
+      options: walletOptions,
+    })
+
+    if (goalResolution.match && sourceResolution.match) {
+      return {
+        ...analysis,
+        goalId: goalResolution.match.id,
+        goal: goalResolution.match.name,
+        sourceWalletId: sourceResolution.match.id,
+        sourceWallet: sourceResolution.match.name,
+      }
+    }
+
+    if (goalResolution.match && !sourceResolution.match) {
+      if (analysis.sourceWallet || analysis.wallet) {
+        return createNeedsConfirmation({
+          reason: 'unknown_wallet',
+          prompt: `Dompet "${analysis.sourceWallet || analysis.wallet}" belum ada. Buat wallet baru dengan nama itu?`,
+          action: 'create_wallet',
+          walletName: analysis.sourceWallet || analysis.wallet,
+          intent: {
+            ...analysis,
+          },
+        })
+      }
+
+      if (walletOptions.length === 1) {
+        return {
+          ...analysis,
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          sourceWalletId: walletOptions[0].id,
+          sourceWallet: walletOptions[0].name,
+        }
+      }
+
+      return createNeedsConfirmation({
+        reason: 'missing_source_wallet',
+        prompt: `Setoran untuk target ${goalResolution.match.name} perlu dompet sumber. Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+        candidates: walletOptions,
+        intent: {
+          ...analysis,
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+        },
+      })
+    }
+  }
+
+  if (analysis.type === 'goal_withdrawal') {
+    const goalResolution = resolveOptionByIdOrName({
+      id: analysis.goalId,
+      name: analysis.goal || analysis.name,
+      options: goalOptions,
+    })
+    const destinationResolution = resolveOptionByIdOrName({
+      id: analysis.destinationWalletId || analysis.walletId,
+      name: analysis.wallet,
+      options: walletOptions,
+    })
+
+    if (goalResolution.match && destinationResolution.match) {
+      return {
+        ...analysis,
+        goalId: goalResolution.match.id,
+        goal: goalResolution.match.name,
+        destinationWalletId: destinationResolution.match.id,
+        wallet: destinationResolution.match.name,
+      }
+    }
+
+    if (goalResolution.match && analysis.wallet && !destinationResolution.match) {
+      return createNeedsConfirmation({
+        reason: 'unknown_wallet',
+        prompt: `Dompet "${analysis.wallet}" belum ada. Buat wallet baru dengan nama itu?`,
+        action: 'create_wallet',
+        walletName: analysis.wallet,
+        intent: {
+          ...analysis,
+        },
+      })
+    }
+
+    if (goalResolution.match && !destinationResolution.match) {
+      return createNeedsConfirmation({
+        reason: 'missing_wallet',
+        prompt: `Dompet tujuan untuk pencairan ${goalResolution.match.name} perlu dipilih. Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+        candidates: walletOptions,
+        intent: {
+          ...analysis,
+          goalId: goalResolution.match.id,
+          goal: goalResolution.match.name,
+          unresolvedRole: 'destination',
+        },
+      })
+    }
+  }
+
+  return analysis
+}
+
+function createNeedsConfirmation({
+  reason,
+  prompt,
+  action = null,
+  walletName = null,
+  intent = null,
+  candidates = [],
+}) {
+  return {
+    type: 'needs_confirmation',
+    reason,
+    prompt,
+    action,
+    walletName,
+    intent,
+    candidates,
+  }
+}
+
+function extractRawReferenceAfterKeyword(text, keywords = []) {
+  const normalizedText = normalizeEntityName(text)
+
+  for (const keyword of keywords) {
+    const regex = new RegExp(`${escapeRegExp(normalizeEntityName(keyword))}\\s+([a-z0-9][a-z0-9\\s-]*)$`, 'i')
+    const match = normalizedText.match(regex)
+    if (match?.[1]) {
+      const candidate = match[1]
+        .replace(/\b(rp\s*)?\d.*$/i, '')
+        .trim()
+
+      if (candidate) {
+        return candidate
+      }
+    }
+  }
+
+  return null
+}
+
+function extractPotentialTrailingWalletName(text) {
+  const words = normalizeEntityName(text).split(/\s+/)
+  const lastTwo = words.slice(-2).join(' ').trim()
+  const lastOne = words.slice(-1).join(' ').trim()
+  const candidates = [lastTwo, lastOne]
+
+  for (const candidate of candidates) {
+    if (
+      candidate &&
+      !TRANSACTION_CATEGORIES.includes(candidate) &&
+      !/\d/.test(candidate)
+    ) {
+      return candidate
+    }
+  }
+
+  return null
 }
 
 function detectAnalyticsQuery(normalizedText) {
@@ -345,183 +874,6 @@ function detectAnalyticsPeriod(normalizedText) {
   return 'all_time'
 }
 
-function detectAdviceIntent(normalizedText) {
-  if (!normalizedText) {
-    return null
-  }
-
-  const hasAdviceLanguage = /(tips|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|prioritas|kurangi|bocor|efisien|nasihat|arahkan|atur lebih baik)/i.test(normalizedText)
-  const hasFinancialContext = /(uang|keuangan|cashflow|arus kas|pengeluaran|pemasukan|tabungan|budget|anggaran|data saya|belanja|spending|boros|bulan ini|minggu ini|hari ini)/i.test(normalizedText)
-
-  if (!hasAdviceLanguage || !hasFinancialContext) {
-    return null
-  }
-
-  return {
-    type: 'advice_query',
-    period: detectAnalyticsPeriod(normalizedText),
-    focus: detectAdviceFocus(normalizedText),
-  }
-}
-
-function detectAdviceFocus(normalizedText) {
-  if (/(pengeluaran|boros|hemat|expense)/i.test(normalizedText)) {
-    return 'expense'
-  }
-
-  if (/(pemasukan|income|pendapatan)/i.test(normalizedText)) {
-    return 'income'
-  }
-
-  if (/(tabungan|saving|target|goal)/i.test(normalizedText)) {
-    return 'savings'
-  }
-
-  if (/(budget|anggaran)/i.test(normalizedText)) {
-    return 'budget'
-  }
-
-  return 'overall'
-}
-
-function detectGoalWithdrawal(normalizedText, walletNames, goalNames) {
-  if (!/(cairkan|cairin|tarik|ambil)/i.test(normalizedText)) {
-    return null
-  }
-
-  const goalName = findMatchingEntityName(normalizedText, goalNames)
-  if (!goalName) {
-    return {
-      type: 'unknown',
-      reply: 'Kalau ingin mencairkan target, tulis seperti "cairkan 200k dari dana darurat ke tunai".',
-    }
-  }
-
-  const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
-  if (!moneyMatch) {
-    return {
-      type: 'unknown',
-      reply: `Saya belum melihat nominal pencairannya. Coba tulis seperti "cairkan 200k dari ${goalName} ke tunai".`,
-    }
-  }
-
-  let amount = parseFloat(moneyMatch[1].replace(',', '.'))
-  const multiplier = moneyMatch[2]
-
-  if (multiplier) {
-    if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
-    else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-    else if (multiplier === 'm') amount *= 1000000000
-  } else if (amount > 0 && amount < 1000) {
-    amount *= 1000
-  }
-
-  const destinationWallet = findMatchingEntityName(normalizedText, walletNames) || 'Tunai'
-
-  return {
-    type: 'goal_withdrawal',
-    goalName,
-    amount,
-    wallet: destinationWallet,
-    reply: `Siap, saya akan mencairkan dana dari target ${goalName} ke ${destinationWallet}.`,
-  }
-}
-
-function detectTransfer(normalizedText, walletNames) {
-  if (!/(transfer|pindah(?:kan)?|kirim(?:kan)?)/i.test(normalizedText)) {
-    return null
-  }
-
-  const moneyMatch = normalizedText.match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
-  if (!moneyMatch) {
-    return {
-      type: 'unknown',
-      reply: 'Kalau ingin transfer, tulis nominalnya juga. Contoh: "transfer 100k dari BCA ke DANA".',
-    }
-  }
-
-  let amount = parseFloat(moneyMatch[1].replace(',', '.'))
-  const multiplier = moneyMatch[2]
-
-  if (multiplier) {
-    if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
-    else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-    else if (multiplier === 'm') amount *= 1000000000
-  } else if (amount > 0 && amount < 1000) {
-    amount *= 1000
-  }
-
-  const fromWallet = findEntityAfterKeyword(normalizedText, walletNames, 'dari')
-  const toWallet = findEntityAfterKeyword(normalizedText, walletNames, 'ke')
-  const mentions = findMentionedEntityNames(normalizedText, walletNames)
-
-  const resolvedFrom = fromWallet || mentions[0] || null
-  const resolvedTo =
-    toWallet ||
-    mentions.find((name) => name && name.toLowerCase() !== String(resolvedFrom || '').toLowerCase()) ||
-    null
-
-  if (!resolvedFrom || !resolvedTo) {
-    return {
-      type: 'unknown',
-      reply: 'Format transfernya belum lengkap. Coba tulis seperti "transfer 100k dari BCA ke DANA".',
-    }
-  }
-
-  if (resolvedFrom.toLowerCase() === resolvedTo.toLowerCase()) {
-    return {
-      type: 'unknown',
-      reply: 'Dompet asal dan tujuan transfer tidak boleh sama. Contoh yang benar: "transfer 100k dari BCA ke DANA".',
-    }
-  }
-
-  return {
-    type: 'transfer',
-    amount,
-    from: resolvedFrom,
-    to: resolvedTo,
-    reply: `Siap, saya akan memindahkan ${formatAmount(amount)} dari ${resolvedFrom} ke ${resolvedTo}.`,
-  }
-}
-
-function findMatchingEntityName(normalizedText, names = []) {
-  return [...names]
-    .filter(Boolean)
-    .sort((left, right) => right.length - left.length)
-    .find((name) => normalizedText.includes(name.toLowerCase())) || null
-}
-
-function findEntityAfterKeyword(normalizedText, names = [], keyword) {
-  return [...names]
-    .filter(Boolean)
-    .sort((left, right) => right.length - left.length)
-    .find((name) => {
-      const escapedName = escapeRegex(name.toLowerCase())
-      return new RegExp(`\\b${keyword}\\s+${escapedName}\\b`, 'i').test(normalizedText)
-    }) || null
-}
-
-function findMentionedEntityNames(normalizedText, names = []) {
-  return [...names]
-    .filter(Boolean)
-    .map((name) => ({
-      name,
-      index: normalizedText.indexOf(name.toLowerCase()),
-    }))
-    .filter((entry) => entry.index >= 0)
-    .sort((left, right) => left.index - right.index)
-    .map((entry) => entry.name)
-}
-
-function escapeRegex(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function formatAmount(amount) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

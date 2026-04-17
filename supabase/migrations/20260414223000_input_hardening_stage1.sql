@@ -1,5 +1,6 @@
 alter table public.chat_messages
   add column if not exists metadata jsonb not null default '{}'::jsonb;
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'chat-attachments',
@@ -12,9 +13,11 @@ on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
+
 drop policy if exists "Users can upload own chat attachments" on storage.objects;
 drop policy if exists "Users can read own chat attachments" on storage.objects;
 drop policy if exists "Users can delete own chat attachments" on storage.objects;
+
 create policy "Users can upload own chat attachments" on storage.objects
   for insert
   to authenticated
@@ -22,6 +25,7 @@ create policy "Users can upload own chat attachments" on storage.objects
     bucket_id = 'chat-attachments'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
 create policy "Users can read own chat attachments" on storage.objects
   for select
   to authenticated
@@ -29,6 +33,7 @@ create policy "Users can read own chat attachments" on storage.objects
     bucket_id = 'chat-attachments'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
 create policy "Users can delete own chat attachments" on storage.objects
   for delete
   to authenticated
@@ -36,6 +41,7 @@ create policy "Users can delete own chat attachments" on storage.objects
     bucket_id = 'chat-attachments'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
 create or replace function public.normalize_entity_name(p_name text)
 returns text
 language sql
@@ -43,6 +49,7 @@ immutable
 as $$
   select nullif(regexp_replace(lower(trim(coalesce(p_name, ''))), '\s+', ' ', 'g'), '')
 $$;
+
 create or replace function public.ensure_default_wallet()
 returns jsonb
 language plpgsql
@@ -105,6 +112,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.get_name_conflicts()
 returns jsonb
 language plpgsql
@@ -191,6 +199,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.rename_wallet(
   p_wallet_id uuid,
   p_name text
@@ -254,6 +263,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.rename_goal(
   p_goal_id uuid,
   p_name text
@@ -317,6 +327,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.adjust_wallet_balance(
   p_wallet_id uuid,
   p_delta numeric
@@ -366,6 +377,7 @@ begin
   return v_new_balance;
 end;
 $$;
+
 create or replace function public.record_transaction(
   p_wallet_id uuid,
   p_category_id uuid default null,
@@ -460,6 +472,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.transfer_between_wallets(
   p_from_wallet_id uuid,
   p_to_wallet_id uuid,
@@ -569,6 +582,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.contribute_to_goal(
   p_goal_id uuid,
   p_amount numeric,
@@ -655,6 +669,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.create_goal_with_contribution(
   p_name text,
   p_target_amount numeric,
@@ -771,6 +786,7 @@ begin
   );
 end;
 $$;
+
 create or replace function public.create_wallet_with_opening_balance(
   p_name text,
   p_initial_balance numeric default 0,
@@ -868,6 +884,7 @@ begin
   );
 end;
 $$;
+
 do $$
 begin
   if not exists (
@@ -923,11 +940,13 @@ begin
   end if;
 end;
 $$;
+
 revoke all on function public.normalize_entity_name(text) from public;
 revoke all on function public.ensure_default_wallet() from public;
 revoke all on function public.get_name_conflicts() from public;
 revoke all on function public.rename_wallet(uuid, text) from public;
 revoke all on function public.rename_goal(uuid, text) from public;
+
 grant execute on function public.normalize_entity_name(text) to authenticated, service_role;
 grant execute on function public.ensure_default_wallet() to authenticated, service_role;
 grant execute on function public.get_name_conflicts() to authenticated, service_role;

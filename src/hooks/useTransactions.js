@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { buildHistoryPresentation } from '../lib/historyPresentation'
@@ -8,11 +8,15 @@ const TRANSACTION_SELECT = `
   wallets:wallet_id (name),
   categories:category_id (name, icon)
 `
+const PAGE_SIZE = 30
 
 export function useTransactions() {
   const { user } = useAuth()
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const oldestCursorRef = useRef(null)
 
   const mapTransactionRow = useCallback((transaction) => {
     const normalizedSource = normalizeTransactionSource(transaction.source)
@@ -53,6 +57,7 @@ export function useTransactions() {
       }),
       date: formatRelativeDate(transaction.occurred_at),
       occurredAt: transaction.occurred_at,
+      createdAt: transaction.created_at,
       source: normalizedSource,
       analyticsBucket,
       canDelete: canDeleteLedgerEntry({
@@ -62,26 +67,64 @@ export function useTransactions() {
     }
   }, [])
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async ({ loadMore = false } = {}) => {
     if (!user) {
       setTransactions([])
       setLoading(false)
+      setLoadingMore(false)
+      setHasMore(false)
+      oldestCursorRef.current = null
       return
     }
 
-    setLoading(true)
-    const { data, error } = await supabase
+    if (loadMore) {
+      if (!oldestCursorRef.current) return
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+      oldestCursorRef.current = null
+    }
+
+    let query = supabase
       .from('transactions')
       .select(TRANSACTION_SELECT)
       .eq('user_id', user.id)
-      .order('occurred_at', { ascending: false })
-      .limit(50)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE)
 
-    if (!error && data) {
-      setTransactions(data.map(mapTransactionRow))
+    if (loadMore && oldestCursorRef.current) {
+      query = query.lt('created_at', oldestCursorRef.current)
     }
 
-    setLoading(false)
+    const { data, error } = await query
+
+    if (!error && data) {
+      const nextTransactions = data.map(mapTransactionRow)
+      oldestCursorRef.current =
+        nextTransactions[nextTransactions.length - 1]?.createdAt || null
+      setHasMore(nextTransactions.length === PAGE_SIZE)
+
+      if (loadMore) {
+        setTransactions((prev) => {
+          const merged = [...prev, ...nextTransactions]
+          return merged.filter(
+            (transaction, index, all) =>
+              all.findIndex((candidate) => candidate.id === transaction.id) === index
+          )
+        })
+      } else {
+        setTransactions(nextTransactions)
+      }
+    } else if (!loadMore) {
+      setTransactions([])
+      setHasMore(false)
+    }
+
+    if (loadMore) {
+      setLoadingMore(false)
+    } else {
+      setLoading(false)
+    }
   }, [mapTransactionRow, user])
 
   useEffect(() => {
@@ -165,6 +208,7 @@ export function useTransactions() {
             }),
             date: 'Hari Ini',
             occurredAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             source: normalizedSource,
             analyticsBucket,
             canDelete: canDeleteLedgerEntry({
@@ -275,6 +319,9 @@ export function useTransactions() {
     clearTransactionsInRange,
     clearAllTransactions,
     transferBetweenWallets,
+    hasMore,
+    loadingMore,
+    loadMore: () => fetchTransactions({ loadMore: true }),
     refetch: fetchTransactions,
   }
 }

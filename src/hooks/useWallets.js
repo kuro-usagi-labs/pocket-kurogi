@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { normalizeEntityName } from '../lib/chatEntities'
 
 export function useWallets() {
   const { user } = useAuth()
@@ -78,6 +79,8 @@ export function useWallets() {
     }
 
     setLoading(true)
+    await supabase.rpc('ensure_default_wallet').catch(() => null)
+
     const { data, error } = await supabase
       .from('wallets')
       .select('*')
@@ -175,6 +178,27 @@ export function useWallets() {
     return { error: rpcResult.error ?? new Error('Saldo dompet tidak bisa diperbarui saat ini.') }
   }, [user])
 
+  const renameWallet = useCallback(async (walletId, nextName) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const normalizedName = normalizeEntityName(nextName)
+    if (!normalizedName) {
+      return { error: new Error('Nama dompet wajib diisi.') }
+    }
+
+    const rpcResult = await supabase.rpc('rename_wallet', {
+      p_wallet_id: walletId,
+      p_name: nextName,
+    })
+
+    if (!rpcResult.error) {
+      await fetchWallets()
+      return { error: null }
+    }
+
+    return { error: rpcResult.error }
+  }, [fetchWallets, user])
+
   const totalBalance = wallets.reduce(
     (accumulator, wallet) => accumulator + Number(wallet.current_balance),
     0
@@ -189,6 +213,7 @@ export function useWallets() {
     hardDeleteWallet,
     clearAllWallets,
     updateBalance,
+    renameWallet,
     refetch: fetchWallets,
   }
 }

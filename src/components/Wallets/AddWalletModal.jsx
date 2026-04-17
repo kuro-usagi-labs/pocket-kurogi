@@ -4,11 +4,24 @@ import { X } from 'lucide-react'
 export default function AddWalletModal({ onClose, onSubmit }) {
   const [name, setName] = useState('')
   const [balance, setBalance] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!name.trim()) return
-    onSubmit(name.trim(), parseFloat(balance) || 0)
+    if (!name.trim() || submitting) return
+
+    setSubmitting(true)
+    setErrorMessage('')
+    const result = await onSubmit(name.trim(), parseFloat(balance) || 0)
+
+    if (result?.error) {
+      setErrorMessage(result.error.message || 'Dompet belum bisa dibuat.')
+      setSubmitting(false)
+      return
+    }
+
+    setSubmitting(false)
     onClose()
   }
 
@@ -53,11 +66,17 @@ export default function AddWalletModal({ onClose, onSubmit }) {
               onChange={(e) => setBalance(e.target.value)}
             />
           </div>
+          {errorMessage ? (
+            <p className="mb-4 text-[12px] font-semibold text-red-600">
+              {errorMessage}
+            </p>
+          ) : null}
           <button
             type="submit"
+            disabled={submitting}
             className="w-full bg-midnight text-white font-bold font-jakarta text-[13px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl shadow-midnight/20 hover:opacity-90 active:scale-95 transition-all"
           >
-            Inisialisasi
+            {submitting ? 'Memproses...' : 'Inisialisasi'}
           </button>
         </form>
       </div>
