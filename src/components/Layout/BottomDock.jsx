@@ -37,12 +37,6 @@ export default function BottomDock({ activeTab, onTabChange }) {
                     : 'bg-midnight/0 opacity-0 scale-[0.94]'
                 }`}
               />
-              <span
-                aria-hidden="true"
-                className={`absolute inset-x-[18px] top-[7px] h-[1.5px] rounded-full bg-white/14 transition-opacity duration-300 ${
-                  isActive ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
               <Icon
                 size={19}
                 strokeWidth={isActive ? 2.4 : 2.1}
