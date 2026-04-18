@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
+import {
+  buildAutoCategoryPayload,
+  buildCategoryOptions,
+  findFallbackCategory,
+  resolveExistingCategory,
+} from '../lib/categoryCatalog'
 
 export function useCategories() {
   const { user } = useAuth()
@@ -22,47 +28,133 @@ export function useCategories() {
   }, [user])
 
   useEffect(() => {
-    fetchCategories()
+    const timeoutId = setTimeout(() => {
+      fetchCategories().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchCategories])
 
   /**
    * Find the best matching category by name (case-insensitive fuzzy match).
    * Returns the category object or null.
    */
-  const resolveCategory = useCallback((categoryName) => {
+  const resolveCategory = useCallback((categoryName, { transactionType = 'expense' } = {}) => {
+    const fallbackCategory = findFallbackCategory(categories)
+
     if (!categoryName) {
-      return { category: null, ambiguous: false }
+      return { category: fallbackCategory, ambiguous: false }
     }
 
-    const normalizedName = normalizeEntityName(categoryName)
-    const exact = categories.find((category) => normalizeEntityName(category.name) === normalizedName)
-
-    if (exact) {
-      return { category: exact, ambiguous: false }
+    const resolution = resolveExistingCategory(categories, categoryName, transactionType)
+    if (resolution.category) {
+      return resolution
     }
-
-    const partialMatches = categories.filter((category) => {
-      const normalizedCategory = normalizeEntityName(category.name)
-      return normalizedCategory.includes(normalizedName) || normalizedName.includes(normalizedCategory)
-    })
-
-    if (partialMatches.length === 1) {
-      return { category: partialMatches[0], ambiguous: false }
-    }
-
-    const fallbackCategory =
-      categories.find((category) => normalizeEntityName(category.name) === 'lainnya') || null
 
     return {
       category: fallbackCategory,
-      ambiguous: partialMatches.length > 1,
+      ambiguous: resolution.ambiguous,
     }
   }, [categories])
 
   const findCategory = useCallback(
-    (categoryName) => resolveCategory(categoryName).category,
+    (categoryName, options = {}) => resolveCategory(categoryName, options).category,
     [resolveCategory]
   )
 
-  return { categories, loading, findCategory, resolveCategory, refetch: fetchCategories }
+  const ensureCategory = useCallback(async ({
+    name,
+    transactionType = 'expense',
+    icon = null,
+    color = null,
+  }) => {
+    if (!user) {
+      return { data: null, error: new Error('Not authenticated'), created: false }
+    }
+
+    const normalizedName = normalizeEntityName(name)
+    if (!normalizedName) {
+      return { data: null, error: new Error('Category name is required'), created: false }
+    }
+
+    const existingResolution = resolveExistingCategory(categories, name, transactionType)
+    if (existingResolution.category) {
+      return { data: existingResolution.category, error: null, created: false }
+    }
+
+    const categoryPayload = buildAutoCategoryPayload({
+      categoryName: name,
+      analysisCategory: name,
+      transactionType,
+    })
+
+    if (!categoryPayload) {
+      return {
+        data: findFallbackCategory(categories),
+        error: new Error('Category not found'),
+        created: false,
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({
+        user_id: user.id,
+        name: categoryPayload.name,
+        icon: icon || categoryPayload.icon,
+        color: color || categoryPayload.color,
+        category_type: categoryPayload.categoryType,
+      })
+      .select('*')
+      .single()
+
+    if (error || !data) {
+      const { data: refreshedCategories } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true })
+
+      if (refreshedCategories) {
+        setCategories(refreshedCategories)
+      }
+
+      const retryResolution = resolveExistingCategory(
+        refreshedCategories || categories,
+        categoryPayload.name,
+        transactionType
+      )
+      if (retryResolution.category) {
+        return { data: retryResolution.category, error: null, created: false }
+      }
+
+      return {
+        data: null,
+        error: error ?? new Error('Kategori tidak bisa dibuat saat ini.'),
+        created: false,
+      }
+    }
+
+    setCategories((prev) => {
+      const next = prev.some((category) => category.id === data.id)
+        ? prev
+        : [...prev, data]
+
+      return [...next].sort((left, right) => left.name.localeCompare(right.name, 'id-ID'))
+    })
+
+    return { data, error: null, created: true }
+  }, [categories, user])
+
+  const categoryOptions = buildCategoryOptions(categories)
+
+  return {
+    categories,
+    categoryOptions,
+    loading,
+    findCategory,
+    resolveCategory,
+    ensureCategory,
+    refetch: fetchCategories,
+  }
 }

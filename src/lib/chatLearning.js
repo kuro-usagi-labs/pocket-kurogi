@@ -1,12 +1,20 @@
+import {
+  buildAutoCategoryPayload,
+  findFallbackCategory,
+  inferCategoryFromText,
+  normalizeCategoryLookup,
+  resolveExistingCategory,
+} from './categoryCatalog'
+
 const MONEY_REGEX = /(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i
 
-const INCOME_KEYWORDS = /\b(gaji|bonus|dapat|terima|masuk|topup|cashback|refund|komisi|fee|pendapatan|income)\b/i
+const INCOME_KEYWORDS = /\b(gaji|bonus|dapat|terima|masuk|topup|cashback|refund|komisi|fee|pendapatan|income|dividen|bunga)\b/i
 const COMMAND_WORDS = /\b(beli|bayar|buat|dari|terima|dapat|masuk|untuk|pakai|pake|di|ke|gaji|bonus|tabung|transfer|cairkan|cairin|tarik|ambil)\b/gi
 
 export function normalizeChatText(value = '') {
   return String(value)
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/gi, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -110,36 +118,107 @@ export function resolveCategoryForMessage({
   categories = [],
   categoryRules = [],
   analysisCategory = null,
+  transactionType = 'expense',
 }) {
-  const analysisName = String(analysisCategory || '').trim()
-  if (analysisName && analysisName.toLowerCase() !== 'lainnya') {
-    const matchedByAnalysis = findCategoryByName(categories, analysisName)
-    if (matchedByAnalysis) {
-      return { category: matchedByAnalysis, resolution: 'analysis' }
-    }
-  }
+  const fallbackCategory = findFallbackCategory(categories)
+  const explicitCategory = resolveExistingCategory(categories, extractExplicitCategoryName(text, categories), transactionType)
 
-  const explicitCategory = findMentionedEntity(text, categories, 'name')
-  if (explicitCategory) {
-    return { category: explicitCategory, resolution: 'explicit' }
+  if (explicitCategory.category) {
+    return createCategoryResolution({
+      category: explicitCategory.category,
+      resolution: 'explicit',
+    })
   }
 
   const learnedCategory = findRuleMatch({
     text,
     rules: categoryRules,
-    entities: categories,
+    entities: categories.filter((category) => isCompatibleCategory(category, transactionType)),
     idKey: 'category_id',
   })
 
   if (learnedCategory) {
-    return {
+    return createCategoryResolution({
       category: learnedCategory.entity,
       resolution: 'learned',
       keyword: learnedCategory.rule.keyword,
+    })
+  }
+
+  const analysisResolution = resolveExistingCategory(
+    categories,
+    String(analysisCategory || '').trim(),
+    transactionType
+  )
+
+  if (analysisResolution.category) {
+    return createCategoryResolution({
+      category: analysisResolution.category,
+      resolution: 'analysis',
+    })
+  }
+
+  const inferredCategory = inferCategoryFromText({
+    text,
+    analysisCategory,
+    transactionType,
+  })
+
+  if (inferredCategory.categoryName) {
+    const inferredResolution = resolveExistingCategory(
+      categories,
+      inferredCategory.categoryName,
+      transactionType
+    )
+
+    if (inferredResolution.category) {
+      return createCategoryResolution({
+        category: inferredResolution.category,
+        resolution: analysisCategory ? 'analysis_semantic' : 'semantic',
+        keyword: inferredCategory.matchedKeyword,
+      })
+    }
+
+    const createCategory = buildAutoCategoryPayload({
+      categoryName: inferredCategory.categoryName,
+      text,
+      analysisCategory,
+      transactionType,
+    })
+
+    if (createCategory) {
+      return createCategoryResolution({
+        category: null,
+        categoryName: createCategory.name,
+        resolution: analysisCategory ? 'analysis_create' : 'semantic_create',
+        keyword: inferredCategory.matchedKeyword,
+        createCategory,
+      })
     }
   }
 
-  return { category: null, resolution: 'default' }
+  const customCategoryPayload = buildAutoCategoryPayload({
+    categoryName: '',
+    text,
+    analysisCategory,
+    transactionType,
+  })
+
+  if (customCategoryPayload) {
+    return createCategoryResolution({
+      category: null,
+      categoryName: customCategoryPayload.name,
+      resolution: 'analysis_create',
+      createCategory: customCategoryPayload,
+    })
+  }
+
+  return createCategoryResolution({
+    category: fallbackCategory,
+    categoryName: fallbackCategory?.name || 'Lainnya',
+    resolution: 'fallback',
+    ambiguous: analysisResolution.ambiguous,
+  })
 }
 
 export function resolveTransactionWithLearning({
@@ -173,18 +252,18 @@ export function resolveTransactionWithLearning({
     categories,
     categoryRules,
     analysisCategory: isAnalysisTransaction ? analysis.category : null,
+    transactionType,
   })
 
   if (!isAnalysisTransaction && !walletResolution.wallet && !categoryResolution.category) {
     return null
   }
 
-  const fallbackCategory = isAnalysisTransaction ? analysis.category : null
   const categoryName =
     categoryResolution.category?.name ||
-    (fallbackCategory && fallbackCategory.toLowerCase() !== 'lainnya'
-      ? formatDisplayName(fallbackCategory)
-      : 'Lainnya')
+    categoryResolution.createCategory?.name ||
+    categoryResolution.categoryName ||
+    'Lainnya'
 
   return {
     type: 'transaction',
@@ -194,7 +273,7 @@ export function resolveTransactionWithLearning({
       ? analysis.desc
       : buildTransactionDescription(text, {
           transactionType,
-          categoryName: categoryResolution.category?.name || fallbackCategory,
+          categoryName,
           walletName: walletResolution.wallet?.name || null,
         }),
     category: categoryName,
@@ -245,6 +324,34 @@ function buildTransactionDescription(text, { transactionType, categoryName = nul
   return formatDisplayName(desc)
 }
 
+function createCategoryResolution({
+  category = null,
+  categoryName = null,
+  resolution = 'fallback',
+  keyword = null,
+  createCategory = null,
+  ambiguous = false,
+}) {
+  return {
+    category,
+    categoryName: category?.name || categoryName || createCategory?.name || 'Lainnya',
+    resolution,
+    keyword,
+    createCategory,
+    ambiguous,
+  }
+}
+
+function extractExplicitCategoryName(text, categories = []) {
+  const explicitCategory = findMentionedEntity(
+    text,
+    categories,
+    'name'
+  )
+
+  return explicitCategory?.name || ''
+}
+
 function findRuleMatch({ text, rules = [], entities = [], idKey }) {
   const normalizedText = normalizeChatText(text)
   const entityMap = new Map(
@@ -284,14 +391,6 @@ function findWalletByName(wallets, name) {
     null
 }
 
-function findCategoryByName(categories, name) {
-  const normalizedName = normalizeChatText(name)
-
-  return categories.find((category) => normalizeChatText(category?.name) === normalizedName) ||
-    categories.find((category) => includesPhrase(category?.name, normalizedName)) ||
-    null
-}
-
 function includesPhrase(text, phrase) {
   const normalizedText = ` ${normalizeChatText(text)} `
   const normalizedPhrase = normalizeChatText(phrase)
@@ -318,13 +417,18 @@ function removePhrase(text, phrase) {
 }
 
 function formatDisplayName(value) {
-  const trimmed = String(value || '').trim()
-  if (!trimmed) {
+  const normalized = normalizeCategoryLookup(value)
+  if (!normalized) {
     return ''
   }
 
-  return trimmed
+  return normalized
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
+}
+
+function isCompatibleCategory(category, transactionType) {
+  const categoryType = String(category?.category_type || 'both').toLowerCase()
+  return categoryType === 'both' || categoryType === String(transactionType || 'expense').toLowerCase()
 }

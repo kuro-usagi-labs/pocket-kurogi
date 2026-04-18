@@ -52,7 +52,13 @@ export function useInputLearning() {
     return () => clearTimeout(timeoutId)
   }, [fetchRules])
 
-  const learnFromInput = useCallback(async ({ rawText, walletId = null, categoryId = null }) => {
+  const learnFromInput = useCallback(async ({
+    rawText,
+    walletId = null,
+    categoryId = null,
+    categoryKeywords = [],
+    walletKeywords = [],
+  }) => {
     if (!user || !rawText) {
       return { data: null, error: null }
     }
@@ -61,6 +67,8 @@ export function useInputLearning() {
       p_raw_text: rawText,
       p_wallet_id: walletId,
       p_category_id: categoryId,
+      p_category_keywords: categoryKeywords,
+      p_wallet_keywords: walletKeywords,
     })
 
     if (!result.error) {

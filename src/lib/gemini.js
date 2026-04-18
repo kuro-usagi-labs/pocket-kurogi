@@ -1,4 +1,3 @@
-import { supabase } from './supabase'
 import {
   findOptionAfterKeyword,
   formatCandidateNames,
@@ -9,6 +8,7 @@ import {
   resolveOptionByIdOrName,
   resolveOptionReference,
 } from './chatEntities'
+import { inferCategoryFromText, normalizeCategoryLookup } from './categoryCatalog'
 
 const TRANSACTION_CATEGORIES = [
   'makan',
@@ -23,6 +23,11 @@ const TRANSACTION_CATEGORIES = [
   'listrik',
 ]
 
+const LEDGER_AMOUNT_REQUIRED_REPLY =
+  'Saya perlu nominal yang jelas untuk mencatat ledger. Contoh: "Beli kopi 50k tunai".'
+const GENERIC_UNKNOWN_REPLY =
+  'Saya belum bisa memetakan permintaan itu ke aksi yang aman. Coba minta analisis keuangan, cek ringkasan, atau tulis transaksi dengan nominal yang jelas.'
+
 /**
  * Analyze user text for transaction/advice intents.
  * Fast-path regex stays on the client for simple commands.
@@ -34,32 +39,76 @@ export async function analyzeTransaction(
   imageBase64 = null,
   walletOptions = [],
   goalOptions = [],
-  financialContext = ''
+  categoryOptions = [],
+  financialContext = '',
+  learningContext = {}
 ) {
   if (imageBase64) {
-    return callAnalyzerFunction(text, imageBase64, walletOptions, goalOptions, financialContext)
+    return callAnalyzerFunction(
+      text,
+      imageBase64,
+      walletOptions,
+      goalOptions,
+      categoryOptions,
+      financialContext
+    )
   }
 
   const regexResult = analyzeWithRegex(text || '', walletOptions, goalOptions)
   if (regexResult.type !== 'unknown') {
+    if (shouldEscalateTransactionCategory(regexResult, text, learningContext)) {
+      try {
+        const analyzerResult = await callAnalyzerFunction(
+          text,
+          null,
+          walletOptions,
+          goalOptions,
+          categoryOptions,
+          financialContext
+        )
+
+        if (analyzerResult?.type === 'transaction') {
+          return analyzerResult
+        }
+      } catch (error) {
+        console.error('Analyzer category escalation failed:', error)
+      }
+    }
+
     return regexResult
   }
 
   try {
-    return await callAnalyzerFunction(text, null, walletOptions, goalOptions, financialContext)
+    return await callAnalyzerFunction(
+      text,
+      null,
+      walletOptions,
+      goalOptions,
+      categoryOptions,
+      financialContext
+    )
   } catch (error) {
     console.error('Analyzer backend error:', error)
     return regexResult
   }
 }
 
-async function callAnalyzerFunction(text, imageBase64, walletOptions, goalOptions, financialContext) {
+async function callAnalyzerFunction(
+  text,
+  imageBase64,
+  walletOptions,
+  goalOptions,
+  categoryOptions,
+  financialContext
+) {
+  const { supabase } = await import('./supabase')
   const { data, error } = await supabase.functions.invoke('analyze-transaction', {
     body: {
       text,
       imageBase64,
       walletOptions,
       goalOptions,
+      categoryOptions,
       financialContext,
     },
   })
@@ -75,7 +124,7 @@ async function callAnalyzerFunction(text, imageBase64, walletOptions, goalOption
   return normalizeAnalysisResult(data, walletOptions, goalOptions, text)
 }
 
-function analyzeWithRegex(text, walletOptions, goalOptions = []) {
+export function analyzeWithRegex(text, walletOptions, goalOptions = []) {
   let normalizedText = normalizeNumericText(text.toLowerCase().trim())
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
@@ -195,15 +244,20 @@ function analyzeWithRegex(text, walletOptions, goalOptions = []) {
   if (!amountMatch) {
     return {
       type: 'unknown',
-      reply: 'Sistem membutuhkan nominal spesifik untuk memproses ledger. Contoh: "Beli kopi 50k tunai"',
+      reply: buildUnknownReply(normalizedText),
     }
   }
 
   const amount = parseMoneyMatch(amountMatch)
   const walletResolution = resolveWalletForTransaction(normalizedText, walletOptions)
-  const category =
-    normalizedText.match(/\b(kopi|makan|minum|bensin|transport|belanja|gaji|bonus|jajan|listrik)\b/i)?.[1]?.toLowerCase() ||
-    'lainnya'
+  const isIncome = /(gaji|dapat|terima|masuk|bonus|topup|pemasukan|tambah|plus|add|\+|dividen|bunga)/i.test(normalizedText)
+  const inferredCategory = inferCategoryFromText({
+    text: normalizedText,
+    transactionType: isIncome ? 'income' : 'expense',
+  })
+  const category = inferredCategory.categoryName
+    ? normalizeCategoryLookup(inferredCategory.categoryName)
+    : 'lainnya'
 
   let desc = text.replace(amountMatch[0], '').trim()
   const resolvedWalletName = walletResolution.match?.name || walletResolution.walletName || null
@@ -217,7 +271,6 @@ function analyzeWithRegex(text, walletOptions, goalOptions = []) {
   }
   if (!desc) desc = category.charAt(0).toUpperCase() + category.slice(1)
 
-  const isIncome = /(gaji|dapat|terima|masuk|bonus|topup|pemasukan|tambah|plus|add|\+)/i.test(normalizedText)
   const isExplicitExpense = /(beli|bayar|keluar|tarif|biaya|spent|-\s*\d)/i.test(normalizedText)
   const wallet = walletResolution.match
   const hasLowConfidence =
@@ -823,7 +876,7 @@ function detectAnalyticsQuery(normalizedText) {
   }
 }
 
-function detectAdviceQuery(normalizedText) {
+export function detectAdviceQuery(normalizedText) {
   if (!normalizedText) {
     return null
   }
@@ -839,7 +892,7 @@ function detectAdviceQuery(normalizedText) {
   }
 }
 
-function detectAdviceFocus(normalizedText) {
+export function detectAdviceFocus(normalizedText) {
   if (/(pengeluaran|boros|hemat|spending|expense|belanja)/i.test(normalizedText)) {
     return 'expense'
   }
@@ -868,11 +921,11 @@ function detectAnalyticsMetric(normalizedText) {
     return 'top_income'
   }
 
-  if (/(total pengeluaran|pengeluaran berapa|keluar berapa|habis berapa|expense berapa)/i.test(normalizedText)) {
+  if (/(total pengeluaran|berapa pengeluaran|pengeluaran(?: [a-z0-9]+){0,4} berapa|keluar berapa|habis berapa|expense berapa)/i.test(normalizedText)) {
     return 'total_expense'
   }
 
-  if (/(total pemasukan|pemasukan berapa|uang masuk berapa|income berapa|masuk berapa)/i.test(normalizedText)) {
+  if (/(total pemasukan|berapa pemasukan|pemasukan(?: [a-z0-9]+){0,4} berapa|uang masuk berapa|income berapa|masuk berapa)/i.test(normalizedText)) {
     return 'total_income'
   }
 
@@ -913,6 +966,62 @@ function detectAnalyticsPeriod(normalizedText) {
   }
 
   return 'all_time'
+}
+
+function buildUnknownReply(normalizedText) {
+  if (!normalizedText) {
+    return GENERIC_UNKNOWN_REPLY
+  }
+
+  if (/(bagaimana|gimana|kenapa|mengapa|apa|tolong|bisakah|bisa|boleh|analisa|analisis|sarankan|strategi|ringkas|ringkasan)/i.test(normalizedText)) {
+    return GENERIC_UNKNOWN_REPLY
+  }
+
+  if (/(beli|bayar|keluar|masuk|gaji|bonus|topup|transfer|tabung|nabung|setor|cair|tarik|pindah)/i.test(normalizedText)) {
+    return LEDGER_AMOUNT_REQUIRED_REPLY
+  }
+
+  if (/\?$/.test(normalizedText)) {
+    return GENERIC_UNKNOWN_REPLY
+  }
+
+  return LEDGER_AMOUNT_REQUIRED_REPLY
+}
+
+function shouldEscalateTransactionCategory(regexResult, text, learningContext = {}) {
+  if (regexResult?.type !== 'transaction') {
+    return false
+  }
+
+  if (regexResult.transactionType !== 'expense') {
+    return false
+  }
+
+  if (normalizeCategoryLookup(regexResult.category) !== 'lainnya') {
+    return false
+  }
+
+  if (hasLearnedCategoryRule(text, learningContext?.categoryRules || [])) {
+    return false
+  }
+
+  return String(text || '').trim().length >= 6
+}
+
+function hasLearnedCategoryRule(text, categoryRules = []) {
+  const normalizedText = normalizeCategoryLookup(text)
+  if (!normalizedText) {
+    return false
+  }
+
+  return categoryRules.some((rule) => {
+    const normalizedKeyword = normalizeCategoryLookup(rule?.keyword)
+    if (!normalizedKeyword) {
+      return false
+    }
+
+    return ` ${normalizedText} `.includes(` ${normalizedKeyword} `)
+  })
 }
 
 function escapeRegExp(value) {

@@ -1,3 +1,5 @@
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -7,6 +9,39 @@ const MAX_TEXT_LENGTH = 2_000
 const MAX_CONTEXT_LENGTH = 12_000
 const MAX_OPTIONS = 50
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+const GEMINI_TIMEOUT_MS = 15_000
+
+const ALLOWED_ANALYTICS_METRICS = new Set([
+  'overview',
+  'total_income',
+  'total_expense',
+  'total_savings',
+  'net_cashflow',
+  'top_expense',
+  'top_income',
+  'transfer_volume',
+])
+
+const ALLOWED_PERIODS = new Set(['today', 'this_week', 'this_month', 'last_30_days', 'all_time'])
+const ALLOWED_ADVICE_FOCUS = new Set(['overall', 'expense', 'income', 'savings', 'budget'])
+const ALLOWED_TYPES = new Set([
+  'transaction',
+  'advice',
+  'analytics_query',
+  'goal_contribution',
+  'goal_creation_pending',
+  'goal_withdrawal',
+  'transfer',
+  'delete_wallet',
+  'check_balance',
+  'undo_transaction',
+  'create_wallet',
+  'confirm',
+  'cancel',
+  'bulk_delete_wallets',
+  'bulk_delete_transactions',
+  'unknown',
+])
 
 type EntityOption = {
   id?: string
@@ -14,6 +49,7 @@ type EntityOption = {
   normalizedName?: string
   isArchived?: boolean
   status?: string
+  categoryType?: string
 }
 
 type AnalyzePayload = {
@@ -21,40 +57,77 @@ type AnalyzePayload = {
   imageBase64?: string | null
   walletOptions?: EntityOption[]
   goalOptions?: EntityOption[]
+  categoryOptions?: EntityOption[]
   walletNames?: string[]
   goalNames?: string[]
   financialContext?: string
 }
 
 class ValidationError extends Error {}
+class AuthError extends Error {}
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const requestId = crypto.randomUUID()
+  const startedAt = Date.now()
+  let userId: string | null = null
+
   try {
+    const authContext = await requireAuthenticatedUser(request)
+    userId = authContext.userId
+
     const body = (await request.json()) as AnalyzePayload
     validatePayload(body)
-  const result = await callGeminiAPI(body)
+
+    console.info('analyze-transaction request', {
+      requestId,
+      userId,
+      hasImage: Boolean(body.imageBase64),
+      textLength: typeof body.text === 'string' ? body.text.length : 0,
+    })
+
+    const result = normalizeAnalyzerResult(await callGeminiAPI(body))
+
+    console.info('analyze-transaction success', {
+      requestId,
+      userId,
+      type: result.type,
+      durationMs: Date.now() - startedAt,
+    })
 
     return new Response(JSON.stringify(result), {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
+        'X-AI-Request-Id': requestId,
       },
     })
   } catch (error) {
-    console.error('analyze-transaction failed:', error)
+    console.error('analyze-transaction failed', {
+      requestId,
+      userId,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
+
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
-        status: error instanceof ValidationError ? 400 : 500,
+        status:
+          error instanceof AuthError
+            ? 401
+            : error instanceof ValidationError
+              ? 400
+              : 500,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
+          'X-AI-Request-Id': requestId,
         },
       }
     )
@@ -66,6 +139,7 @@ async function callGeminiAPI({
   imageBase64 = null,
   walletOptions = [],
   goalOptions = [],
+  categoryOptions = [],
   walletNames = [],
   goalNames = [],
   financialContext = '',
@@ -81,6 +155,7 @@ async function callGeminiAPI({
     financialContext,
     walletOptions,
     goalOptions,
+    categoryOptions,
     walletNames,
     goalNames,
   })
@@ -103,6 +178,7 @@ async function callGeminiAPI({
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
     {
       method: 'POST',
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -110,6 +186,7 @@ async function callGeminiAPI({
         contents: [{ parts }],
         generationConfig: {
           responseMimeType: 'application/json',
+          temperature: 0.1,
         },
       }),
     }
@@ -138,11 +215,50 @@ async function callGeminiAPI({
   }
 }
 
+async function requireAuthenticatedUser(request: Request) {
+  const authorization = request.headers.get('Authorization')?.trim()
+
+  if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
+    throw new AuthError('Unauthorized')
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase auth environment is not configured for Edge Functions.')
+  }
+
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      headers: {
+        Authorization: authorization,
+      },
+    },
+  })
+
+  const {
+    data: { user },
+    error,
+  } = await authClient.auth.getUser()
+
+  if (error || !user) {
+    throw new AuthError('Unauthorized')
+  }
+
+  return { userId: user.id }
+}
+
 function validatePayload({
   text = '',
   imageBase64 = null,
   walletOptions = [],
   goalOptions = [],
+  categoryOptions = [],
   walletNames = [],
   goalNames = [],
   financialContext = '',
@@ -165,6 +281,7 @@ function validatePayload({
 
   validateEntityOptions(walletOptions, 'dompet')
   validateEntityOptions(goalOptions, 'target tabungan')
+  validateEntityOptions(categoryOptions, 'kategori')
 
   if (!Array.isArray(walletNames) || walletNames.length > MAX_OPTIONS) {
     throw new ValidationError('Daftar dompet tidak valid.')
@@ -215,11 +332,156 @@ function validateEntityOptions(options: EntityOption[], label: string) {
   }
 }
 
+function normalizeAnalyzerResult(result: unknown) {
+  if (!result || typeof result !== 'object') {
+    return {
+      type: 'unknown',
+      reply: 'Permintaan belum bisa dipetakan ke intent yang valid.',
+    }
+  }
+
+  const payload = result as Record<string, unknown>
+  const type =
+    typeof payload.type === 'string' && ALLOWED_TYPES.has(payload.type)
+      ? payload.type
+      : 'unknown'
+
+  const normalized = {
+    ...payload,
+    type,
+  } as Record<string, unknown>
+
+  const reply = sanitizeReply(payload.reply)
+  if (reply) {
+    normalized.reply = reply
+  }
+
+  if (type === 'analytics_query') {
+    normalized.metric =
+      typeof payload.metric === 'string' && ALLOWED_ANALYTICS_METRICS.has(payload.metric)
+        ? payload.metric
+        : 'overview'
+    normalized.period = normalizePeriod(payload.period)
+  }
+
+  if (type === 'transaction') {
+    normalized.transactionType =
+      payload.transactionType === 'income' ? 'income' : 'expense'
+
+    if (typeof payload.amount === 'number' && Number.isFinite(payload.amount)) {
+      normalized.amount = payload.amount
+    }
+
+    const category = sanitizeCategoryLabel(payload.category)
+    if (category) {
+      normalized.category = category
+    }
+
+    const desc = sanitizeReply(payload.desc)
+    if (desc) {
+      normalized.desc = desc
+    }
+
+    const learningHints = sanitizeLearningHints(payload.learningHints)
+    if (learningHints.length > 0) {
+      normalized.learningHints = learningHints
+    }
+  }
+
+  if (type === 'advice') {
+    normalized.period = normalizePeriod(payload.period)
+    normalized.focus = normalizeAdviceFocus(payload.focus)
+  }
+
+  return normalized
+}
+
+function normalizePeriod(period: unknown) {
+  return typeof period === 'string' && ALLOWED_PERIODS.has(period) ? period : 'all_time'
+}
+
+function normalizeAdviceFocus(focus: unknown) {
+  return typeof focus === 'string' && ALLOWED_ADVICE_FOCUS.has(focus) ? focus : 'overall'
+}
+
+function sanitizeReply(reply: unknown) {
+  if (typeof reply !== 'string') {
+    return ''
+  }
+
+  return reply.trim().slice(0, 1200)
+}
+
+function sanitizeCategoryLabel(category: unknown) {
+  if (typeof category !== 'string') {
+    return ''
+  }
+
+  return category
+    .trim()
+    .replace(/[^\p{L}\p{N}\s&/-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 40)
+}
+
+function sanitizeLearningHints(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as string[]
+  }
+
+  const seen = new Set<string>()
+  const hints: string[] = []
+
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      continue
+    }
+
+    const normalized = item
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s&/-]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .slice(0, 48)
+
+    if (!normalized || normalized.length < 2 || /^\d+$/.test(normalized) || seen.has(normalized)) {
+      continue
+    }
+
+    if (
+      [
+        'beli',
+        'bayar',
+        'pengeluaran',
+        'pemasukan',
+        'expense',
+        'income',
+        'transaksi',
+        'transaction',
+        'lainnya',
+        'other',
+      ].includes(normalized)
+    ) {
+      continue
+    }
+
+    seen.add(normalized)
+    hints.push(normalized)
+
+    if (hints.length >= 6) {
+      break
+    }
+  }
+
+  return hints
+}
+
 function buildPrompt({
   text,
   financialContext,
   walletOptions = [],
   goalOptions = [],
+  categoryOptions = [],
   walletNames = [],
   goalNames = [],
 }: {
@@ -227,11 +489,13 @@ function buildPrompt({
   financialContext: string
   walletOptions: EntityOption[]
   goalOptions: EntityOption[]
+  categoryOptions: EntityOption[]
   walletNames: string[]
   goalNames: string[]
 }) {
   const walletList = buildOptionList(walletOptions, walletNames, 'Tunai')
   const goalList = buildOptionList(goalOptions, goalNames)
+  const categoryList = buildCategoryOptionList(categoryOptions)
 
   return `Kamu adalah AI Financial Advisor yang cerdas, minimalis, dan berkelas.
 Ekstrak informasi atau berikan analisa keuangan dari: "${text || 'Berkas Terlampir'}"
@@ -244,16 +508,22 @@ ${walletList || 'Tunai'}
 TARGET TABUNGAN YANG TERSEDIA:
 ${goalList || 'Belum ada target tabungan aktif'}
 
+KATEGORI USER YANG TERSEDIA:
+${categoryList || 'Belum ada kategori custom selain default'}
+
 PANDUAN:
 1. Jika user meminta tips, motivasi, analisa, atau saham: gunakan data keuangan di atas untuk memberikan jawaban yang SANGAT SINGKAT, tajam, dan edukatif.
 2. Transaksi: "tambah", "masuk", "topup" = INCOME. "beli", "bayar", "keluar" = EXPENSE.
-3. Jika transaksi: ekstrak data seperti biasa.
+3. Jika transaksi: ekstrak data seperti biasa, dan isi "category" dengan kategori user yang paling cocok bila ada.
 4. Gunakan bahasa Indonesia yang profesional namun modern.
 5. Hindari daftar contoh perintah.
+6. Jangan mengarang wallet atau goal yang tidak ada dalam daftar. Jika tidak yakin, kembalikan "unknown" atau reply klarifikasi yang sangat singkat.
+7. Untuk "category", gunakan nama kategori user yang sudah ada jika semantik paling dekat. Jika belum ada yang cocok, gunakan label kategori BARU yang singkat, bersih, dan 1-3 kata. Hindari "Lainnya" kecuali memang benar-benar tidak tahu.
+8. Untuk transaksi, isi "learningHints" dengan 1-4 keyword atau frasa pendek yang relevan untuk pembelajaran lokal user. Contoh bentuk yang baik: "golda", "kopi golda", "token pln", "paket telkomsel". Hindari kata kerja umum, nominal, dan kata generik seperti "pengeluaran".
 
 Kembalikan HANYA JSON tanpa markdown. Tipe:
-- "transaction": { transactionType, amount, desc, category, walletId, wallet, reply }
-- "advice": { reply }
+- "transaction": { transactionType, amount, desc, category, walletId, wallet, learningHints, reply }
+- "advice": { period, focus, reply }
 - "analytics_query": { metric, period, reply }
 - "goal_contribution": { goalId, goal, amount, sourceWalletId, sourceWallet, reply }
 - "goal_creation_pending": { name, amount, sourceWalletId, sourceWallet, reply }
@@ -287,7 +557,9 @@ INSTRUKSI KHUSUS ANALYTICS:
 2. "metric" harus salah satu dari: "overview", "total_income", "total_expense", "total_savings", "net_cashflow", "top_expense", "top_income", "transfer_volume".
 3. "period" harus salah satu dari: "today", "this_week", "this_month", "last_30_days", "all_time".
 4. Jika user meminta strategi, saran, atau langkah perbaikan, gunakan "advice" alih-alih "analytics_query".
-5. "reply" opsional, hanya dipakai jika butuh klarifikasi yang sangat singkat.`
+5. Untuk "advice", "focus" harus salah satu dari: "overall", "expense", "income", "savings", "budget".
+6. Jika user menyebut pengeluaran/boros/hemat => focus "expense". Jika pemasukan/penghasilan => "income". Jika tabungan/goal => "savings". Jika budget/anggaran => "budget". Selain itu => "overall".
+7. "reply" opsional, hanya dipakai jika butuh klarifikasi yang sangat singkat.`
 }
 
 function buildOptionList(options: EntityOption[], fallbackNames: string[] = [], extraName?: string) {
@@ -318,6 +590,25 @@ function buildOptionList(options: EntityOption[], fallbackNames: string[] = [], 
     if (!seen.has(key)) {
       items.push(extraName)
     }
+  }
+
+  return items.join(', ')
+}
+
+function buildCategoryOptionList(options: EntityOption[] = []) {
+  const seen = new Set<string>()
+  const items: string[] = []
+
+  for (const option of options) {
+    const name = typeof option?.name === 'string' ? option.name.trim() : ''
+    if (!name) continue
+
+    const normalizedType =
+      typeof option?.categoryType === 'string' ? option.categoryType.trim().toLowerCase() : 'both'
+    const key = `${name.toLowerCase()}::${normalizedType}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    items.push(`${name}${normalizedType && normalizedType !== 'both' ? ` (${normalizedType})` : ''}`)
   }
 
   return items.join(', ')

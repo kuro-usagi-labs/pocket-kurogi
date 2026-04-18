@@ -5,6 +5,7 @@ import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
 import { useGoals } from '../../hooks/useGoals'
 import { useBudgets } from '../../hooks/useBudgets'
+import { useInputLearning } from '../../hooks/useInputLearning'
 import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
 import ChatView from '../Chat/ChatView'
@@ -19,11 +20,13 @@ import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
 import { useNameConflicts } from '../../hooks/useNameConflicts'
 import { buildAdviceReply, buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
+import { resolveCategoryForMessage } from '../../lib/chatLearning'
 import {
   buildGoalOptions,
   buildWalletOptions,
   formatCandidateNames,
   matchMoney,
+  normalizeEntityName,
   parseMoneyMatch,
   resolveOptionReference,
 } from '../../lib/chatEntities'
@@ -147,6 +150,67 @@ function attachResolvedWallet(intent, wallet) {
   return withWalletAttached(intent, wallet)
 }
 
+function attachRawText(intent, rawText) {
+  const normalizedRawText = String(rawText || '').trim()
+  if (!intent || !normalizedRawText) {
+    return intent
+  }
+
+  if (intent.rawText === normalizedRawText) {
+    return intent
+  }
+
+  return {
+    ...intent,
+    rawText: normalizedRawText,
+  }
+}
+
+function shouldLearnCategory(categoryResolution) {
+  if (!categoryResolution?.category?.id) {
+    return false
+  }
+
+  if (normalizeEntityName(categoryResolution.category.name) === 'lainnya') {
+    return false
+  }
+
+  return categoryResolution.resolution !== 'fallback' && !categoryResolution.ambiguous
+}
+
+function buildCategoryFeedbackNote(categoryResolution, { created = false } = {}) {
+  if (created && categoryResolution?.categoryName) {
+    return `\n\nSaya juga membuat kategori **${categoryResolution.categoryName}** supaya transaksi serupa berikutnya lebih akurat.`
+  }
+
+  if (categoryResolution?.ambiguous) {
+    return '\n\nKategori saya simpan ke **Lainnya** karena pilihan kategorinya masih ambigu.'
+  }
+
+  if (categoryResolution?.resolution === 'fallback') {
+    return '\n\nKategori saya simpan ke **Lainnya** dulu karena konteks kategorinya belum cukup kuat.'
+  }
+
+  return ''
+}
+
+function collectCategoryLearningKeywords(analysis, categoryResolution) {
+  const hints = new Set()
+
+  for (const hint of Array.isArray(analysis?.learningHints) ? analysis.learningHints : []) {
+    const normalizedHint = String(hint || '').trim()
+    if (normalizedHint) {
+      hints.add(normalizedHint)
+    }
+  }
+
+  if (categoryResolution?.keyword) {
+    hints.add(String(categoryResolution.keyword).trim())
+  }
+
+  return [...hints].slice(0, 6)
+}
+
 function mapDomainError(error) {
   const rawMessage = String(error?.message || error || '').trim()
   const message = rawMessage.toLowerCase()
@@ -195,6 +259,10 @@ function mapDomainError(error) {
     return 'Aksi ini butuh dompet sumber atau tujuan yang jelas.'
   }
 
+  if (message.includes('unauthorized') || message.includes('jwt')) {
+    return 'Sesi Anda untuk memanggil analisis AI sudah tidak valid. Muat ulang lalu login lagi.'
+  }
+
   if (message.includes('goal name is required')) {
     return 'Nama target wajib diisi.'
   }
@@ -227,7 +295,12 @@ export default function AppShell() {
     refetch: refetchTransactions,
   } = useTransactions()
 
-  const { resolveCategory } = useCategories()
+  const {
+    categories,
+    categoryOptions,
+    ensureCategory,
+    resolveCategory,
+  } = useCategories()
   const {
     goals,
     addGoal,
@@ -239,6 +312,7 @@ export default function AppShell() {
     refetch: refetchGoals,
   } = useGoals()
   const { budgets } = useBudgets()
+  const { categoryRules, learnFromInput } = useInputLearning()
   const {
     messages,
     saveMessage,
@@ -258,7 +332,7 @@ export default function AppShell() {
     budgets,
   })
 
-  const { getContextString, grandTotalBalance } = advisor
+  const { getAIContextString, grandTotalBalance } = advisor
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
@@ -337,8 +411,57 @@ export default function AppShell() {
     return result
   }, [deleteTransaction, syncFinancialViews])
 
+  const resolveTransactionCategory = useCallback(
+    async ({ analysis, rawText }) => {
+      const transactionType = analysis.transactionType || 'expense'
+      const categoryResolution = resolveCategoryForMessage({
+        text: rawText,
+        categories,
+        categoryRules,
+        analysisCategory: analysis.category,
+        transactionType,
+      })
+
+      let category = categoryResolution.category
+      let created = false
+
+      if (!category && categoryResolution.createCategory) {
+        const ensureResult = await ensureCategory({
+          name: categoryResolution.createCategory.name,
+          transactionType,
+          icon: categoryResolution.createCategory.icon,
+          color: categoryResolution.createCategory.color,
+        })
+
+        if (ensureResult.error && !ensureResult.data) {
+          console.warn('Category auto-create failed:', ensureResult.error)
+        } else if (ensureResult.data) {
+          category = ensureResult.data
+          created = Boolean(ensureResult.created)
+        }
+      }
+
+      const fallbackResolution = category
+        ? { category, ambiguous: false }
+        : resolveCategory('Lainnya', { transactionType })
+
+      return {
+        ...categoryResolution,
+        category: category || fallbackResolution.category || null,
+        categoryName:
+          category?.name ||
+          categoryResolution.categoryName ||
+          fallbackResolution.category?.name ||
+          analysis.category ||
+          'Lainnya',
+        created,
+      }
+    },
+    [categories, categoryRules, ensureCategory, resolveCategory]
+  )
+
   const executeIntent = useCallback(
-    async (analysis, { source = 'chat' } = {}) => {
+    async (analysis, { source = 'chat', rawText = '' } = {}) => {
       if (!analysis || typeof analysis !== 'object') {
         return {
           text: 'Maaf, permintaan tersebut belum bisa saya pahami.',
@@ -346,6 +469,7 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'transaction') {
+        const normalizedRawText = String(rawText || analysis.rawText || analysis.desc || '').trim()
         const resolvedWalletId = analysis.walletId || (wallets.length === 1 ? wallets[0].id : null)
         const resolvedWallet = wallets.find((wallet) => wallet.id === resolvedWalletId)
 
@@ -356,9 +480,12 @@ export default function AppShell() {
           }
         }
 
-        const categoryResolution = resolveCategory(analysis.category)
+        const categoryResolution = await resolveTransactionCategory({
+          analysis,
+          rawText: normalizedRawText,
+        })
         const category = categoryResolution.category
-        const categoryName = category?.name || analysis.category || 'Lainnya'
+        const categoryName = categoryResolution.categoryName
         const description = analysis.desc || categoryName
 
         const transactionResult = await addTransaction({
@@ -379,9 +506,20 @@ export default function AppShell() {
           analytics: true,
         })
 
-        const note = categoryResolution.ambiguous
-          ? '\n\nKategori saya simpan ke **Lainnya** karena pilihannya masih ambigu.'
-          : ''
+        if (normalizedRawText) {
+          learnFromInput({
+            rawText: normalizedRawText,
+            walletId: resolvedWalletId,
+            categoryId: shouldLearnCategory(categoryResolution) ? category?.id || null : null,
+            categoryKeywords: collectCategoryLearningKeywords(analysis, categoryResolution),
+          }).catch((error) => {
+            console.warn('Learning update failed:', error)
+          })
+        }
+
+        const note = buildCategoryFeedbackNote(categoryResolution, {
+          created: categoryResolution.created,
+        })
 
         return {
           text:
@@ -679,17 +817,19 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'needs_confirmation') {
+        const intentWithRawText = attachRawText(analysis.intent || null, rawText || analysis.rawText)
+
         if (analysis.reason === 'unknown_wallet' && analysis.action === 'create_wallet' && analysis.walletName) {
           setPendingAction({
             type: 'confirm_create_wallet',
             walletName: analysis.walletName,
-            intent: analysis.intent || null,
+            intent: intentWithRawText,
           })
-        } else if (analysis.intent) {
+        } else if (intentWithRawText) {
           setPendingAction({
             type: 'resolve_intent',
             reason: analysis.reason,
-            intent: analysis.intent,
+            intent: intentWithRawText,
             candidates: analysis.candidates || [],
           })
         }
@@ -734,7 +874,8 @@ export default function AppShell() {
       getSnapshot,
       goals,
       handleDeleteTransaction,
-      resolveCategory,
+      learnFromInput,
+      resolveTransactionCategory,
       syncFinancialViews,
       totalBalance,
       transactions,
@@ -1058,22 +1199,23 @@ export default function AppShell() {
         if (pendingAction) {
           response = await processPendingAction({ text: userMessageText })
         } else {
-          const financialContext = `${getContextString()}\nACTIVE GOALS: ${
-            goalOptions.length > 0
-              ? goalOptions.map((goal) => `${goal.name} [${goal.id}]`).join(', ')
-              : 'Tidak ada goal aktif'
-          }`
+          const financialContext = getAIContextString()
 
           const analysis = await analyzeTransaction(
             text,
             imagePreview,
             walletOptions,
             goalOptions,
-            financialContext
+            categoryOptions,
+            financialContext,
+            {
+              categoryRules,
+            }
           )
 
           response = await executeIntent(analysis, {
             source: imagePreview ? 'ocr' : 'chat',
+            rawText: userMessageText,
           })
         }
 
@@ -1088,8 +1230,10 @@ export default function AppShell() {
       }
     },
     [
+      categoryOptions,
+      categoryRules,
       executeIntent,
-      getContextString,
+      getAIContextString,
       goalOptions,
       isTyping,
       pendingAction,

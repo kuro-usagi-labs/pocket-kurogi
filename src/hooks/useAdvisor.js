@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { buildAIContextString } from '../lib/aiContext'
 
 export function useAdvisor({
   wallets = [],
@@ -69,9 +70,16 @@ export function useAdvisor({
       topCategories,
       topIncomeCategories,
       activeWallets: wallets.map((wallet) => `${wallet.name}: ${wallet.current_balance}`).join(', '),
-      goals: goals.map(
-        (goal) => `${goal.name} (${Math.round((goal.current_amount / goal.target_amount) * 100)}% tercapai)`
-      ),
+      goals: goals.map((goal) => {
+        const targetAmount = Math.max(Number(goal.target_amount || 0), 1)
+        const currentAmount = Number(goal.current_amount || 0)
+        return {
+          id: goal.id,
+          name: goal.name,
+          progressPercent: Math.round((currentAmount / targetAmount) * 100),
+          progressLabel: `${goal.name} (${Math.round((currentAmount / targetAmount) * 100)}%)`,
+        }
+      }),
       totalGoalsBalance: goals.reduce((accumulator, goal) => accumulator + Number(goal.current_amount), 0),
       budgetAlerts,
       subscriptions: potentialSubscriptions,
@@ -82,29 +90,26 @@ export function useAdvisor({
 
   const grandTotalBalance = financialStats.totalBalance + financialStats.totalGoalsBalance
 
-  const getFinancialContextString = () => `
-STATUS KEUANGAN USER SAAT INI:
-- Total Kekayaan (Wallet + Tabungan): Rp ${grandTotalBalance}
-- Saldo Likuid (Dompet): Rp ${financialStats.totalBalance}
-- Saldo Milestone (Goals): Rp ${financialStats.totalGoalsBalance}
-- Pemasukan Tercatat: Rp ${financialStats.totalIncome}
-- Pengeluaran Tercatat: Rp ${financialStats.totalExpense}
-- Alokasi Tabungan: Rp ${financialStats.totalSavings}
-- Net Cashflow: Rp ${financialStats.netCashflow}
-- Volume Transfer Internal: Rp ${financialStats.transferVolume}
-- Rasio Tabungan: ${financialStats.savingsRate.toFixed(1)}%
-- Dompet: ${financialStats.activeWallets}
-- Target Tabungan (Goals): ${financialStats.goals.join(', ') || 'Belum ada'}
-- Pengeluaran Terbesar: ${financialStats.topCategories[0] ? `${financialStats.topCategories[0].name} (Rp ${financialStats.topCategories[0].amount})` : 'Belum ada'}
-- Pemasukan Terbesar: ${financialStats.topIncomeCategories[0] ? `${financialStats.topIncomeCategories[0].name} (Rp ${financialStats.topIncomeCategories[0].amount})` : 'Belum ada'}
-- ALERT BUDGET (>80%): ${financialStats.budgetAlerts.map((alert) => `${alert.name}: ${alert.percent.toFixed(0)}% used`).join(', ') || 'Semua aman'}
-- DETEKSI SUBSCRIPTION: ${financialStats.subscriptions.join(', ') || 'Tidak terdeteksi'}
-- AKTIVITAS TERBARU: ${financialStats.recentActivity.join(' | ') || 'Belum ada'}
-  `.trim()
+  const getAIContextString = () => buildAIContextString({
+    grandTotalBalance,
+    totalBalance: financialStats.totalBalance,
+    totalGoalsBalance: financialStats.totalGoalsBalance,
+    totalIncome: financialStats.totalIncome,
+    totalExpense: financialStats.totalExpense,
+    totalSavings: financialStats.totalSavings,
+    netCashflow: financialStats.netCashflow,
+    transferVolume: financialStats.transferVolume,
+    savingsRate: financialStats.savingsRate,
+    topCategories: financialStats.topCategories,
+    topIncomeCategories: financialStats.topIncomeCategories,
+    budgetAlerts: financialStats.budgetAlerts,
+    goals: financialStats.goals,
+  })
 
   return {
     ...financialStats,
     grandTotalBalance,
-    getContextString: getFinancialContextString,
+    getAIContextString,
+    getContextString: getAIContextString,
   }
 }
