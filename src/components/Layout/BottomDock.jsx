@@ -9,8 +9,11 @@ const navItems = [
 
 export default function BottomDock({ activeTab, onTabChange }) {
   return (
-    <div className="absolute bottom-6 left-0 w-full px-6 flex justify-center z-50 pointer-events-none md:hidden">
-      <nav className="w-full max-w-[340px] glass-panel rounded-[24px] p-2 flex justify-between items-center pointer-events-auto transition-all duration-500">
+    <div
+      className="absolute bottom-0 left-0 w-full px-4 flex justify-center z-50 pointer-events-none md:hidden"
+      style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+    >
+      <nav className="w-full max-w-[356px] rounded-[30px] border border-white/80 bg-white/80 p-2.5 flex justify-between items-center gap-1.5 pointer-events-auto backdrop-blur-[24px] shadow-[0_20px_44px_rgba(15,23,42,0.12)] transition-all duration-300">
         {navItems.map((item) => {
           const isActive = activeTab === item.id
           const Icon = item.icon
@@ -18,16 +21,17 @@ export default function BottomDock({ activeTab, onTabChange }) {
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`flex items-center justify-center rounded-[18px] transition-all duration-500 ease-out overflow-hidden ${
+              aria-label={item.label}
+              className={`flex items-center justify-center rounded-[22px] transition-all duration-300 ease-out overflow-hidden shrink-0 ${
                 isActive
-                  ? 'bg-midnight text-white px-4 py-2.5 shadow-md shadow-midnight/20'
-                  : 'bg-transparent text-muted/50 hover:text-midnight p-2.5 hover:bg-ivory'
+                  ? 'h-[56px] bg-midnight text-white px-5 shadow-[0_14px_24px_rgba(15,23,42,0.18)]'
+                  : 'h-[56px] w-[52px] bg-transparent text-midnight/40 hover:text-midnight'
               }`}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className="shrink-0" />
+              <Icon size={19} strokeWidth={isActive ? 2.4 : 2.1} className="shrink-0" />
               <span
-                className={`font-jakarta text-[10.5px] font-bold uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-500 ease-out flex items-center ${
-                  isActive ? 'max-w-[80px] opacity-100 ml-2.5' : 'max-w-0 opacity-0 ml-0'
+                className={`font-jakarta text-[10.5px] font-extrabold uppercase tracking-[0.14em] whitespace-nowrap transition-all duration-300 ease-out flex items-center ${
+                  isActive ? 'max-w-[88px] opacity-100 ml-2.5' : 'max-w-0 opacity-0 ml-0'
                 }`}
               >
                 {item.label}

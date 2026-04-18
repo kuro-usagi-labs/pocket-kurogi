@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pocket Kurogi Bottom Bar Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --midnight: #0f172a;
+      --midnight-soft: #1c2842;
+      --champagne: #fdfcf7;
+      --ivory: #faf9f4;
+      --cream: #f5f2e8;
+      --gold: #775a19;
+      --ink: #20232b;
+      --muted: rgba(69, 70, 77, 0.76);
+      --line: rgba(15, 23, 42, 0.07);
+      --glass: rgba(255, 255, 255, 0.74);
+      --shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+      --phone-shadow: 0 34px 80px rgba(15, 23, 42, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(119, 90, 25, 0.12), transparent 30%),
+        linear-gradient(180deg, #f5f0e6 0%, var(--champagne) 42%, var(--ivory) 100%);
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 42px;
+    }
+
+    .frame {
+      border-radius: 30px;
+      padding: 20px 20px 26px;
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      background: rgba(255, 255, 255, 0.58);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      color: rgba(15, 23, 42, 0.55);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 800;
+      font-family: "Plus Jakarta Sans", sans-serif;
+    }
+
+    .title {
+      margin: 12px 0 8px;
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: clamp(1.65rem, 3vw, 2.4rem);
+      letter-spacing: -0.05em;
+      line-height: 1.05;
+      color: var(--midnight);
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 62ch;
+      color: rgba(15, 23, 42, 0.66);
+      line-height: 1.7;
+      font-size: 0.98rem;
+    }
+
+    .note {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(245, 242, 232, 0.84);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      max-width: 320px;
+    }
+
+    .note strong {
+      display: block;
+      margin-bottom: 6px;
+      font-family: "Plus Jakarta Sans", sans-serif;
+      color: var(--midnight);
+      font-size: 0.95rem;
+    }
+
+    .note span {
+      color: rgba(15, 23, 42, 0.64);
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+
+    .devices {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .device-col {
+      display: grid;
+      gap: 12px;
+    }
+
+    .device-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      font-size: 0.9rem;
+      color: rgba(15, 23, 42, 0.72);
+    }
+
+    .device-label strong {
+      color: var(--midnight);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #be9b44, var(--gold));
+      box-shadow: 0 0 0 6px rgba(119, 90, 25, 0.08);
+    }
+
+    .phone {
+      width: min(100%, 372px);
+      margin: 0 auto;
+      padding: 13px;
+      border-radius: 38px;
+      background: linear-gradient(180deg, #2c3342, #1b222f);
+      box-shadow: var(--phone-shadow);
+    }
+
+    .screen {
+      position: relative;
+      min-height: 756px;
+      overflow: hidden;
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at top left, rgba(119, 90, 25, 0.1), transparent 30%),
+        linear-gradient(180deg, #f8f4eb 0%, #fcfbf7 56%, #faf8f2 100%);
+    }
+
+    .notch {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 132px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(17, 24, 39, 0.96);
+      z-index: 5;
+    }
+
+    .screen-inner {
+      position: relative;
+      min-height: 756px;
+      padding: 52px 16px 208px;
+    }
+
+    .mobile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2px 18px;
+    }
+
+    .mobile-title {
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--midnight);
+    }
+
+    .mobile-subtitle {
+      display: block;
+      margin-top: 3px;
+      color: rgba(15, 23, 42, 0.45);
+      font-size: 0.77rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 800;
+      font-family: "Plus Jakarta Sans", sans-serif;
+    }
+
+    .mobile-chip {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      color: rgba(15, 23, 42, 0.55);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .day-pill {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .day-pill span {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--cream);
+      color: rgba(15, 23, 42, 0.58);
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .row {
+      display: flex;
+      width: 100%;
+    }
+
+    .row.user {
+      justify-content: flex-end;
+    }
+
+    .row.bot {
+      justify-content: flex-start;
+    }
+
+    .bubble-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      max-width: 86%;
+    }
+
+    .bubble {
+      padding: 16px 18px;
+      border-radius: 24px;
+      font-size: 14.5px;
+      line-height: 1.66;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+
+    .user .bubble {
+      color: #fff;
+      background: linear-gradient(135deg, var(--midnight), #1e293b);
+      border-bottom-right-radius: 7px;
+      box-shadow: 0 14px 24px rgba(15, 23, 42, 0.16);
+    }
+
+    .bot .bubble {
+      color: var(--midnight);
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      border-bottom-left-radius: 7px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .meta {
+      color: rgba(69, 70, 77, 0.5);
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      padding: 0 4px;
+    }
+
+    .ledger-card {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .ledger-top {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .ledger-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--midnight), #334155);
+    }
+
+    .ledger-top strong {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: rgba(15, 23, 42, 0.4);
+      margin-bottom: 4px;
+    }
+
+    .ledger-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      color: var(--midnight);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .ledger-line span:last-child {
+      color: #e11d48;
+    }
+
+    .ledger-bar {
+      margin-top: 12px;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+    }
+
+    .ledger-bar::after {
+      content: "";
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--midnight), #475569);
+    }
+
+    .bottom-fade {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 84px;
+      height: 160px;
+      background: linear-gradient(180deg, rgba(253, 252, 247, 0), rgba(253, 252, 247, 0.9) 48%, var(--champagne) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .input-wrap {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 100px;
+      z-index: 3;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px;
+      border-radius: 28px;
+      background: var(--glass);
+      border: 1px solid rgba(15, 23, 42, 0.05);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.1);
+    }
+
+    .circle-btn,
+    .send-btn {
+      width: 42px;
+      height: 42px;
+      flex: none;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .circle-btn {
+      background: var(--cream);
+      color: var(--midnight);
+    }
+
+    .send-btn {
+      background: var(--midnight);
+      color: white;
+      box-shadow: 0 12px 18px rgba(15, 23, 42, 0.18);
+    }
+
+    .input-field {
+      flex: 1;
+      color: rgba(15, 23, 42, 0.38);
+      font-size: 14px;
+      font-weight: 500;
+      padding-left: 2px;
+    }
+
+    .dock-current,
+    .dock-redesign {
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 4;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .dock-current {
+      bottom: 18px;
+      padding: 0 24px;
+    }
+
+    .dock-redesign {
+      bottom: 0;
+      padding: 0 18px calc(14px + env(safe-area-inset-bottom));
+    }
+
+    .dock-panel,
+    .dock-redesign-shell {
+      pointer-events: auto;
+    }
+
+    .dock-panel {
+      width: 100%;
+      max-width: 340px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      padding: 8px;
+      border-radius: 24px;
+      background: var(--glass);
+      border: 1px solid rgba(15, 23, 42, 0.05);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 18px 34px rgba(15, 23, 42, 0.1);
+    }
+
+    .dock-redesign-shell {
+      width: 100%;
+      max-width: 340px;
+      padding: 10px;
+      border-radius: 26px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 247, 241, 0.82));
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow:
+        0 20px 42px rgba(15, 23, 42, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .dock-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .nav-btn {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+      transition: all 180ms ease;
+    }
+
+    .nav-btn svg {
+      width: 18px;
+      height: 18px;
+      flex: none;
+    }
+
+    .current-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      min-width: 44px;
+      height: 44px;
+      padding: 0 12px;
+      border-radius: 18px;
+      color: rgba(69, 70, 77, 0.56);
+    }
+
+    .current-btn.active {
+      gap: 10px;
+      background: var(--midnight);
+      color: white;
+      box-shadow: 0 14px 22px rgba(15, 23, 42, 0.18);
+    }
+
+    .current-label {
+      max-width: 0;
+      overflow: hidden;
+      opacity: 0;
+      white-space: nowrap;
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      transition: all 180ms ease;
+    }
+
+    .current-btn.active .current-label {
+      max-width: 80px;
+      opacity: 1;
+    }
+
+    .redesign-btn {
+      height: 48px;
+      padding: 0 10px;
+      border-radius: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      color: rgba(69, 70, 77, 0.72);
+      background: rgba(245, 242, 232, 0.66);
+      border: 1px solid transparent;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    .redesign-btn .redesign-label {
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .redesign-btn.active {
+      color: white;
+      background: linear-gradient(135deg, var(--midnight), var(--midnight-soft));
+      box-shadow:
+        0 14px 22px rgba(15, 23, 42, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .redesign-btn.active::before {
+      content: "";
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      width: 28px;
+      height: 3px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #dec06d, #b78e33);
+      box-shadow: 0 8px 18px rgba(183, 142, 51, 0.28);
+    }
+
+    .redesign-btn {
+      position: relative;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(245, 242, 232, 0.76);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      color: rgba(15, 23, 42, 0.62);
+      font-size: 0.88rem;
+      line-height: 1.58;
+    }
+
+    @media (max-width: 940px) {
+      .topbar {
+        flex-direction: column;
+        align-items: start;
+      }
+
+      .note {
+        max-width: none;
+      }
+
+      .devices {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 16px, 1120px);
+        padding: 12px 0 28px;
+      }
+
+      .frame {
+        padding: 16px 12px 20px;
+        border-radius: 22px;
+      }
+
+      .phone {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="frame">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Pocket Kurogi Mobile Preview</div>
+          <h1 class="title">Versi yang lebih mirip web app, dengan perubahan hanya di bottom bar.</h1>
+          <p class="subtitle">
+            Dua mockup di bawah memakai screen chat yang sama. Bedanya cuma area navigasi bawah:
+            kiri meniru bar yang sekarang, kanan versi redesign dengan proporsi label yang lebih enak.
+          </p>
+        </div>
+        <div class="note">
+          <strong>Catatan revisi sekarang</strong>
+          <span>
+            Label tidak lagi jatuh di bawah ikon. Semua item dibuat inline icon + text agar terbaca,
+            tapi tetap muat untuk 4 tab dan tetap terasa mobile.
+          </span>
+        </div>
+      </div>
+
+      <div class="devices">
+        <section class="device-col">
+          <div class="device-label"><span class="dot"></span><strong>Current</strong> bottom bar asli yang sekarang</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="screen-inner">
+                <div class="mobile-header">
+                  <div>
+                    <div class="mobile-title">Financial Analyst</div>
+                    <span class="mobile-subtitle">Pocket Kurogi</span>
+                  </div>
+                  <div class="mobile-chip">19.12</div>
+                </div>
+
+                <div class="day-pill"><span>Today</span></div>
+
+                <div class="messages">
+                  <div class="row user">
+                    <div class="bubble-wrap">
+                      <div class="bubble">transfer dari tabungan bibit ke bca 25.179</div>
+                      <div class="meta">You • 19.12</div>
+                    </div>
+                  </div>
+
+                  <div class="row bot">
+                    <div class="bubble-wrap">
+                      <div class="bubble">
+                        Transfer dari goal ke wallet sekarang sudah bisa diproses. Riwayat dan analytics juga
+                        tetap aman karena transaksi ini dibaca sebagai savings movement.
+                        <div class="ledger-card">
+                          <div class="ledger-top">
+                            <div class="ledger-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2v20"></path>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H6"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <strong>BCA</strong>
+                              <div class="ledger-line">
+                                <span>Savings Transfer</span>
+                                <span>- Rp 25.179</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="ledger-bar"></div>
+                        </div>
+                      </div>
+                      <div class="meta">Financial Analyst • 19.12</div>
+                    </div>
+                  </div>
+
+                  <div class="row user">
+                    <div class="bubble-wrap">
+                      <div class="bubble">melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?</div>
+                      <div class="meta">You • 05.16</div>
+                    </div>
+                  </div>
+
+                  <div class="row bot">
+                    <div class="bubble-wrap">
+                      <div class="bubble">
+                        Pengeluaran bulan ini paling berat ada di makanan dan jajan. Strategi paling efektif:
+                        rapikan budget harian kecil dulu, bukan hanya biaya besar bulanan.
+                      </div>
+                      <div class="meta">Financial Analyst • 05.16</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bottom-fade"></div>
+
+                <div class="input-wrap">
+                  <div class="circle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 5v14"></path>
+                      <path d="M5 12h14"></path>
+                    </svg>
+                  </div>
+                  <div class="input-field">Catat transaksi atau tanya kondisi uangmu...</div>
+                  <div class="send-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 19V5"></path>
+                      <path d="m5 12 7-7 7 7"></path>
+                    </svg>
+                  </div>
+                </div>
+
+                <div class="dock-current">
+                  <nav class="dock-panel">
+                    <button class="nav-btn current-btn active" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                      <span class="current-label">Chat</span>
+                    </button>
+                    <button class="nav-btn current-btn" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 8v5l3 3"></path>
+                        <path d="M3.05 11a9 9 0 1 1 .5 4"></path>
+                        <path d="M3 4v5h5"></path>
+                      </svg>
+                      <span class="current-label">Histori</span>
+                    </button>
+                    <button class="nav-btn current-btn" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+                        <path d="M3 7h18v10H3z"></path>
+                        <path d="M16 12h.01"></path>
+                      </svg>
+                      <span class="current-label">Dompet</span>
+                    </button>
+                    <button class="nav-btn current-btn" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20V10"></path>
+                        <path d="M18 20V4"></path>
+                        <path d="M6 20v-4"></path>
+                      </svg>
+                      <span class="current-label">Analisa</span>
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="device-col">
+          <div class="device-label"><span class="dot"></span><strong>Redesign</strong> hanya bottom bar yang diubah</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="screen-inner">
+                <div class="mobile-header">
+                  <div>
+                    <div class="mobile-title">Financial Analyst</div>
+                    <span class="mobile-subtitle">Pocket Kurogi</span>
+                  </div>
+                  <div class="mobile-chip">19.12</div>
+                </div>
+
+                <div class="day-pill"><span>Today</span></div>
+
+                <div class="messages">
+                  <div class="row user">
+                    <div class="bubble-wrap">
+                      <div class="bubble">transfer dari tabungan bibit ke bca 25.179</div>
+                      <div class="meta">You • 19.12</div>
+                    </div>
+                  </div>
+
+                  <div class="row bot">
+                    <div class="bubble-wrap">
+                      <div class="bubble">
+                        Transfer dari goal ke wallet sekarang sudah bisa diproses. Riwayat dan analytics juga
+                        tetap aman karena transaksi ini dibaca sebagai savings movement.
+                        <div class="ledger-card">
+                          <div class="ledger-top">
+                            <div class="ledger-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2v20"></path>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H15a3.5 3.5 0 0 1 0 7H6"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <strong>BCA</strong>
+                              <div class="ledger-line">
+                                <span>Savings Transfer</span>
+                                <span>- Rp 25.179</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="ledger-bar"></div>
+                        </div>
+                      </div>
+                      <div class="meta">Financial Analyst • 19.12</div>
+                    </div>
+                  </div>
+
+                  <div class="row user">
+                    <div class="bubble-wrap">
+                      <div class="bubble">melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?</div>
+                      <div class="meta">You • 05.16</div>
+                    </div>
+                  </div>
+
+                  <div class="row bot">
+                    <div class="bubble-wrap">
+                      <div class="bubble">
+                        Pengeluaran bulan ini paling berat ada di makanan dan jajan. Strategi paling efektif:
+                        rapikan budget harian kecil dulu, bukan hanya biaya besar bulanan.
+                      </div>
+                      <div class="meta">Financial Analyst • 05.16</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bottom-fade"></div>
+
+                <div class="input-wrap">
+                  <div class="circle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 5v14"></path>
+                      <path d="M5 12h14"></path>
+                    </svg>
+                  </div>
+                  <div class="input-field">Catat transaksi atau tanya kondisi uangmu...</div>
+                  <div class="send-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 19V5"></path>
+                      <path d="m5 12 7-7 7 7"></path>
+                    </svg>
+                  </div>
+                </div>
+
+                <div class="dock-redesign">
+                  <nav class="dock-redesign-shell">
+                    <div class="dock-row">
+                      <button class="nav-btn redesign-btn active" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span class="redesign-label">Chat</span>
+                      </button>
+                      <button class="nav-btn redesign-btn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 8v5l3 3"></path>
+                          <path d="M3.05 11a9 9 0 1 1 .5 4"></path>
+                          <path d="M3 4v5h5"></path>
+                        </svg>
+                        <span class="redesign-label">Histori</span>
+                      </button>
+                      <button class="nav-btn redesign-btn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+                          <path d="M3 7h18v10H3z"></path>
+                          <path d="M16 12h.01"></path>
+                        </svg>
+                        <span class="redesign-label">Dompet</span>
+                      </button>
+                      <button class="nav-btn redesign-btn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 20V10"></path>
+                          <path d="M18 20V4"></path>
+                          <path d="M6 20v-4"></path>
+                        </svg>
+                        <span class="redesign-label">Analisa</span>
+                      </button>
+                    </div>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="footer-note">
+            Redesign ini sengaja tidak mengubah konten screen, cuma bar bawah. Fokusnya: proporsi lebih stabil,
+            semua tab tetap kebaca, dan tab aktif tetap punya anchor visual yang kuat tanpa bikin label jatuh ke bawah.
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
