@@ -75,12 +75,12 @@ export default function ChatView({
   return (
     <div className="absolute inset-0 h-full w-full">
       {/* Gradient mask */}
-      <div className="absolute bottom-[80px] md:bottom-0 left-0 w-full h-[180px] md:h-[140px] bg-gradient-to-t from-champagne via-champagne/90 to-transparent z-30 pointer-events-none" />
+      <div className="absolute bottom-[92px] md:bottom-0 left-0 w-full h-[196px] md:h-[140px] bg-gradient-to-t from-champagne via-champagne/90 to-transparent z-30 pointer-events-none" />
 
       {/* Messages container */}
       <div
         ref={containerRef}
-        className="absolute inset-0 overflow-y-auto px-5 md:px-24 pt-6 pb-[260px] md:pb-[160px] scroll-smooth no-scrollbar z-20 flex flex-col max-w-4xl mx-auto w-full"
+        className="absolute inset-0 overflow-y-auto px-5 md:px-24 pt-6 pb-[286px] md:pb-[160px] scroll-smooth no-scrollbar z-20 flex flex-col max-w-4xl mx-auto w-full"
       >
         {hasMore && (
           <div className="flex justify-center mb-5">

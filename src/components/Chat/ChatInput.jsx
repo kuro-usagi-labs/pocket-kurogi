@@ -37,11 +37,6 @@ export default function ChatInput({ onSend, isTyping }) {
     e.target.value = '' // Reset input
   }
 
-  const handleQuickSend = (text) => {
-    if (isTyping) return
-    onSend({ text, image: null })
-  }
-
   const handleMicClick = () => {
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -93,11 +88,11 @@ export default function ChatInput({ onSend, isTyping }) {
   }
 
   return (
-    <div className="absolute bottom-[110px] md:bottom-12 left-0 w-full px-5 flex flex-col items-center z-40 pointer-events-none">
+    <div className="absolute bottom-[126px] md:bottom-12 left-0 w-full px-4 flex flex-col items-center z-40 pointer-events-none">
 
 
       {/* Input Form & Preview Container */}
-      <div className="w-full max-w-sm md:max-w-3xl flex flex-col gap-2">
+      <div className="w-full max-w-[356px] md:max-w-3xl flex flex-col gap-2.5">
         {/* Image Preview */}
         {selectedImage && (
           <div className="self-end relative w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2 border-white pointer-events-auto bg-midnight/5">
@@ -112,7 +107,7 @@ export default function ChatInput({ onSend, isTyping }) {
         )}
 
         {/* Input Form */}
-        <div className="w-full glass-panel p-2 rounded-[28px] shadow-premium flex items-center gap-2.5 pointer-events-auto">
+        <div className="w-full glass-panel p-2 rounded-[28px] shadow-[0_16px_36px_rgba(15,23,42,0.1)] flex items-center gap-2.5 pointer-events-auto">
           <input 
             type="file" 
             accept="image/*" 
