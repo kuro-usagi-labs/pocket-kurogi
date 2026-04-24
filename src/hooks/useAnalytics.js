@@ -77,7 +77,11 @@ export function useAnalytics() {
   }, [getSnapshot, user])
 
   useEffect(() => {
-    fetchAnalytics()
+    const timeoutId = setTimeout(() => {
+      fetchAnalytics().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchAnalytics])
 
   return {

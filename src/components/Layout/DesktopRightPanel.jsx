@@ -52,7 +52,6 @@ export default function DesktopRightPanel({ analytics, transactions = [], onExec
             <div className="space-y-5">
               {topExpenseCategories.slice(0, 3).map((categorySummary, idx) => {
                 const cat = categorySummary.name
-                const amount = Number(categorySummary.amount || 0)
                 const percentage = Math.round(Number(categorySummary.percentage || 0))
                 const colors = ['bg-midnight', 'bg-gold', 'bg-slate-300']
                 return (

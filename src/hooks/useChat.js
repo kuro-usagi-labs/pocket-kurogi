@@ -131,7 +131,11 @@ export function useChat() {
   }, [hydrateMessages, user])
 
   useEffect(() => {
-    fetchMessages()
+    const timeoutId = setTimeout(() => {
+      fetchMessages().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchMessages])
 
   const uploadAttachment = useCallback(async (file) => {
@@ -233,12 +237,33 @@ export function useChat() {
   const clearMessages = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
 
-    const attachments = messages
-      .map((message) => message.metadata?.imagePath)
+    const { data: storedMessages, error: fetchError } = await supabase
+      .from('chat_messages')
+      .select('metadata')
+      .eq('user_id', user.id)
+
+    if (fetchError) {
+      return { error: fetchError }
+    }
+
+    const attachments = (storedMessages || [])
+      .map((message) => {
+        const metadata = message?.metadata && typeof message.metadata === 'object'
+          ? message.metadata
+          : {}
+
+        return metadata.imagePath || null
+      })
       .filter(Boolean)
 
     if (attachments.length > 0) {
-      await supabase.storage.from(CHAT_BUCKET).remove(attachments)
+      const { error: storageError } = await supabase.storage
+        .from(CHAT_BUCKET)
+        .remove([...new Set(attachments)])
+
+      if (storageError) {
+        return { error: storageError }
+      }
     }
 
     const { error } = await supabase
@@ -253,7 +278,7 @@ export function useChat() {
     }
 
     return { error }
-  }, [messages, user])
+  }, [user])
 
   return {
     messages,

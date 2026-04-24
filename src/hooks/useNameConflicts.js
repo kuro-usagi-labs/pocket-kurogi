@@ -35,7 +35,11 @@ export function useNameConflicts() {
   }, [user])
 
   useEffect(() => {
-    fetchConflicts()
+    const timeoutId = setTimeout(() => {
+      fetchConflicts().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchConflicts])
 
   return {

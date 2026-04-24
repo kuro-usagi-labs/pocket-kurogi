@@ -111,7 +111,11 @@ export function useWallets() {
   }, [user])
 
   useEffect(() => {
-    fetchWallets()
+    const timeoutId = setTimeout(() => {
+      fetchWallets().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchWallets])
 
   const deleteWallet = useCallback(async (id) => {

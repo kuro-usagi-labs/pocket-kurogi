@@ -461,7 +461,7 @@ export default function AppShell() {
   )
 
   const executeIntent = useCallback(
-    async (analysis, { source = 'chat', rawText = '' } = {}) => {
+    async (analysis, { source = 'chat', rawText = '', walletCatalog = wallets } = {}) => {
       if (!analysis || typeof analysis !== 'object') {
         return {
           text: 'Maaf, permintaan tersebut belum bisa saya pahami.',
@@ -470,8 +470,8 @@ export default function AppShell() {
 
       if (analysis.type === 'transaction') {
         const normalizedRawText = String(rawText || analysis.rawText || analysis.desc || '').trim()
-        const resolvedWalletId = analysis.walletId || (wallets.length === 1 ? wallets[0].id : null)
-        const resolvedWallet = wallets.find((wallet) => wallet.id === resolvedWalletId)
+        const resolvedWalletId = analysis.walletId || (walletCatalog.length === 1 ? walletCatalog[0].id : null)
+        const resolvedWallet = walletCatalog.find((wallet) => wallet.id === resolvedWalletId)
 
         if (!resolvedWalletId || !resolvedWallet) {
           return {
@@ -600,11 +600,13 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'undo_transaction') {
-        if (transactions.length === 0) {
-          throw new Error('Tidak ada transaksi yang bisa dibatalkan.')
+        const lastDeletableTransaction = transactions.find((transaction) => transaction.canDelete)
+
+        if (!lastDeletableTransaction) {
+          throw new Error('Tidak ada transaksi manual yang bisa dibatalkan.')
         }
 
-        const lastTransaction = transactions[0]
+        const lastTransaction = lastDeletableTransaction
         const deleteResult = await handleDeleteTransaction(lastTransaction.id)
 
         if (deleteResult.error) {
@@ -617,7 +619,7 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'delete_wallet') {
-        const walletToDelete = wallets.find((wallet) =>
+        const walletToDelete = walletCatalog.find((wallet) =>
           analysis.walletId ? wallet.id === analysis.walletId : wallet.name === analysis.wallet
         )
 
@@ -656,7 +658,7 @@ export default function AppShell() {
           }
         }
 
-        const matchedWallet = wallets.find((wallet) => wallet.id === analysis.targetWalletId)
+        const matchedWallet = walletCatalog.find((wallet) => wallet.id === analysis.targetWalletId)
         if (!matchedWallet) {
           return {
             text: 'Dompet yang dimaksud tidak ditemukan.',
@@ -692,7 +694,7 @@ export default function AppShell() {
 
       if (analysis.type === 'goal_contribution') {
         const targetGoal = goals.find((goal) => goal.id === analysis.goalId)
-        const sourceWallet = wallets.find((wallet) => wallet.id === analysis.sourceWalletId)
+        const sourceWallet = walletCatalog.find((wallet) => wallet.id === analysis.sourceWalletId)
 
         if (!targetGoal) {
           throw new Error('Goal not found')
@@ -746,7 +748,7 @@ export default function AppShell() {
 
       if (analysis.type === 'goal_withdrawal') {
         const targetGoal = goals.find((goal) => goal.id === analysis.goalId)
-        const destinationWallet = wallets.find((wallet) => wallet.id === analysis.destinationWalletId)
+        const destinationWallet = walletCatalog.find((wallet) => wallet.id === analysis.destinationWalletId)
 
         if (!targetGoal) {
           throw new Error('Goal not found')
@@ -783,8 +785,8 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'transfer') {
-        const fromWallet = wallets.find((wallet) => wallet.id === analysis.fromWalletId)
-        const toWallet = wallets.find((wallet) => wallet.id === analysis.toWalletId)
+        const fromWallet = walletCatalog.find((wallet) => wallet.id === analysis.fromWalletId)
+        const toWallet = walletCatalog.find((wallet) => wallet.id === analysis.toWalletId)
 
         if (!fromWallet || !toWallet) {
           return {
@@ -945,7 +947,10 @@ export default function AppShell() {
           }
 
           const resumedIntent = withWalletAttached(pendingAction.intent, createResult.data)
-          const resumedResponse = await executeIntent(resumedIntent, { source: 'chat' })
+          const resumedResponse = await executeIntent(resumedIntent, {
+            source: 'chat',
+            walletCatalog: [...wallets, createResult.data],
+          })
 
           return {
             ...resumedResponse,

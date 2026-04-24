@@ -32,7 +32,11 @@ export function useGoals() {
   }, [user])
 
   useEffect(() => {
-    fetchGoals()
+    const timeoutId = setTimeout(() => {
+      fetchGoals().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchGoals])
 
   const addGoal = useCallback(async ({ name, targetAmount, deadline, icon, initialAmount = 0 }) => {

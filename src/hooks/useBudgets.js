@@ -31,7 +31,11 @@ export function useBudgets() {
   }, [user])
 
   useEffect(() => {
-    fetchBudgets()
+    const timeoutId = setTimeout(() => {
+      fetchBudgets().catch(() => null)
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
   }, [fetchBudgets])
 
   const setBudget = useCallback(async (categoryId, monthlyLimit) => {
