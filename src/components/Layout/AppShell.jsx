@@ -15,6 +15,7 @@ import AnalyticsView from '../Analytics/AnalyticsView'
 import DesktopSidebar from './DesktopSidebar'
 import DesktopHeader from './DesktopHeader'
 import DesktopRightPanel from './DesktopRightPanel'
+import ActionConfirmModal from '../shared/ActionConfirmModal'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
@@ -104,6 +105,70 @@ function buildWalletRestorePrompt(wallet, { markdown = false } = {}) {
 
 function buildWalletRestoreSuccess(walletName) {
   return `Dompet **${walletName}** berhasil dipulihkan ke daftar aktif.`
+}
+
+function getWalletDeletionDialogCopy(wallet, formatRupiah) {
+  const balance = Number(wallet?.current_balance || 0)
+  const walletName = wallet?.name || 'dompet ini'
+
+  if (balance !== 0) {
+    return {
+      title: `Hapus dompet "${walletName}"?`,
+      paragraphs: [
+        `Saldo yang masih tersisa: ${formatRupiah(balance)}.`,
+        'Kalau lanjut, dompet akan dihapus dari daftar aktif. Riwayat ledger lama tetap disimpan supaya histori tetap aman.',
+      ],
+      confirmLabel: 'Hapus Dompet',
+      tone: 'danger',
+    }
+  }
+
+  return {
+    title: `Hapus dompet "${walletName}"?`,
+    paragraphs: [
+      'Jika dompet ini belum punya riwayat ledger, dompet akan dihapus permanen.',
+      'Jika dompet ini sudah pernah dipakai, dompet akan dihapus dari daftar aktif supaya histori tetap aman.',
+    ],
+    confirmLabel: 'Hapus Dompet',
+    tone: 'danger',
+  }
+}
+
+function getWalletRestoreDialogCopy(wallet) {
+  const walletName = wallet?.name || 'dompet ini'
+
+  return {
+    title: `Pulihkan dompet "${walletName}"?`,
+    paragraphs: [
+      'Dompet ini akan kembali muncul di daftar aktif.',
+      'Setelah dipulihkan, dompet bisa dipakai lagi untuk transaksi dan perintah chat.',
+    ],
+    confirmLabel: 'Pulihkan',
+    tone: 'primary',
+  }
+}
+
+function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, formatRupiah) {
+  if (refundAmount > 0) {
+    return {
+      title: `Hapus target "${goal?.name || 'milestone ini'}"?`,
+      paragraphs: [
+        `Dana sebesar ${formatRupiah(refundAmount)} akan dikembalikan ke dompet ${refundTargetName}.`,
+        'Riwayat ledger pengembalian tetap dicatat supaya saldo dan histori tetap sinkron.',
+      ],
+      confirmLabel: 'Hapus Target',
+      tone: 'danger',
+    }
+  }
+
+  return {
+    title: `Hapus target "${goal?.name || 'milestone ini'}"?`,
+    paragraphs: [
+      'Target ini akan dihapus dari daftar milestone aktif.',
+    ],
+    confirmLabel: 'Hapus Target',
+    tone: 'danger',
+  }
 }
 
 function withWalletAttached(intent, wallet) {
@@ -403,6 +468,8 @@ export default function AppShell() {
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
+  const [actionDialog, setActionDialog] = useState(null)
+  const [dialogSubmitting, setDialogSubmitting] = useState(false)
 
   const walletOptions = buildWalletOptions(wallets)
   const archivedWalletOptions = buildWalletOptions(archivedWallets)
@@ -1428,34 +1495,17 @@ export default function AppShell() {
       wallets.find((wallet) => wallet.name.toLowerCase() === 'tunai') || wallets[0] || null
     const refundAmount = Number(targetGoal?.current_amount || 0)
     const refundTargetName = preferredWallet?.name || 'Tunai'
-    const confirmationMessage =
-      refundAmount > 0
-        ? `Hapus target milestone ini dan kembalikan ${formatRupiah(refundAmount)} ke dompet ${refundTargetName}?`
-        : 'Hapus target milestone ini?'
+    const dialogCopy = getGoalDeletionDialogCopy(targetGoal, refundAmount, refundTargetName, formatRupiah)
 
-    if (!window.confirm(confirmationMessage)) {
-      return { error: null }
-    }
-
-    const result = await deleteGoal({
+    setActionDialog({
+      type: 'delete_goal',
       goalId: id,
       walletId: refundAmount > 0 ? preferredWallet?.id || null : null,
+      ...dialogCopy,
     })
 
-    if (result.error) {
-      window.alert(mapDomainError(result.error))
-      return result
-    }
-
-    await syncFinancialViews({
-      wallets: result.walletHandled,
-      transactions: result.ledgerHandled,
-      analytics: true,
-      names: true,
-    })
-
-    return result
-  }, [deleteGoal, formatRupiah, goals, syncFinancialViews, wallets])
+    return { error: null }
+  }, [formatRupiah, goals, wallets])
 
   const handleAddWallet = useCallback(async (name, balance) => {
     const result = await addWallet(name, balance)
@@ -1473,51 +1523,102 @@ export default function AppShell() {
 
   const handleDeleteWallet = useCallback(async (id) => {
     const targetWallet = wallets.find((wallet) => wallet.id === id)
-    const confirmed = window.confirm(buildWalletDeletionPrompt(targetWallet, formatRupiah))
+    const dialogCopy = getWalletDeletionDialogCopy(targetWallet, formatRupiah)
 
-    if (!confirmed) {
-      return { error: null, mode: null }
-    }
-
-    const result = await deleteWallet(id)
-
-    if (result.error) {
-      window.alert(mapDomainError(result.error))
-      return result
-    }
-
-    await syncFinancialViews({
-      wallets: true,
-      analytics: true,
-      names: true,
+    setActionDialog({
+      type: 'delete_wallet',
+      walletId: id,
+      walletName: targetWallet?.name || 'dompet ini',
+      ...dialogCopy,
     })
 
-    return result
-  }, [deleteWallet, formatRupiah, syncFinancialViews, wallets])
+    return { error: null, mode: null }
+  }, [formatRupiah, wallets])
 
   const handleRestoreWallet = useCallback(async (id) => {
     const targetWallet = archivedWallets.find((wallet) => wallet.id === id)
-    const confirmed = window.confirm(buildWalletRestorePrompt(targetWallet))
+    const dialogCopy = getWalletRestoreDialogCopy(targetWallet)
 
-    if (!confirmed) {
-      return { error: null }
-    }
-
-    const result = await restoreWallet(id)
-
-    if (result.error) {
-      window.alert(mapDomainError(result.error))
-      return result
-    }
-
-    await syncFinancialViews({
-      wallets: true,
-      analytics: true,
-      names: true,
+    setActionDialog({
+      type: 'restore_wallet',
+      walletId: id,
+      walletName: targetWallet?.name || 'dompet ini',
+      ...dialogCopy,
     })
 
-    return result
-  }, [archivedWallets, restoreWallet, syncFinancialViews])
+    return { error: null }
+  }, [archivedWallets])
+
+  const closeActionDialog = useCallback(() => {
+    if (dialogSubmitting) {
+      return
+    }
+
+    setActionDialog(null)
+  }, [dialogSubmitting])
+
+  const handleActionDialogConfirm = useCallback(async () => {
+    if (!actionDialog || dialogSubmitting) {
+      return
+    }
+
+    setDialogSubmitting(true)
+
+    try {
+      if (actionDialog.type === 'delete_goal') {
+        const result = await deleteGoal({
+          goalId: actionDialog.goalId,
+          walletId: actionDialog.walletId,
+        })
+
+        if (result.error) {
+          window.alert(mapDomainError(result.error))
+          return
+        }
+
+        await syncFinancialViews({
+          wallets: result.walletHandled,
+          transactions: result.ledgerHandled,
+          analytics: true,
+          names: true,
+        })
+      }
+
+      if (actionDialog.type === 'delete_wallet') {
+        const result = await deleteWallet(actionDialog.walletId)
+
+        if (result.error) {
+          window.alert(mapDomainError(result.error))
+          return
+        }
+
+        await syncFinancialViews({
+          wallets: true,
+          analytics: true,
+          names: true,
+        })
+      }
+
+      if (actionDialog.type === 'restore_wallet') {
+        const result = await restoreWallet(actionDialog.walletId)
+
+        if (result.error) {
+          window.alert(mapDomainError(result.error))
+          return
+        }
+
+        await syncFinancialViews({
+          wallets: true,
+          analytics: true,
+          names: true,
+        })
+      }
+
+      setActionDialog(null)
+    } finally {
+      setDialogSubmitting(false)
+    }
+  }, [actionDialog, deleteGoal, deleteWallet, dialogSubmitting, restoreWallet, syncFinancialViews])
 
   const handleRenameWallet = useCallback(async (walletId, nextName) => {
     const result = await renameWallet(walletId, nextName)
@@ -1656,6 +1757,18 @@ export default function AppShell() {
           />
         </div>
       </main>
+
+      {actionDialog ? (
+        <ActionConfirmModal
+          title={actionDialog.title}
+          paragraphs={actionDialog.paragraphs}
+          confirmLabel={actionDialog.confirmLabel}
+          tone={actionDialog.tone}
+          submitting={dialogSubmitting}
+          onCancel={closeActionDialog}
+          onConfirm={handleActionDialogConfirm}
+        />
+      ) : null}
     </div>
   )
 }
