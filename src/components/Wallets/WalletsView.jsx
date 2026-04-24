@@ -100,6 +100,7 @@ export default function WalletsView({
             <button
               onClick={() => onDeleteWallet(w.id)}
               className="absolute top-3 right-3 p-1.5 text-muted/30 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+              title="Hapus dompet dari daftar aktif"
             >
               <X size={14} strokeWidth={2} />
             </button>

@@ -33,6 +33,7 @@ const ALLOWED_TYPES = new Set([
   'goal_withdrawal',
   'transfer',
   'delete_wallet',
+  'rename_wallet',
   'check_balance',
   'undo_transaction',
   'create_wallet',
@@ -393,6 +394,24 @@ function normalizeAnalyzerResult(result: unknown) {
     normalized.focus = normalizeAdviceFocus(payload.focus)
   }
 
+  if (type === 'delete_wallet' || type === 'rename_wallet') {
+    const wallet = sanitizeEntityLabel(payload.wallet)
+    if (wallet) {
+      normalized.wallet = wallet
+    }
+
+    if (typeof payload.walletId === 'string' && payload.walletId.length <= 100) {
+      normalized.walletId = payload.walletId
+    }
+  }
+
+  if (type === 'rename_wallet') {
+    const nextName = sanitizeEntityLabel(payload.nextName, 100)
+    if (nextName) {
+      normalized.nextName = nextName
+    }
+  }
+
   return normalized
 }
 
@@ -422,6 +441,17 @@ function sanitizeCategoryLabel(category: unknown) {
     .replace(/[^\p{L}\p{N}\s&/-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .slice(0, 40)
+}
+
+function sanitizeEntityLabel(value: unknown, maxLength = 80) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, maxLength)
 }
 
 function sanitizeLearningHints(value: unknown) {
@@ -530,8 +560,15 @@ Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "goal_withdrawal": { goalId, goal, amount, destinationWalletId, wallet, reply }
 - "transfer": { amount, fromWalletId, from, toWalletId, to, reply }
 - "delete_wallet": { walletId, wallet }
+- "rename_wallet": { walletId, wallet, nextName, reply }
 - "check_balance": { targetWalletId, target, reply }
 - "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "unknown".
+
+INSTRUKSI KHUSUS MANAJEMEN DOMPET:
+1. Jika user ingin menghapus dompet, gunakan "delete_wallet" dengan walletId dan wallet yang cocok dari daftar dompet.
+2. Dompet yang masih punya saldo tetap boleh dihapus dari daftar aktif setelah konfirmasi; jangan menolak hanya karena masih ada saldo.
+3. Jika user ingin rename/ganti nama dompet, gunakan "rename_wallet".
+4. Untuk "rename_wallet", ambil walletId + wallet dari daftar dompet, lalu isi "nextName" dengan nama baru yang singkat dan bersih.
 
 INSTRUKSI KHUSUS TABUNGAN (GOALS):
 1. Jika user ingin menabung/menyisihkan uang ke target tertentu, cocokkan nama target terhadap daftar target aktif di bawah.

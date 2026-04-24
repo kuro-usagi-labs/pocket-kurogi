@@ -54,6 +54,41 @@ function getCurrentTimeLabel() {
   })
 }
 
+function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = {}) {
+  const balance = Number(wallet?.current_balance || 0)
+  const walletName = wallet?.name || 'dompet ini'
+  const highlightedName = markdown ? `**${walletName}**` : `"${walletName}"`
+
+  if (balance !== 0) {
+    const highlightedBalance = markdown ? `**${formatRupiah(balance)}**` : formatRupiah(balance)
+
+    return [
+      `Hapus dompet ${highlightedName}?`,
+      `Saldo yang masih tersisa: ${highlightedBalance}.`,
+      'Kalau lanjut, dompet akan dihapus dari daftar aktif. Riwayat ledger lama tetap disimpan supaya histori tetap aman.',
+      markdown
+        ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
+        : 'Lanjutkan penghapusan?',
+    ].join('\n\n')
+  }
+
+  return [
+    `Hapus dompet ${highlightedName}?`,
+    'Jika dompet ini belum punya riwayat ledger, dompet akan dihapus permanen. Jika sudah pernah dipakai, dompet akan dihapus dari daftar aktif supaya histori tetap aman.',
+    markdown
+      ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
+      : 'Lanjutkan penghapusan?',
+  ].join('\n\n')
+}
+
+function buildWalletDeletionSuccess(walletName, mode) {
+  if (mode === 'deleted') {
+    return `Dompet **${walletName}** berhasil dihapus permanen.`
+  }
+
+  return `Dompet **${walletName}** berhasil dihapus dari daftar aktif.`
+}
+
 function withWalletAttached(intent, wallet) {
   if (!intent || !wallet) {
     return intent
@@ -144,6 +179,14 @@ function attachResolvedWallet(intent, wallet) {
       ...intent,
       fromWalletId: wallet.id,
       from: wallet.name,
+    }
+  }
+
+  if (intent.type === 'delete_wallet' || intent.type === 'rename_wallet') {
+    return {
+      ...intent,
+      walletId: wallet.id,
+      wallet: wallet.name,
     }
   }
 
@@ -618,6 +661,31 @@ export default function AppShell() {
         }
       }
 
+      if (analysis.type === 'rename_wallet') {
+        const walletToRename = walletCatalog.find((wallet) =>
+          analysis.walletId ? wallet.id === analysis.walletId : wallet.name === analysis.wallet
+        )
+
+        if (!walletToRename) {
+          throw new Error('Wallet not found')
+        }
+
+        const renameResult = await renameWallet(walletToRename.id, analysis.nextName)
+
+        if (renameResult.error) {
+          throw renameResult.error
+        }
+
+        await syncFinancialViews({
+          wallets: true,
+          names: true,
+        })
+
+        return {
+          text: `Dompet **${walletToRename.name}** berhasil diubah menjadi **${renameResult.data.wallet_name}**.`,
+        }
+      }
+
       if (analysis.type === 'delete_wallet') {
         const walletToDelete = walletCatalog.find((wallet) =>
           analysis.walletId ? wallet.id === analysis.walletId : wallet.name === analysis.wallet
@@ -631,17 +699,18 @@ export default function AppShell() {
           type: 'delete_wallet',
           walletId: walletToDelete.id,
           walletName: walletToDelete.name,
+          currentBalance: Number(walletToDelete.current_balance || 0),
         })
 
         return {
-          text: `Anda yakin ingin mengarsipkan dompet **${walletToDelete.name}**? Dompet hanya bisa diarsipkan saat saldonya sudah nol.\n\nKetik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.`,
+          text: buildWalletDeletionPrompt(walletToDelete, formatRupiah, { markdown: true }),
           intentStatus: 'needs_confirmation',
         }
       }
 
       if (analysis.type === 'bulk_delete_wallets') {
         return {
-          text: 'Dompet tidak bisa dihapus massal lagi. Arsipkan satu per satu setelah saldonya dipindahkan sampai nol agar ledger tetap aman.',
+          text: 'Dompet tidak bisa dihapus massal. Hapus satu per satu agar tiap dompet bisa dikonfirmasi dan histori ledger tetap aman.',
         }
       }
 
@@ -877,6 +946,7 @@ export default function AppShell() {
       goals,
       handleDeleteTransaction,
       learnFromInput,
+      renameWallet,
       resolveTransactionCategory,
       syncFinancialViews,
       totalBalance,
@@ -903,24 +973,25 @@ export default function AppShell() {
 
           setPendingAction(null)
           await syncFinancialViews({
+            wallets: true,
             analytics: true,
             names: true,
           })
 
           return {
-            text: `Dompet **${pendingAction.walletName}** berhasil diarsipkan.`,
+            text: buildWalletDeletionSuccess(pendingAction.walletName, deleteResult.mode),
           }
         }
 
         if (isNegative(text)) {
           setPendingAction(null)
           return {
-            text: 'Baik, pengarsipan dompet dibatalkan.',
+            text: 'Baik, penghapusan dompet dibatalkan.',
           }
         }
 
         return {
-          text: 'Ketik "Ya" untuk mengarsipkan dompet atau "Batal" untuk membatalkannya.',
+          text: 'Ketik "Ya" untuk menghapus dompet atau "Batal" untuk membatalkannya.',
           intentStatus: 'needs_confirmation',
         }
       }
@@ -1311,6 +1382,13 @@ export default function AppShell() {
   }, [addWallet, syncFinancialViews])
 
   const handleDeleteWallet = useCallback(async (id) => {
+    const targetWallet = wallets.find((wallet) => wallet.id === id)
+    const confirmed = window.confirm(buildWalletDeletionPrompt(targetWallet, formatRupiah))
+
+    if (!confirmed) {
+      return { error: null, mode: null }
+    }
+
     const result = await deleteWallet(id)
 
     if (result.error) {
@@ -1319,18 +1397,20 @@ export default function AppShell() {
     }
 
     await syncFinancialViews({
+      wallets: true,
       analytics: true,
       names: true,
     })
 
     return result
-  }, [deleteWallet, syncFinancialViews])
+  }, [deleteWallet, formatRupiah, syncFinancialViews, wallets])
 
   const handleRenameWallet = useCallback(async (walletId, nextName) => {
     const result = await renameWallet(walletId, nextName)
 
     if (!result.error) {
       await syncFinancialViews({
+        wallets: true,
         names: true,
       })
     }

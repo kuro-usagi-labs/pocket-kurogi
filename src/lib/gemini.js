@@ -175,6 +175,60 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = []) {
     return { type: 'bulk_delete_transactions' }
   }
 
+  if (/^(?:hapus|buang|delete|hilangkan)\s+(?:dompet|rekening|wallet)\s*$/i.test(normalizedText)) {
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Dompet mana yang ingin dihapus? Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+      candidates: walletOptions,
+      intent: {
+        type: 'delete_wallet',
+      },
+    })
+  }
+
+  const renameWalletMatch = text.trim().match(
+    /^(?:rename|ganti(?:\s+nama)?|ubah(?:\s+nama)?)\s+(?:dompet|rekening|wallet)\s+(.+?)\s+(?:menjadi|jadi|ke)\s+(.+)$/i
+  )
+
+  if (renameWalletMatch?.[1] && renameWalletMatch?.[2]) {
+    const nextName = cleanEntityText(renameWalletMatch[2])
+    const walletResolution = resolveOptionReference({
+      input: renameWalletMatch[1],
+      options: walletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        type: 'rename_wallet',
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+        nextName,
+      }
+    }
+
+    if (walletResolution.candidates.length > 0) {
+      return createNeedsConfirmation({
+        reason: 'ambiguous_wallet',
+        prompt: `Dompet yang ingin diubah namanya belum jelas. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`,
+        candidates: walletResolution.candidates,
+        intent: {
+          type: 'rename_wallet',
+          nextName,
+        },
+      })
+    }
+
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Dompet mana yang ingin diubah menjadi **${nextName}**? Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+      candidates: walletOptions,
+      intent: {
+        type: 'rename_wallet',
+        nextName,
+      },
+    })
+  }
+
   const deleteWalletMatch = normalizedText.match(
     /^(?:hapus|buang|delete|hilangkan)\s+(?:dompet|rekening|wallet)\s+(.+)$/i
   )
@@ -192,6 +246,26 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = []) {
         wallet: walletResolution.match.name,
       }
     }
+
+    if (walletResolution.candidates.length > 0) {
+      return createNeedsConfirmation({
+        reason: 'ambiguous_wallet',
+        prompt: `Dompet yang ingin dihapus belum jelas. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`,
+        candidates: walletResolution.candidates,
+        intent: {
+          type: 'delete_wallet',
+        },
+      })
+    }
+
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Saya belum menemukan dompet itu. Pilih salah satu dompet aktif Anda: ${formatCandidateNames(walletOptions)}.`,
+      candidates: walletOptions,
+      intent: {
+        type: 'delete_wallet',
+      },
+    })
   }
 
   if (
@@ -793,6 +867,58 @@ function normalizeAnalysisResult(analysis, walletOptions, goalOptions, rawText) 
     }
   }
 
+  if (analysis.type === 'delete_wallet') {
+    const walletResolution = resolveOptionByIdOrName({
+      id: analysis.walletId,
+      name: analysis.wallet,
+      options: walletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        ...analysis,
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+      }
+    }
+
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Dompet yang ingin dihapus belum jelas. Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+      candidates: walletOptions,
+      intent: {
+        ...analysis,
+      },
+    })
+  }
+
+  if (analysis.type === 'rename_wallet') {
+    const walletResolution = resolveOptionByIdOrName({
+      id: analysis.walletId,
+      name: analysis.wallet,
+      options: walletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        ...analysis,
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+        nextName: cleanEntityText(analysis.nextName),
+      }
+    }
+
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Dompet yang ingin diubah belum jelas. Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+      candidates: walletOptions,
+      intent: {
+        ...analysis,
+        nextName: cleanEntityText(analysis.nextName),
+      },
+    })
+  }
+
   return analysis
 }
 
@@ -852,6 +978,12 @@ function extractPotentialTrailingWalletName(text) {
   }
 
   return null
+}
+
+function cleanEntityText(value = '') {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
 }
 
 function detectAnalyticsQuery(normalizedText) {

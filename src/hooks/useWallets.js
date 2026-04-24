@@ -19,6 +19,16 @@ export function useWallets() {
     return { data, error }
   }, [user])
 
+  const fetchWalletTransactionCount = useCallback(async (id) => {
+    const { count, error } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('wallet_id', id)
+      .eq('user_id', user.id)
+
+    return { count: count ?? 0, error }
+  }, [user])
+
   const addWallet = useCallback(async (name, initialBalance = 0, walletType = 'cash') => {
     if (!user) return { error: 'Not authenticated' }
 
@@ -121,17 +131,47 @@ export function useWallets() {
   const deleteWallet = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
 
+    const [walletResult, transactionCountResult] = await Promise.all([
+      fetchWalletById(id),
+      fetchWalletTransactionCount(id),
+    ])
+
+    if (walletResult.error || !walletResult.data) {
+      return { error: walletResult.error ?? new Error('Dompet tidak ditemukan.'), mode: null }
+    }
+
+    if (transactionCountResult.error) {
+      return { error: transactionCountResult.error, mode: null }
+    }
+
+    const currentBalance = Number(walletResult.data.current_balance || 0)
+    const shouldArchive = transactionCountResult.count > 0 || currentBalance !== 0
+
+    if (!shouldArchive) {
+      const hardDeleteResult = await supabase.rpc('delete_wallet_permanently_safe', {
+        p_wallet_id: id,
+      })
+
+      if (!hardDeleteResult.error) {
+        setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+        return { error: null, mode: 'deleted' }
+      }
+
+      return { error: hardDeleteResult.error, mode: null }
+    }
+
     const rpcResult = await supabase.rpc('archive_wallet_safely', {
       p_wallet_id: id,
     })
 
     if (!rpcResult.error) {
-      await fetchWallets()
-      return { error: null }
+      setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+      fetchWallets().catch(() => null)
+      return { error: null, mode: 'archived' }
     }
 
-    return { error: rpcResult.error }
-  }, [fetchWallets, user])
+    return { error: rpcResult.error, mode: null }
+  }, [fetchWalletById, fetchWalletTransactionCount, fetchWallets, user])
 
   const hardDeleteWallet = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
@@ -153,7 +193,7 @@ export function useWallets() {
 
     return {
       error: new Error(
-        'Dompet tidak bisa dihapus massal. Arsipkan satu per satu setelah saldonya dipindahkan agar ledger tetap aman.'
+        'Dompet tidak bisa dihapus massal. Hapus satu per satu supaya tiap aksi bisa dikonfirmasi dan ledger tetap aman.'
       ),
     }
   }, [user])
@@ -196,11 +236,25 @@ export function useWallets() {
     })
 
     if (!rpcResult.error) {
-      await fetchWallets()
-      return { error: null }
+      const nextWalletName = rpcResult.data?.wallet_name || nextName.trim()
+
+      setWallets((prev) =>
+        prev.map((wallet) =>
+          wallet.id === walletId ? { ...wallet, name: nextWalletName } : wallet
+        )
+      )
+
+      fetchWallets().catch(() => null)
+      return {
+        data: {
+          wallet_id: walletId,
+          wallet_name: nextWalletName,
+        },
+        error: null,
+      }
     }
 
-    return { error: rpcResult.error }
+    return { data: null, error: rpcResult.error }
   }, [fetchWallets, user])
 
   const totalBalance = wallets.reduce(

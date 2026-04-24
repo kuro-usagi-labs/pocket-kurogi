@@ -90,6 +90,33 @@ describe('analyzeWithRegex', () => {
     })
   })
 
+  it('parses wallet rename commands into rename_wallet intent', () => {
+    const result = analyzeWithRegex(
+      'ganti nama dompet BCA menjadi BCA Operasional',
+      walletOptions,
+      goalOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'rename_wallet',
+      walletId: 'wallet-bca',
+      wallet: 'BCA',
+      nextName: 'BCA Operasional',
+    })
+  })
+
+  it('asks for wallet confirmation before deleting when the target is unclear', () => {
+    const result = analyzeWithRegex('hapus dompet', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'needs_confirmation',
+      reason: 'missing_wallet',
+      intent: {
+        type: 'delete_wallet',
+      },
+    })
+  })
+
   it('uses semantic fallback categories for common expense intents before AI kicks in', () => {
     const result = analyzeWithRegex('bayar token pln 100rb dari bca', walletOptions, goalOptions)
 
