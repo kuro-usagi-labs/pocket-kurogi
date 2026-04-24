@@ -33,6 +33,7 @@ const ALLOWED_TYPES = new Set([
   'goal_withdrawal',
   'transfer',
   'delete_wallet',
+  'restore_wallet',
   'rename_wallet',
   'check_balance',
   'undo_transaction',
@@ -57,6 +58,7 @@ type AnalyzePayload = {
   text?: string
   imageBase64?: string | null
   walletOptions?: EntityOption[]
+  archivedWalletOptions?: EntityOption[]
   goalOptions?: EntityOption[]
   categoryOptions?: EntityOption[]
   walletNames?: string[]
@@ -139,6 +141,7 @@ async function callGeminiAPI({
   text = '',
   imageBase64 = null,
   walletOptions = [],
+  archivedWalletOptions = [],
   goalOptions = [],
   categoryOptions = [],
   walletNames = [],
@@ -155,6 +158,7 @@ async function callGeminiAPI({
     text,
     financialContext,
     walletOptions,
+    archivedWalletOptions,
     goalOptions,
     categoryOptions,
     walletNames,
@@ -258,6 +262,7 @@ function validatePayload({
   text = '',
   imageBase64 = null,
   walletOptions = [],
+  archivedWalletOptions = [],
   goalOptions = [],
   categoryOptions = [],
   walletNames = [],
@@ -281,6 +286,7 @@ function validatePayload({
   }
 
   validateEntityOptions(walletOptions, 'dompet')
+  validateEntityOptions(archivedWalletOptions, 'dompet arsip')
   validateEntityOptions(goalOptions, 'target tabungan')
   validateEntityOptions(categoryOptions, 'kategori')
 
@@ -405,6 +411,17 @@ function normalizeAnalyzerResult(result: unknown) {
     }
   }
 
+  if (type === 'restore_wallet') {
+    const wallet = sanitizeEntityLabel(payload.wallet)
+    if (wallet) {
+      normalized.wallet = wallet
+    }
+
+    if (typeof payload.walletId === 'string' && payload.walletId.length <= 100) {
+      normalized.walletId = payload.walletId
+    }
+  }
+
   if (type === 'rename_wallet') {
     const nextName = sanitizeEntityLabel(payload.nextName, 100)
     if (nextName) {
@@ -510,6 +527,7 @@ function buildPrompt({
   text,
   financialContext,
   walletOptions = [],
+  archivedWalletOptions = [],
   goalOptions = [],
   categoryOptions = [],
   walletNames = [],
@@ -524,6 +542,7 @@ function buildPrompt({
   goalNames: string[]
 }) {
   const walletList = buildOptionList(walletOptions, walletNames, 'Tunai')
+  const archivedWalletList = buildOptionList(archivedWalletOptions)
   const goalList = buildOptionList(goalOptions, goalNames)
   const categoryList = buildCategoryOptionList(categoryOptions)
 
@@ -534,6 +553,9 @@ ${financialContext}
 
 DOMPET YANG TERSEDIA:
 ${walletList || 'Tunai'}
+
+DOMPET ARSIP YANG TERSEDIA:
+${archivedWalletList || 'Belum ada dompet arsip'}
 
 TARGET TABUNGAN YANG TERSEDIA:
 ${goalList || 'Belum ada target tabungan aktif'}
@@ -560,6 +582,7 @@ Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "goal_withdrawal": { goalId, goal, amount, destinationWalletId, wallet, reply }
 - "transfer": { amount, fromWalletId, from, toWalletId, to, reply }
 - "delete_wallet": { walletId, wallet }
+- "restore_wallet": { walletId, wallet }
 - "rename_wallet": { walletId, wallet, nextName, reply }
 - "check_balance": { targetWalletId, target, reply }
 - "undo_transaction", "create_wallet", "confirm", "cancel", "bulk_delete_wallets", "bulk_delete_transactions", "unknown".
@@ -569,6 +592,8 @@ INSTRUKSI KHUSUS MANAJEMEN DOMPET:
 2. Dompet yang masih punya saldo tetap boleh dihapus dari daftar aktif setelah konfirmasi; jangan menolak hanya karena masih ada saldo.
 3. Jika user ingin rename/ganti nama dompet, gunakan "rename_wallet".
 4. Untuk "rename_wallet", ambil walletId + wallet dari daftar dompet, lalu isi "nextName" dengan nama baru yang singkat dan bersih.
+5. Jika user ingin memulihkan dompet arsip, gunakan "restore_wallet" dengan walletId dan wallet yang cocok dari daftar dompet arsip.
+6. Untuk transaksi, transfer, saldo, goal, delete, dan rename, gunakan hanya dompet dari daftar dompet aktif. Dompet arsip hanya boleh dipakai untuk intent "restore_wallet".
 
 INSTRUKSI KHUSUS TABUNGAN (GOALS):
 1. Jika user ingin menabung/menyisihkan uang ke target tertentu, cocokkan nama target terhadap daftar target aktif di bawah.

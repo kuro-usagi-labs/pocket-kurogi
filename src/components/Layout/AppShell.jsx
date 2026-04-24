@@ -89,6 +89,23 @@ function buildWalletDeletionSuccess(walletName, mode) {
   return `Dompet **${walletName}** berhasil dihapus dari daftar aktif.`
 }
 
+function buildWalletRestorePrompt(wallet, { markdown = false } = {}) {
+  const walletName = wallet?.name || 'dompet ini'
+  const highlightedName = markdown ? `**${walletName}**` : `"${walletName}"`
+
+  return [
+    `Pulihkan dompet ${highlightedName} ke daftar aktif?`,
+    'Dompet ini akan kembali muncul di daftar aktif dan bisa dipakai lagi untuk transaksi serta chat.',
+    markdown
+      ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
+      : 'Lanjutkan pemulihan?',
+  ].join('\n\n')
+}
+
+function buildWalletRestoreSuccess(walletName) {
+  return `Dompet **${walletName}** berhasil dipulihkan ke daftar aktif.`
+}
+
 function withWalletAttached(intent, wallet) {
   if (!intent || !wallet) {
     return intent
@@ -182,7 +199,7 @@ function attachResolvedWallet(intent, wallet) {
     }
   }
 
-  if (intent.type === 'delete_wallet' || intent.type === 'rename_wallet') {
+  if (intent.type === 'delete_wallet' || intent.type === 'rename_wallet' || intent.type === 'restore_wallet') {
     return {
       ...intent,
       walletId: wallet.id,
@@ -282,6 +299,10 @@ function mapDomainError(error) {
     return 'Nama dompet itu sudah dipakai. Gunakan nama lain atau rename dompet yang bentrok.'
   }
 
+  if (message.includes('wallet is already active')) {
+    return 'Dompet itu sudah aktif, jadi tidak perlu dipulihkan lagi.'
+  }
+
   if (message.includes('goal name is already in use')) {
     return 'Nama target itu sudah dipakai. Gunakan nama lain atau rename target yang bentrok.'
   }
@@ -320,9 +341,11 @@ function mapDomainError(error) {
 export default function AppShell() {
   const {
     wallets,
+    archivedWallets,
     totalBalance,
     addWallet,
     deleteWallet,
+    restoreWallet,
     renameWallet,
     refetch: refetchWallets,
   } = useWallets()
@@ -382,6 +405,7 @@ export default function AppShell() {
   const [pendingAction, setPendingAction] = useState(null)
 
   const walletOptions = buildWalletOptions(wallets)
+  const archivedWalletOptions = buildWalletOptions(archivedWallets)
   const goalOptions = buildGoalOptions(goals)
 
   const formatRupiah = useCallback((number) => {
@@ -504,7 +528,15 @@ export default function AppShell() {
   )
 
   const executeIntent = useCallback(
-    async (analysis, { source = 'chat', rawText = '', walletCatalog = wallets } = {}) => {
+    async (
+      analysis,
+      {
+        source = 'chat',
+        rawText = '',
+        walletCatalog = wallets,
+        archivedWalletCatalog = archivedWallets,
+      } = {}
+    ) => {
       if (!analysis || typeof analysis !== 'object') {
         return {
           text: 'Maaf, permintaan tersebut belum bisa saya pahami.',
@@ -704,6 +736,27 @@ export default function AppShell() {
 
         return {
           text: buildWalletDeletionPrompt(walletToDelete, formatRupiah, { markdown: true }),
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (analysis.type === 'restore_wallet') {
+        const walletToRestore = archivedWalletCatalog.find((wallet) =>
+          analysis.walletId ? wallet.id === analysis.walletId : wallet.name === analysis.wallet
+        )
+
+        if (!walletToRestore) {
+          throw new Error('Wallet not found')
+        }
+
+        setPendingAction({
+          type: 'restore_wallet',
+          walletId: walletToRestore.id,
+          walletName: walletToRestore.name,
+        })
+
+        return {
+          text: buildWalletRestorePrompt(walletToRestore, { markdown: true }),
           intentStatus: 'needs_confirmation',
         }
       }
@@ -952,6 +1005,7 @@ export default function AppShell() {
       totalBalance,
       transactions,
       transferBetweenWallets,
+      archivedWallets,
       wallets,
       withdrawFromGoal,
     ]
@@ -992,6 +1046,39 @@ export default function AppShell() {
 
         return {
           text: 'Ketik "Ya" untuk menghapus dompet atau "Batal" untuk membatalkannya.',
+          intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (pendingAction.type === 'restore_wallet') {
+        if (isAffirmative(text)) {
+          const restoreResult = await restoreWallet(pendingAction.walletId)
+
+          if (restoreResult.error) {
+            throw restoreResult.error
+          }
+
+          setPendingAction(null)
+          await syncFinancialViews({
+            wallets: true,
+            analytics: true,
+            names: true,
+          })
+
+          return {
+            text: buildWalletRestoreSuccess(pendingAction.walletName),
+          }
+        }
+
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, pemulihan dompet dibatalkan.',
+          }
+        }
+
+        return {
+          text: 'Ketik "Ya" untuk memulihkan dompet atau "Batal" untuk membatalkannya.',
           intentStatus: 'needs_confirmation',
         }
       }
@@ -1232,6 +1319,7 @@ export default function AppShell() {
       executeIntent,
       formatRupiah,
       pendingAction,
+      restoreWallet,
       syncFinancialViews,
       walletOptions,
       wallets,
@@ -1286,6 +1374,7 @@ export default function AppShell() {
             financialContext,
             {
               categoryRules,
+              archivedWalletOptions,
             }
           )
 
@@ -1316,6 +1405,7 @@ export default function AppShell() {
       persistBotResponse,
       processPendingAction,
       saveMessage,
+      archivedWalletOptions,
       walletOptions,
     ]
   )
@@ -1404,6 +1494,30 @@ export default function AppShell() {
 
     return result
   }, [deleteWallet, formatRupiah, syncFinancialViews, wallets])
+
+  const handleRestoreWallet = useCallback(async (id) => {
+    const targetWallet = archivedWallets.find((wallet) => wallet.id === id)
+    const confirmed = window.confirm(buildWalletRestorePrompt(targetWallet))
+
+    if (!confirmed) {
+      return { error: null }
+    }
+
+    const result = await restoreWallet(id)
+
+    if (result.error) {
+      window.alert(mapDomainError(result.error))
+      return result
+    }
+
+    await syncFinancialViews({
+      wallets: true,
+      analytics: true,
+      names: true,
+    })
+
+    return result
+  }, [archivedWallets, restoreWallet, syncFinancialViews])
 
   const handleRenameWallet = useCallback(async (walletId, nextName) => {
     const result = await renameWallet(walletId, nextName)
@@ -1500,11 +1614,13 @@ export default function AppShell() {
                 >
                   <WalletsView
                     wallets={wallets}
+                    archivedWallets={archivedWallets}
                     totalBalance={grandTotalBalance}
                     goals={goals}
                     conflicts={conflicts}
                     onAddWallet={handleAddWallet}
                     onDeleteWallet={handleDeleteWallet}
+                    onRestoreWallet={handleRestoreWallet}
                     onRenameWallet={handleRenameWallet}
                     onAddGoal={handleAddGoal}
                     onDeleteGoal={handleDeleteGoal}

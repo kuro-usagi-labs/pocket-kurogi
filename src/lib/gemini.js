@@ -43,18 +43,21 @@ export async function analyzeTransaction(
   financialContext = '',
   learningContext = {}
 ) {
+  const archivedWalletOptions = learningContext?.archivedWalletOptions || []
+
   if (imageBase64) {
     return callAnalyzerFunction(
       text,
       imageBase64,
       walletOptions,
+      archivedWalletOptions,
       goalOptions,
       categoryOptions,
       financialContext
     )
   }
 
-  const regexResult = analyzeWithRegex(text || '', walletOptions, goalOptions)
+  const regexResult = analyzeWithRegex(text || '', walletOptions, goalOptions, archivedWalletOptions)
   if (regexResult.type !== 'unknown') {
     if (shouldEscalateTransactionCategory(regexResult, text, learningContext)) {
       try {
@@ -62,6 +65,7 @@ export async function analyzeTransaction(
           text,
           null,
           walletOptions,
+          archivedWalletOptions,
           goalOptions,
           categoryOptions,
           financialContext
@@ -83,6 +87,7 @@ export async function analyzeTransaction(
       text,
       null,
       walletOptions,
+      archivedWalletOptions,
       goalOptions,
       categoryOptions,
       financialContext
@@ -97,6 +102,7 @@ async function callAnalyzerFunction(
   text,
   imageBase64,
   walletOptions,
+  archivedWalletOptions,
   goalOptions,
   categoryOptions,
   financialContext
@@ -107,6 +113,7 @@ async function callAnalyzerFunction(
       text,
       imageBase64,
       walletOptions,
+      archivedWalletOptions,
       goalOptions,
       categoryOptions,
       financialContext,
@@ -121,10 +128,10 @@ async function callAnalyzerFunction(
     throw new Error('Analyzer response was empty.')
   }
 
-  return normalizeAnalysisResult(data, walletOptions, goalOptions, text)
+  return normalizeAnalysisResult(data, walletOptions, archivedWalletOptions, goalOptions, text)
 }
 
-export function analyzeWithRegex(text, walletOptions, goalOptions = []) {
+export function analyzeWithRegex(text, walletOptions, goalOptions = [], archivedWalletOptions = []) {
   let normalizedText = normalizeNumericText(text.toLowerCase().trim())
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
@@ -264,6 +271,45 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = []) {
       candidates: walletOptions,
       intent: {
         type: 'delete_wallet',
+      },
+    })
+  }
+
+  const restoreWalletMatch = normalizedText.match(
+    /^(?:pulihkan|kembalikan|restore|aktifkan\s+kembali)\s+(?:dompet|rekening|wallet)\s+(.+)$/i
+  )
+
+  if (restoreWalletMatch?.[1]) {
+    const walletResolution = resolveOptionReference({
+      input: restoreWalletMatch[1],
+      options: archivedWalletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        type: 'restore_wallet',
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+      }
+    }
+
+    if (walletResolution.candidates.length > 0) {
+      return createNeedsConfirmation({
+        reason: 'ambiguous_wallet',
+        prompt: `Dompet arsip yang ingin dipulihkan belum jelas. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`,
+        candidates: walletResolution.candidates,
+        intent: {
+          type: 'restore_wallet',
+        },
+      })
+    }
+
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Saya belum menemukan dompet arsip itu. Pilih salah satu dompet arsip Anda: ${formatCandidateNames(archivedWalletOptions)}.`,
+      candidates: archivedWalletOptions,
+      intent: {
+        type: 'restore_wallet',
       },
     })
   }
@@ -673,7 +719,7 @@ function resolveWalletForTransaction(normalizedText, walletOptions) {
   })
 }
 
-function normalizeAnalysisResult(analysis, walletOptions, goalOptions, rawText) {
+function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions, goalOptions, rawText) {
   if (!analysis || typeof analysis !== 'object') {
     return {
       type: 'unknown',
@@ -915,6 +961,31 @@ function normalizeAnalysisResult(analysis, walletOptions, goalOptions, rawText) 
       intent: {
         ...analysis,
         nextName: cleanEntityText(analysis.nextName),
+      },
+    })
+  }
+
+  if (analysis.type === 'restore_wallet') {
+    const walletResolution = resolveOptionByIdOrName({
+      id: analysis.walletId,
+      name: analysis.wallet,
+      options: archivedWalletOptions,
+    })
+
+    if (walletResolution.match) {
+      return {
+        ...analysis,
+        walletId: walletResolution.match.id,
+        wallet: walletResolution.match.name,
+      }
+    }
+
+    return createNeedsConfirmation({
+      reason: 'missing_wallet',
+      prompt: `Dompet arsip yang ingin dipulihkan belum jelas. Pilih salah satu: ${formatCandidateNames(archivedWalletOptions)}.`,
+      candidates: archivedWalletOptions,
+      intent: {
+        ...analysis,
       },
     })
   }

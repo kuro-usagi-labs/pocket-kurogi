@@ -6,7 +6,50 @@ import { normalizeEntityName } from '../lib/chatEntities'
 export function useWallets() {
   const { user } = useAuth()
   const [wallets, setWallets] = useState([])
+  const [archivedWallets, setArchivedWallets] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const sortWalletsByCreatedAt = useCallback(
+    (items = []) => [...items].sort((left, right) => new Date(left.created_at) - new Date(right.created_at)),
+    []
+  )
+
+  const partitionWallets = useCallback((items = []) => {
+    const active = []
+    const archived = []
+
+    for (const wallet of items) {
+      if (wallet?.is_archived) {
+        archived.push(wallet)
+      } else {
+        active.push(wallet)
+      }
+    }
+
+    return {
+      active: sortWalletsByCreatedAt(active),
+      archived: sortWalletsByCreatedAt(archived),
+    }
+  }, [sortWalletsByCreatedAt])
+
+  const applyWalletBuckets = useCallback((items = []) => {
+    const { active, archived } = partitionWallets(items)
+    setWallets(active)
+    setArchivedWallets(archived)
+    return { active, archived }
+  }, [partitionWallets])
+
+  const queryWallets = useCallback(async () => {
+    if (!user) {
+      return { data: [], error: null }
+    }
+
+    return supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+  }, [user])
 
   const fetchWalletById = useCallback(async (id) => {
     const { data, error } = await supabase
@@ -62,6 +105,7 @@ export function useWallets() {
             ? prev
             : [...prev, fallbackWallet]
         ))
+        setArchivedWallets((prev) => prev.filter((wallet) => wallet.id !== fallbackWallet.id))
 
         return { data: fallbackWallet, error: null, ledgerCreated: normalizedInitialBalance > 0 }
       }
@@ -71,6 +115,7 @@ export function useWallets() {
           ? prev
           : [...prev, insertedWallet]
       ))
+      setArchivedWallets((prev) => prev.filter((wallet) => wallet.id !== insertedWallet.id))
       return { data: insertedWallet, error: null, ledgerCreated: normalizedInitialBalance > 0 }
     }
 
@@ -84,41 +129,36 @@ export function useWallets() {
   const fetchWallets = useCallback(async () => {
     if (!user) {
       setWallets([])
+      setArchivedWallets([])
       setLoading(false)
       return
     }
 
     setLoading(true)
-    await supabase.rpc('ensure_default_wallet').catch(() => null)
+    try {
+      await supabase.rpc('ensure_default_wallet')
+    } catch {
+      // Ignore bootstrap wallet failures here and continue with the main wallet query.
+    }
 
-    const { data, error } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_archived', false)
-      .order('created_at', { ascending: true })
+    const { data, error } = await queryWallets()
 
     if (!error && data) {
-      setWallets(data)
-      if (data.length === 0) {
+      const { active } = applyWalletBuckets(data)
+      if (active.length === 0) {
         const ensureResult = await supabase.rpc('ensure_default_wallet')
         if (!ensureResult.error) {
-          const { data: refreshedWallets, error: refreshError } = await supabase
-            .from('wallets')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('is_archived', false)
-            .order('created_at', { ascending: true })
+          const { data: refreshedWallets, error: refreshError } = await queryWallets()
 
           if (!refreshError && refreshedWallets) {
-            setWallets(refreshedWallets)
+            applyWalletBuckets(refreshedWallets)
           }
         }
       }
     }
 
     setLoading(false)
-  }, [user])
+  }, [applyWalletBuckets, queryWallets, user])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -154,6 +194,7 @@ export function useWallets() {
 
       if (!hardDeleteResult.error) {
         setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+        setArchivedWallets((prev) => prev.filter((wallet) => wallet.id !== id))
         return { error: null, mode: 'deleted' }
       }
 
@@ -165,13 +206,26 @@ export function useWallets() {
     })
 
     if (!rpcResult.error) {
+      const archivedWallet = {
+        ...walletResult.data,
+        is_archived: true,
+        updated_at: new Date().toISOString(),
+      }
+
       setWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+      setArchivedWallets((prev) => {
+        const nextArchived = prev.some((wallet) => wallet.id === id)
+          ? prev.map((wallet) => (wallet.id === id ? { ...wallet, ...archivedWallet } : wallet))
+          : [...prev, archivedWallet]
+
+        return sortWalletsByCreatedAt(nextArchived)
+      })
       fetchWallets().catch(() => null)
       return { error: null, mode: 'archived' }
     }
 
     return { error: rpcResult.error, mode: null }
-  }, [fetchWalletById, fetchWalletTransactionCount, fetchWallets, user])
+  }, [fetchWalletById, fetchWalletTransactionCount, fetchWallets, sortWalletsByCreatedAt, user])
 
   const hardDeleteWallet = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
@@ -187,6 +241,45 @@ export function useWallets() {
 
     return { error: rpcResult.error }
   }, [fetchWallets, user])
+
+  const restoreWallet = useCallback(async (id) => {
+    if (!user) return { error: 'Not authenticated' }
+
+    const walletToRestore = archivedWallets.find((wallet) => wallet.id === id) || null
+    const rpcResult = await supabase.rpc('restore_wallet_safely', {
+      p_wallet_id: id,
+    })
+
+    if (!rpcResult.error) {
+      if (walletToRestore) {
+        const restoredWallet = {
+          ...walletToRestore,
+          is_archived: false,
+          updated_at: new Date().toISOString(),
+        }
+
+        setArchivedWallets((prev) => prev.filter((wallet) => wallet.id !== id))
+        setWallets((prev) => {
+          const nextWallets = prev.some((wallet) => wallet.id === id)
+            ? prev.map((wallet) => (wallet.id === id ? { ...wallet, ...restoredWallet } : wallet))
+            : [...prev, restoredWallet]
+
+          return sortWalletsByCreatedAt(nextWallets)
+        })
+      }
+
+      fetchWallets().catch(() => null)
+      return {
+        data: {
+          wallet_id: id,
+          wallet_name: rpcResult.data?.wallet_name || walletToRestore?.name || null,
+        },
+        error: null,
+      }
+    }
+
+    return { data: null, error: rpcResult.error }
+  }, [archivedWallets, fetchWallets, sortWalletsByCreatedAt, user])
 
   const clearAllWallets = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
@@ -243,6 +336,11 @@ export function useWallets() {
           wallet.id === walletId ? { ...wallet, name: nextWalletName } : wallet
         )
       )
+      setArchivedWallets((prev) =>
+        prev.map((wallet) =>
+          wallet.id === walletId ? { ...wallet, name: nextWalletName } : wallet
+        )
+      )
 
       fetchWallets().catch(() => null)
       return {
@@ -264,11 +362,13 @@ export function useWallets() {
 
   return {
     wallets,
+    archivedWallets,
     loading,
     totalBalance,
     addWallet,
     deleteWallet,
     hardDeleteWallet,
+    restoreWallet,
     clearAllWallets,
     updateBalance,
     renameWallet,
