@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { buildHistoryPresentation } from '../lib/historyPresentation'
+import { inferCategoryFromText } from '../lib/categoryCatalog'
 
 const TRANSACTION_SELECT = `
   *,
@@ -26,7 +27,11 @@ export function useTransactions() {
       analyticsBucket: transaction.analytics_bucket,
     })
     const walletName = transaction.wallets?.name || 'Unknown'
-    const categoryName = transaction.categories?.name || 'Lainnya'
+    const inferredCategory = inferCategoryFromText({
+      text: [transaction.merchant, transaction.notes].filter(Boolean).join(' '),
+      transactionType: transaction.transaction_type,
+    })
+    const categoryName = transaction.categories?.name || inferredCategory.categoryName || 'Lainnya'
     const historyPresentation = buildHistoryPresentation({
       merchant: transaction.merchant,
       notes: transaction.notes,

@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
 import {
+  DEFAULT_CATEGORY_TEMPLATES,
   buildAutoCategoryPayload,
   buildCategoryOptions,
   findFallbackCategory,
+  normalizeCategoryLookup,
   resolveExistingCategory,
 } from '../lib/categoryCatalog'
 
@@ -23,7 +25,45 @@ export function useCategories() {
       .eq('user_id', user.id)
       .order('name', { ascending: true })
 
-    if (!error && data) setCategories(data)
+    if (!error && data) {
+      let nextCategories = data
+      const existingNames = new Set(
+        nextCategories.map((category) => normalizeCategoryLookup(category.name))
+      )
+      const missingDefaults = DEFAULT_CATEGORY_TEMPLATES.filter(
+        (category) => !existingNames.has(normalizeCategoryLookup(category.name))
+      )
+
+      if (missingDefaults.length > 0) {
+        const { error: seedError } = await supabase
+          .from('categories')
+          .insert(
+            missingDefaults.map((category) => ({
+              user_id: user.id,
+              name: category.name,
+              icon: category.icon,
+              color: category.color,
+              category_type: category.categoryType,
+            }))
+          )
+
+        if (seedError) {
+          console.warn('Default category sync failed:', seedError)
+        } else {
+          const { data: refreshedCategories, error: refreshError } = await supabase
+            .from('categories')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('name', { ascending: true })
+
+          if (!refreshError && refreshedCategories) {
+            nextCategories = refreshedCategories
+          }
+        }
+      }
+
+      setCategories(nextCategories)
+    }
     setLoading(false)
   }, [user])
 

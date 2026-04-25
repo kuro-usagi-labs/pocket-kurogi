@@ -323,6 +323,13 @@ const CATEGORY_TEMPLATES = [
   },
 ]
 
+export const DEFAULT_CATEGORY_TEMPLATES = CATEGORY_TEMPLATES.map((template) => ({
+  name: template.name,
+  icon: template.icon,
+  color: template.color,
+  categoryType: template.categoryType,
+}))
+
 const NORMALIZED_CATEGORY_TEMPLATES = CATEGORY_TEMPLATES.map((template) => ({
   ...template,
   normalizedName: normalizeCategoryLookup(template.name),
