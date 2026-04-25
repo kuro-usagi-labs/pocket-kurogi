@@ -1,0 +1,20 @@
+revoke execute on all functions in schema public from public;
+revoke execute on all functions in schema public from anon;
+
+grant execute on function public.adjust_wallet_balance(uuid, numeric) to authenticated, service_role;
+grant execute on function public.contribute_to_goal(uuid, numeric, uuid) to authenticated, service_role;
+grant execute on function public.create_goal_with_contribution(text, numeric, date, text, numeric, uuid) to authenticated, service_role;
+grant execute on function public.create_wallet_with_opening_balance(text, numeric, text, text) to authenticated, service_role;
+grant execute on function public.delete_goal_and_restore_funds(uuid, uuid) to authenticated, service_role;
+grant execute on function public.delete_transaction_and_revert_balance(uuid) to authenticated, service_role;
+grant execute on function public.delete_wallet_permanently_safe(uuid) to authenticated, service_role;
+grant execute on function public.ensure_default_wallet() to authenticated, service_role;
+grant execute on function public.get_analytics_snapshot(timestamptz, timestamptz) to authenticated, service_role;
+grant execute on function public.get_name_conflicts() to authenticated, service_role;
+grant execute on function public.learn_from_chat_input(text, uuid, uuid, text[], text[]) to authenticated, service_role;
+grant execute on function public.record_transaction(uuid, uuid, text, numeric, text, text, text, timestamptz) to authenticated, service_role;
+grant execute on function public.rename_goal(uuid, text) to authenticated, service_role;
+grant execute on function public.rename_wallet(uuid, text) to authenticated, service_role;
+grant execute on function public.restore_wallet_safely(uuid) to authenticated, service_role;
+grant execute on function public.transfer_between_wallets(uuid, uuid, numeric, text, timestamptz) to authenticated, service_role;
+grant execute on function public.withdraw_from_goal(uuid, numeric, uuid, text, timestamptz) to authenticated, service_role;
