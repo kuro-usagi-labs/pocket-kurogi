@@ -107,21 +107,167 @@ export function TransactionIcon({ iconKey, category, size = 20, strokeWidth = 2,
 
 const WALLET_KEYWORDS = {
   bank: Landmark,
-  bca: Landmark,
-  mandiri: Landmark,
-  bni: Landmark,
-  bri: Landmark,
   private: Landmark,
-  gopay: Smartphone,
-  ovo: Smartphone,
-  dana: Smartphone,
-  shopee: Smartphone,
-  linkaja: Smartphone,
   pay: Smartphone,
+}
+
+const BRAND_WALLETS = [
+  {
+    keys: ['bca'],
+    label: 'BCA',
+    bg: '#EAF3FF',
+    fg: '#0066B3',
+    textClass: 'font-black tracking-[-0.03em]',
+  },
+  {
+    keys: ['dana'],
+    label: 'DANA',
+    bg: '#EAF6FF',
+    fg: '#118EEA',
+    textClass: 'font-black tracking-[-0.02em]',
+  },
+  {
+    keys: ['gopay', 'go pay'],
+    label: 'Go',
+    subLabel: 'Pay',
+    bg: '#E8F7FF',
+    fg: '#00AED6',
+    textClass: 'font-black tracking-[-0.04em]',
+  },
+  {
+    keys: ['ovo'],
+    label: 'OVO',
+    bg: '#F2ECFF',
+    fg: '#4C2A86',
+    textClass: 'font-black tracking-[-0.02em]',
+  },
+  {
+    keys: ['shopeepay', 'shopee pay', 'shopee'],
+    label: 'S',
+    subLabel: 'Pay',
+    bg: '#FFF0EA',
+    fg: '#EE4D2D',
+    textClass: 'font-black',
+  },
+  {
+    keys: ['linkaja', 'link aja'],
+    label: 'Link',
+    subLabel: 'Aja',
+    bg: '#FFEDEE',
+    fg: '#E2231A',
+    textClass: 'font-black tracking-[-0.06em]',
+  },
+  {
+    keys: ['mandiri'],
+    label: 'M',
+    subLabel: 'Mandiri',
+    bg: '#FFF8DB',
+    fg: '#003D79',
+    accent: '#F7C600',
+    textClass: 'font-black',
+  },
+  {
+    keys: ['bni'],
+    label: 'BNI',
+    bg: '#FFF2E8',
+    fg: '#F15A24',
+    accent: '#006B5B',
+    textClass: 'font-black tracking-[-0.03em]',
+  },
+  {
+    keys: ['bri'],
+    label: 'BRI',
+    bg: '#EDF4FF',
+    fg: '#00529C',
+    textClass: 'font-black tracking-[-0.03em]',
+  },
+  {
+    keys: ['jago'],
+    label: 'Jago',
+    bg: '#FFF4E4',
+    fg: '#F37021',
+    textClass: 'font-black tracking-[-0.05em]',
+  },
+  {
+    keys: ['seabank', 'sea bank'],
+    label: 'Sea',
+    subLabel: 'Bank',
+    bg: '#FFF3E8',
+    fg: '#F36F21',
+    textClass: 'font-black tracking-[-0.04em]',
+  },
+]
+
+function normalizeWalletName(name = '') {
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function findBrandWallet(walletName) {
+  const normalized = normalizeWalletName(walletName)
+  const compact = normalized.replace(/\s+/g, '')
+  const tokens = normalized.split(' ').filter(Boolean)
+
+  return BRAND_WALLETS.find((brand) => (
+    brand.keys.some((key) => {
+      const normalizedKey = normalizeWalletName(key)
+      const compactKey = normalizedKey.replace(/\s+/g, '')
+
+      if (normalizedKey.includes(' ')) {
+        return normalized.includes(normalizedKey) || compact.includes(compactKey)
+      }
+
+      return tokens.some((token) => token === normalizedKey || new RegExp(`^${normalizedKey}\\d+$`).test(token))
+    })
+  ))
+}
+
+function BrandWalletIcon({ brand, size = 20, className = '', ...props }) {
+  const width = typeof size === 'number' ? size + 8 : size
+  const height = size
+
+  return (
+    <span
+      aria-label={brand.label + (brand.subLabel ? ` ${brand.subLabel}` : '')}
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] ${className}`}
+      role="img"
+      style={{
+        width,
+        height,
+        backgroundColor: brand.bg,
+        color: brand.fg,
+      }}
+      {...props}
+    >
+      {brand.accent ? (
+        <span
+          className="absolute bottom-0 left-0 h-[3px] w-full"
+          style={{ backgroundColor: brand.accent }}
+        />
+      ) : null}
+      <span className={`relative font-jakarta text-[9px] leading-none ${brand.textClass}`}>
+        {brand.label}
+      </span>
+      {brand.subLabel ? (
+        <span className="relative ml-0.5 font-jakarta text-[6px] font-black uppercase leading-none tracking-[-0.04em]">
+          {brand.subLabel}
+        </span>
+      ) : null}
+    </span>
+  )
 }
 
 export function WalletIcon({ walletName, size = 20, strokeWidth = 2, ...props }) {
   const lower = (walletName || '').toLowerCase()
+  const brand = findBrandWallet(walletName)
+
+  if (brand) {
+    return <BrandWalletIcon brand={brand} size={size} {...props} />
+  }
+
   const matchedKey = Object.keys(WALLET_KEYWORDS).find((k) => lower.includes(k))
   const Icon = matchedKey ? WALLET_KEYWORDS[matchedKey] : Wallet
   return <Icon size={size} strokeWidth={strokeWidth} {...props} />

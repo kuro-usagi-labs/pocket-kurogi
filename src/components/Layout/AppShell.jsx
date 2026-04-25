@@ -67,7 +67,7 @@ function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = 
     return [
       `Hapus dompet ${highlightedName}?`,
       `Saldo yang masih tersisa: ${highlightedBalance}.`,
-      'Kalau lanjut, dompet masuk arsip. Histori tetap aman.',
+      'Kalau lanjut, dompet dan riwayat transaksinya akan dihapus.',
       markdown
         ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
         : 'Lanjutkan penghapusan?',
@@ -76,19 +76,15 @@ function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = 
 
   return [
     `Hapus dompet ${highlightedName}?`,
-    'Dompet akan dihapus atau masuk arsip sesuai histori.',
+    'Dompet dan riwayat transaksinya akan dihapus.',
     markdown
       ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
       : 'Lanjutkan penghapusan?',
   ].join('\n\n')
 }
 
-function buildWalletDeletionSuccess(walletName, mode) {
-  if (mode === 'deleted') {
-    return `Dompet **${walletName}** berhasil dihapus permanen.`
-  }
-
-  return `Dompet **${walletName}** berhasil dihapus dari daftar aktif.`
+function buildWalletDeletionSuccess(walletName) {
+  return `Dompet **${walletName}** berhasil dihapus.`
 }
 
 function buildWalletRestorePrompt(wallet, { markdown = false } = {}) {
@@ -108,12 +104,8 @@ function buildWalletRestoreSuccess(walletName) {
   return `Dompet **${walletName}** berhasil dipulihkan ke daftar aktif.`
 }
 
-function buildWalletDeletionNotice(walletName, mode) {
-  if (mode === 'deleted') {
-    return `Dompet ${walletName} berhasil dihapus permanen.`
-  }
-
-  return `Dompet ${walletName} berhasil dipindahkan ke arsip.`
+function buildWalletDeletionNotice(walletName) {
+  return `Dompet ${walletName} berhasil dihapus.`
 }
 
 function buildWalletRestoreNotice(walletName) {
@@ -129,7 +121,7 @@ function getWalletDeletionDialogCopy(wallet, formatRupiah) {
       title: `Hapus dompet "${walletName}"?`,
       paragraphs: [
         `Saldo yang masih tersisa: ${formatRupiah(balance)}.`,
-        'Kalau lanjut, dompet masuk arsip. Histori tetap aman.',
+        'Kalau lanjut, dompet dan riwayat transaksinya akan dihapus.',
       ],
       confirmLabel: 'Hapus Dompet',
       tone: 'danger',
@@ -139,24 +131,10 @@ function getWalletDeletionDialogCopy(wallet, formatRupiah) {
   return {
     title: `Hapus dompet "${walletName}"?`,
     paragraphs: [
-      'Dompet akan dihapus atau masuk arsip sesuai histori.',
+      'Dompet dan riwayat transaksinya akan dihapus.',
     ],
     confirmLabel: 'Hapus Dompet',
     tone: 'danger',
-  }
-}
-
-function getWalletRestoreDialogCopy(wallet) {
-  const walletName = wallet?.name || 'dompet ini'
-
-  return {
-    title: `Pulihkan dompet "${walletName}"?`,
-    paragraphs: [
-      'Dompet ini akan kembali muncul di daftar aktif.',
-      'Setelah dipulihkan, dompet bisa dipakai lagi untuk transaksi dan perintah chat.',
-    ],
-    confirmLabel: 'Pulihkan',
-    tone: 'primary',
   }
 }
 
@@ -365,7 +343,7 @@ function mapDomainError(error) {
   }
 
   if (message.includes('wallet not found') || message.includes('source wallet not found') || message.includes('destination wallet not found')) {
-    return 'Dompet yang dimaksud tidak ditemukan atau sudah diarsipkan.'
+    return 'Dompet yang dimaksud tidak ditemukan atau sudah tidak aktif.'
   }
 
   if (message.includes('goal not found')) {
@@ -1134,7 +1112,7 @@ export default function AppShell() {
           })
 
           return {
-            text: buildWalletDeletionSuccess(pendingAction.walletName, deleteResult.mode),
+            text: buildWalletDeletionSuccess(pendingAction.walletName),
           }
         }
 
@@ -1572,20 +1550,6 @@ export default function AppShell() {
     return { error: null, mode: null }
   }, [formatRupiah, wallets])
 
-  const handleRestoreWallet = useCallback(async (id) => {
-    const targetWallet = archivedWallets.find((wallet) => wallet.id === id)
-    const dialogCopy = getWalletRestoreDialogCopy(targetWallet)
-
-    setActionDialog({
-      type: 'restore_wallet',
-      walletId: id,
-      walletName: targetWallet?.name || 'dompet ini',
-      ...dialogCopy,
-    })
-
-    return { error: null }
-  }, [archivedWallets])
-
   const closeActionDialog = useCallback(() => {
     if (dialogSubmitting) {
       return
@@ -1635,7 +1599,7 @@ export default function AppShell() {
           analytics: true,
           names: true,
         })
-        showNotice(buildWalletDeletionNotice(actionDialog.walletName, result.mode), 'success')
+        showNotice(buildWalletDeletionNotice(actionDialog.walletName), 'success')
       }
 
       if (actionDialog.type === 'restore_wallet') {
@@ -1766,13 +1730,11 @@ export default function AppShell() {
                 >
                   <WalletsView
                     wallets={wallets}
-                    archivedWallets={archivedWallets}
                     totalBalance={grandTotalBalance}
                     goals={goals}
                     conflicts={conflicts}
                     onAddWallet={handleAddWallet}
                     onDeleteWallet={handleDeleteWallet}
-                    onRestoreWallet={handleRestoreWallet}
                     onRenameWallet={handleRenameWallet}
                     onAddGoal={handleAddGoal}
                     onDeleteGoal={handleDeleteGoal}

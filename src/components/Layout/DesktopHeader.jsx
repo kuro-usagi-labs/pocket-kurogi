@@ -11,7 +11,7 @@ const PAGE_COPY = {
   },
   wallets: {
     title: 'Dompet',
-    subtitle: 'Saldo, arsip, dan target.',
+    subtitle: 'Saldo dan target.',
   },
   analytics: {
     title: 'Analitik',

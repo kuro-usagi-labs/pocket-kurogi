@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X, Target, Pencil, AlertTriangle, Archive, RotateCcw, Wallet } from 'lucide-react'
+import { Plus, X, Target, Pencil, AlertTriangle, Wallet } from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
 import AddGoalModal from './AddGoalModal'
@@ -9,41 +9,13 @@ function formatWalletBalance(value) {
   return Number(value || 0)
 }
 
-function formatCompactRupiah(value) {
-  const amount = Number(value || 0)
-  const absoluteAmount = Math.abs(amount)
-  const sign = amount < 0 ? '-' : ''
-
-  if (absoluteAmount >= 1_000_000) {
-    const compactValue = new Intl.NumberFormat('id-ID', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 1,
-    }).format(absoluteAmount / 1_000_000)
-
-    return `${sign}Rp${compactValue} jt`
-  }
-
-  if (absoluteAmount >= 1_000) {
-    const compactValue = new Intl.NumberFormat('id-ID', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(absoluteAmount / 1_000)
-
-    return `${sign}Rp${compactValue} rb`
-  }
-
-  return `${sign}Rp${absoluteAmount}`
-}
-
 export default function WalletsView({
   wallets,
-  archivedWallets = [],
   totalBalance,
   goals = [],
   conflicts = { wallets: [], goals: [] },
   onAddWallet,
   onDeleteWallet,
-  onRestoreWallet,
   onRenameWallet,
   onAddGoal,
   onDeleteGoal,
@@ -52,19 +24,11 @@ export default function WalletsView({
 }) {
   const [showAddWallet, setShowAddWallet] = useState(false)
   const [showAddGoal, setShowAddGoal] = useState(false)
-  const [walletTab, setWalletTab] = useState('active')
   const [renameDialog, setRenameDialog] = useState(null)
 
   const hasConflicts = conflicts.wallets.length > 0 || conflicts.goals.length > 0
   const activeWalletCount = wallets.length
-  const archivedWalletCount = archivedWallets.length
-  const archivedBalance = archivedWallets.reduce(
-    (sum, wallet) => sum + formatWalletBalance(wallet.current_balance),
-    0
-  )
   const fundedGoalsCount = goals.filter((goal) => Number(goal.current_amount || 0) > 0).length
-  const showingArchivedWallets = walletTab === 'archived'
-  const visibleWallets = showingArchivedWallets ? archivedWallets : wallets
 
   const handleRenameWallet = (wallet) => {
     setRenameDialog({
@@ -136,7 +100,7 @@ export default function WalletsView({
       <div className="mb-4 flex items-end justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-jakarta text-[22px] font-extrabold tracking-tight text-midnight">Dompet</h2>
-          <p className="mt-1 text-[13px] font-semibold text-muted">Saldo, arsip, target.</p>
+          <p className="mt-1 text-[13px] font-semibold text-muted">Saldo dan target.</p>
         </div>
         <button
           onClick={() => setShowAddWallet(true)}
@@ -158,50 +122,21 @@ export default function WalletsView({
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 border-t border-midnight/8 pt-3 lg:min-w-[420px] lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
-            <Stat label="Aktif" value={activeWalletCount} />
-            <Stat label="Arsip" value={formatCompactRupiah(archivedBalance)} />
+          <div className="grid grid-cols-2 gap-2 border-t border-midnight/8 pt-3 lg:min-w-[320px] lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+            <Stat label="Dompet" value={activeWalletCount} />
             <Stat label="Target" value={`${fundedGoalsCount}/${goals.length || 0}`} />
           </div>
         </div>
       </section>
 
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg border border-midnight/8 bg-white p-1 shadow-sm">
-        <TabButton
-          active={!showingArchivedWallets}
-          label="Aktif"
-          value={`${activeWalletCount} dompet`}
-          onClick={() => setWalletTab('active')}
-        />
-        <TabButton
-          active={showingArchivedWallets}
-          label="Arsip"
-          value={`${archivedWalletCount} dompet`}
-          onClick={() => setWalletTab('archived')}
-        />
-      </div>
-
-      {showingArchivedWallets ? (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-midnight/8 bg-white px-4 py-3 text-muted shadow-sm">
-          <Archive size={17} className="mt-0.5 shrink-0 text-midnight/60" />
-          <p className="text-[13px] font-medium leading-relaxed">
-            Dompet arsip hanya untuk histori. Pulihkan untuk dipakai lagi.
-          </p>
-        </div>
-      ) : null}
-
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {visibleWallets.map((wallet) => {
+        {wallets.map((wallet) => {
           const balance = formatWalletBalance(wallet.current_balance)
 
           return (
             <div
               key={wallet.id}
-              className={`flex min-h-[188px] flex-col rounded-lg border p-4 shadow-sm transition-all ${
-                showingArchivedWallets
-                  ? 'border-midnight/8 bg-cream/60'
-                  : 'border-midnight/8 bg-white hover:border-midnight/16 hover:shadow-premium'
-              }`}
+              className="flex min-h-[188px] flex-col rounded-lg border border-midnight/8 bg-white p-4 shadow-sm transition-all hover:border-midnight/16 hover:shadow-premium"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
@@ -210,7 +145,7 @@ export default function WalletsView({
                   </div>
                   <div className="min-w-0">
                     <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
-                      {showingArchivedWallets ? 'Arsip' : 'Aktif'}
+                      Dompet
                     </p>
                     <h3 className="mt-1 truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight">
                       {wallet.name}
@@ -218,12 +153,8 @@ export default function WalletsView({
                   </div>
                 </div>
 
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] ${
-                    showingArchivedWallets ? 'bg-midnight/8 text-muted' : 'bg-emerald-50 text-emerald-700'
-                  }`}
-                >
-                  {showingArchivedWallets ? 'Arsip' : 'Aktif'}
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
+                  Aktif
                 </span>
               </div>
 
@@ -237,61 +168,42 @@ export default function WalletsView({
               </div>
 
               <div className="mt-auto pt-4">
-                {showingArchivedWallets ? (
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => onRestoreWallet(wallet.id)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-midnight px-4 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-white transition-all hover:brightness-110 active:scale-[0.98]"
-                    title="Pulihkan dompet"
+                    onClick={() => handleRenameWallet(wallet)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+                    title="Ubah nama"
                   >
-                    <RotateCcw size={15} strokeWidth={2.3} />
-                    Pulihkan
+                    <Pencil size={14} strokeWidth={2.1} />
+                    Ubah
                   </button>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleRenameWallet(wallet)}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
-                      title="Ubah nama"
-                    >
-                      <Pencil size={14} strokeWidth={2.1} />
-                      Ubah
-                    </button>
-                    <button
-                      onClick={() => onDeleteWallet(wallet.id)}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
-                      title="Arsipkan dompet"
-                    >
-                      <X size={15} strokeWidth={2.1} />
-                      Arsip
-                    </button>
-                  </div>
-                )}
+                  <button
+                    onClick={() => onDeleteWallet(wallet.id)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+                    title="Hapus dompet"
+                  >
+                    <X size={15} strokeWidth={2.1} />
+                    Hapus
+                  </button>
+                </div>
               </div>
             </div>
           )
         })}
 
-        {!showingArchivedWallets ? (
-          <button
-            type="button"
-            onClick={() => setShowAddWallet(true)}
-            className="flex min-h-[204px] flex-col items-center justify-center rounded-lg border border-dashed border-midnight/20 bg-white/60 p-6 text-center transition-all hover:border-midnight/30 hover:bg-white"
-          >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-champagne text-midnight">
-              <Wallet size={22} strokeWidth={2} />
-            </div>
-            <p className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
-              Dompet baru
-            </p>
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => setShowAddWallet(true)}
+          className="flex min-h-[204px] flex-col items-center justify-center rounded-lg border border-dashed border-midnight/20 bg-white/60 p-6 text-center transition-all hover:border-midnight/30 hover:bg-white"
+        >
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-champagne text-midnight">
+            <Wallet size={22} strokeWidth={2} />
+          </div>
+          <p className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
+            Dompet baru
+          </p>
+        </button>
       </div>
-
-      {visibleWallets.length === 0 && showingArchivedWallets ? (
-        <div className="mb-8 rounded-lg border border-dashed border-midnight/15 bg-white px-5 py-8 text-center shadow-sm">
-          <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada arsip.</p>
-        </div>
-      ) : null}
 
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
@@ -425,20 +337,5 @@ function Stat({ label, value }) {
         {value}
       </p>
     </div>
-  )
-}
-
-function TabButton({ active, label, value, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-md px-3 py-2.5 text-left transition-all ${
-        active ? 'bg-midnight text-white shadow-sm' : 'text-muted hover:bg-champagne hover:text-midnight'
-      }`}
-    >
-      <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.12em]">{label}</p>
-      <p className={`mt-0.5 text-[12px] font-bold ${active ? 'text-white/75' : 'text-muted'}`}>{value}</p>
-    </button>
   )
 }
