@@ -1,5 +1,5 @@
-import { createElement, useState } from 'react'
-import { Calendar, ChevronRight, Info, Plus, Target, Trash2, Pencil, AlertTriangle, Wallet, X } from 'lucide-react'
+import { createElement, useEffect, useRef, useState } from 'react'
+import { Calendar, Info, MoreHorizontal, Plus, Target, Trash2, Pencil, AlertTriangle, Wallet, X } from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
 import AddGoalModal from './AddGoalModal'
@@ -7,6 +7,21 @@ import RenameEntityModal from '../shared/RenameEntityModal'
 
 function formatWalletBalance(value) {
   return Number(value || 0)
+}
+
+function formatWalletTypeLabel(walletType) {
+  const normalized = String(walletType || '')
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+
+  if (normalized === 'bank') return 'Dompet bank'
+  if (normalized === 'cash') return 'Dompet tunai'
+  if (normalized === 'e_wallet' || normalized === 'ewallet') return 'Dompet e-wallet'
+  if (normalized === 'savings') return 'Tabungan'
+  if (normalized === 'investment') return 'Investasi'
+  if (normalized === 'goal') return 'Dompet target'
+
+  return normalized ? `Dompet ${normalized.replace(/_/g, ' ')}` : 'Dompet aktif'
 }
 
 export default function WalletsView({
@@ -131,27 +146,35 @@ export default function WalletsView({
         </div>
       </section>
 
-      <div className="mb-6 overflow-hidden rounded-[22px] border border-midnight/10 bg-white shadow-[0_14px_38px_rgba(15,23,42,0.05)]">
-        {wallets.map((wallet) => (
-          <WalletRow
-            key={wallet.id}
-            wallet={wallet}
-            formatRupiah={formatRupiah}
-            onRename={() => handleRenameWallet(wallet)}
-            onDelete={() => onDeleteWallet(wallet.id)}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => setShowAddWallet(true)}
-          className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-emerald-50/50"
-        >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-600">
-            <Plus size={26} strokeWidth={2.2} />
-          </span>
-          <span className="font-jakarta text-[18px] font-extrabold text-midnight">Dompet baru</span>
-        </button>
-      </div>
+      <section className="mb-6 rounded-[26px] border border-midnight/10 bg-[#FBFCFE] p-3 shadow-[0_18px_44px_rgba(15,23,42,0.04)] sm:p-4">
+        {wallets.length > 0 ? (
+          <div className="space-y-3">
+            {wallets.map((wallet) => (
+              <WalletRow
+                key={wallet.id}
+                wallet={wallet}
+                formatRupiah={formatRupiah}
+                onRename={() => handleRenameWallet(wallet)}
+                onDelete={() => onDeleteWallet(wallet.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAddWallet(true)}
+            className="flex w-full items-center gap-4 rounded-[22px] border border-dashed border-midnight/15 bg-white px-5 py-6 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
+          >
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600">
+              <Plus size={28} strokeWidth={2.2} />
+            </span>
+            <span>
+              <span className="block font-jakarta text-[18px] font-extrabold text-midnight">Tambah dompet</span>
+              <span className="mt-1 block text-[15px] font-medium text-muted">Mulai dari dompet utama kamu.</span>
+            </span>
+          </button>
+        )}
+      </section>
 
       <div className="mb-6 flex items-start gap-4 rounded-[16px] border border-emerald-100 bg-emerald-50/50 px-5 py-4 text-muted">
         <Info size={28} className="mt-0.5 shrink-0 text-emerald-600" />
@@ -284,64 +307,97 @@ export default function WalletsView({
 
 function WalletRow({ wallet, formatRupiah, onRename, onDelete }) {
   const balance = formatWalletBalance(wallet.current_balance)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [menuOpen])
+
+  const handleRenameClick = () => {
+    setMenuOpen(false)
+    onRename()
+  }
+
+  const handleDeleteClick = () => {
+    setMenuOpen(false)
+    onDelete()
+  }
 
   return (
-    <div className="group flex items-center gap-4 border-b border-midnight/8 px-5 py-4 last:border-b-0">
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-600">
-        <WalletIcon walletName={wallet.name} size={34} />
+    <div className="grid grid-cols-[auto,minmax(0,1fr),auto] items-start gap-4 rounded-[24px] border border-midnight/8 bg-white px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.03)] transition-all hover:border-emerald-200/80 hover:shadow-[0_16px_34px_rgba(15,23,42,0.06)] sm:px-5 sm:py-5">
+      <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-slate-50 to-white ring-1 ring-midnight/5 sm:h-[76px] sm:w-[76px]">
+        <WalletIcon walletName={wallet.name} size={40} />
       </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate font-jakarta text-[19px] font-extrabold tracking-tight text-midnight">
+      <div className="min-w-0">
+        <h3 className="truncate font-jakarta text-[21px] font-extrabold tracking-tight text-midnight sm:text-[22px]">
           {wallet.name}
         </h3>
-        <p className="mt-1 text-[15px] font-medium text-muted">
-          Dompet {String(wallet.wallet_type || 'aktif').replace('_', ' ')}
+        <p className="mt-2 text-[15px] font-medium text-muted sm:text-[16px]">
+          {formatWalletTypeLabel(wallet.wallet_type)}
         </p>
       </div>
-      <div className="hidden items-center gap-1 sm:flex">
-        <button
-          type="button"
-          onClick={onRename}
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-muted opacity-0 transition-all hover:bg-champagne hover:text-midnight group-hover:opacity-100"
-          aria-label={`Ubah ${wallet.name}`}
-          title="Ubah nama"
-        >
-          <Pencil size={17} />
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-muted opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-          aria-label={`Hapus ${wallet.name}`}
-          title="Hapus dompet"
-        >
-          <Trash2 size={17} />
-        </button>
-      </div>
-      <div className="flex items-center gap-1 sm:hidden">
-        <button
-          type="button"
-          onClick={onRename}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-champagne text-muted"
-          aria-label={`Ubah ${wallet.name}`}
-        >
-          <Pencil size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600"
-          aria-label={`Hapus ${wallet.name}`}
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
-      <div className="shrink-0 text-right">
-        <p className="font-jakarta text-[18px] font-bold tracking-tight text-midnight">
+      <div className="relative flex min-w-[88px] flex-col items-end pt-1 text-right">
+        <p className="font-jakarta text-[20px] font-extrabold tracking-tight text-midnight sm:text-[21px]">
           {formatRupiah(balance)}
         </p>
+        <div ref={menuRef} className="relative mt-4">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-midnight/8 bg-slate-50 text-muted shadow-sm transition-all hover:border-midnight/12 hover:bg-white hover:text-midnight"
+            aria-label={`Aksi untuk ${wallet.name}`}
+            aria-expanded={menuOpen}
+          >
+            <MoreHorizontal size={18} />
+          </button>
+
+          {menuOpen ? (
+            <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[16px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
+              <button
+                type="button"
+                onClick={handleRenameClick}
+                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-midnight transition-colors hover:bg-slate-50"
+              >
+                <Pencil size={15} />
+                Ubah
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteClick}
+                className="mt-1 flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50"
+              >
+                <Trash2 size={15} />
+                Hapus
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
-      <ChevronRight size={23} className="hidden shrink-0 text-muted sm:block" />
     </div>
   )
 }
