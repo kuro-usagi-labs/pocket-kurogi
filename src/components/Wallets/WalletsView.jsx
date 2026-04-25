@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { createElement, useState } from 'react'
 import { Calendar, ChevronRight, Info, Plus, Target, Trash2, Pencil, AlertTriangle, Wallet } from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
@@ -346,13 +346,12 @@ function WalletRow({ wallet, formatRupiah, onRename, onDelete }) {
   )
 }
 
-function Stat({ icon, label, value, muted = false }) {
-  const iconNode = icon({ size: 24, strokeWidth: 2.2 })
+function Stat({ icon: IconComponent, label, value, muted = false }) {
 
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-[16px] border border-midnight/10 bg-white px-3 py-4">
       <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${muted ? 'bg-midnight/5 text-muted' : 'bg-emerald-50 text-emerald-600'}`}>
-        {iconNode}
+        {createElement(IconComponent, { size: 24, strokeWidth: 2.2 })}
       </span>
       <span className="min-w-0">
         <span className="block truncate font-jakarta text-[15px] font-medium text-muted">

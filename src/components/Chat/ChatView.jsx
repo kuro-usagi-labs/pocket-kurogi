@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { createElement, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { BarChart3, ClipboardList, PieChart, Plus } from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
@@ -160,8 +160,7 @@ function HeroCard() {
   )
 }
 
-function QuickAction({ icon, label, onClick }) {
-  const iconNode = icon({ size: 23, strokeWidth: 2.2 })
+function QuickAction({ icon: IconComponent, label, onClick }) {
 
   return (
     <button
@@ -170,7 +169,7 @@ function QuickAction({ icon, label, onClick }) {
       className="flex min-h-[70px] items-center justify-center gap-3 rounded-[18px] border border-midnight/10 bg-white px-4 py-4 font-jakarta text-[16px] font-bold text-midnight shadow-[0_10px_28px_rgba(15,23,42,0.04)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40"
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-emerald-600 text-emerald-600">
-        {iconNode}
+        {createElement(IconComponent, { size: 23, strokeWidth: 2.2 })}
       </span>
       <span>{label}</span>
     </button>
