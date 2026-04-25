@@ -1,5 +1,5 @@
 import { createElement, useState } from 'react'
-import { Calendar, ChevronRight, Info, Plus, Target, Trash2, Pencil, AlertTriangle, Wallet } from 'lucide-react'
+import { Calendar, ChevronRight, Info, Plus, Target, Trash2, Pencil, AlertTriangle, Wallet, X } from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
 import AddGoalModal from './AddGoalModal'
