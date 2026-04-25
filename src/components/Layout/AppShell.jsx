@@ -7,6 +7,8 @@ import { useBudgets } from '../../hooks/useBudgets'
 import { useInputLearning } from '../../hooks/useInputLearning'
 import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
+import DesktopHeader from './DesktopHeader'
+import DesktopSidebar from './DesktopSidebar'
 import ChatView from '../Chat/ChatView'
 import HistoryView from '../History/HistoryView'
 import WalletsView from '../Wallets/WalletsView'
@@ -996,8 +998,19 @@ export default function AppShell() {
 
         if (!fromWallet || !toWallet) {
           return {
-            text: 'Transfer antar dompet butuh dompet asal dan tujuan yang jelas. Sebutkan keduanya secara spesifik.',
+            text: analysis.prompt || [
+              'Transfer antar dompet butuh dompet asal dan tujuan yang jelas.',
+              'Format aman: "transfer 100rb dari BCA ke DANA".',
+            ].join('\n'),
             intentStatus: 'needs_confirmation',
+            metadata: walletCatalog.length
+              ? {
+                  candidates: walletCatalog.slice(0, 5).map((wallet) => ({
+                    id: wallet.id,
+                    name: wallet.name,
+                  })),
+                }
+              : undefined,
           }
         }
 
@@ -1658,14 +1671,20 @@ export default function AppShell() {
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-white font-inter text-midnight selection:bg-emerald-100 selection:text-midnight">
-      <main className="mx-auto flex h-[100dvh] w-full max-w-6xl min-w-0 flex-col overflow-hidden bg-white">
+      <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <main className="mx-auto flex h-[100dvh] w-full max-w-6xl min-w-0 flex-col overflow-hidden bg-white md:max-w-none md:bg-champagne">
         <AppHeader
           balance={grandTotalBalance}
           formatRupiah={formatRupiah}
           onBalanceClick={() => setActiveTab('wallets')}
         />
+        <DesktopHeader
+          activeTab={activeTab}
+          balance={grandTotalBalance}
+          formatRupiah={formatRupiah}
+        />
 
-        <div className="relative flex-1 overflow-hidden">
+        <div className="relative flex-1 overflow-hidden md:m-5 md:mt-0 md:rounded-[28px] md:border md:border-midnight/8 md:bg-white md:shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
                 <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
                   <ChatView
                     messages={
@@ -1690,7 +1709,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
                     activeTab === 'history' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1705,7 +1724,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
                     activeTab === 'wallets' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1725,7 +1744,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
                     activeTab === 'analytics' ? 'block' : 'hidden'
                   }`}
                 >

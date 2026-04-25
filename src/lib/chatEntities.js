@@ -1,6 +1,7 @@
 export function normalizeEntityName(value = '') {
   return String(value || '')
     .trim()
+    .replace(/[^\p{L}\p{N}\s&-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .toLowerCase()
 }
@@ -116,6 +117,23 @@ export function resolveOptionReference({
     }
   }
 
+  const fuzzyMatches = findFuzzyMatches(normalizedInput, options)
+  if (fuzzyMatches.length === 1) {
+    return {
+      match: null,
+      candidates: fuzzyMatches,
+      reason: 'fuzzy',
+    }
+  }
+
+  if (fuzzyMatches.length > 1) {
+    return {
+      match: null,
+      candidates: fuzzyMatches,
+      reason: 'ambiguous',
+    }
+  }
+
   return {
     match: null,
     candidates: [],
@@ -189,4 +207,54 @@ export function findOptionAfterKeyword({
     candidates: [],
     reason: 'missing',
   }
+}
+
+function findFuzzyMatches(normalizedInput, options = []) {
+  const inputTokens = normalizedInput.split(/\s+/).filter(Boolean)
+
+  return options
+    .map((option) => {
+      const normalizedOption = option.normalizedName || normalizeEntityName(option.name)
+      const optionTokens = normalizedOption.split(/\s+/).filter(Boolean)
+      const score = Math.min(
+        typoDistance(normalizedInput, normalizedOption),
+        ...inputTokens.flatMap((inputToken) =>
+          optionTokens.map((optionToken) => typoDistance(inputToken, optionToken))
+        )
+      )
+      const threshold = normalizedOption.length <= 5 ? 1 : 2
+
+      return { option, score, threshold }
+    })
+    .filter(({ score, threshold }) => score <= threshold)
+    .sort((left, right) => {
+      if (left.score !== right.score) return left.score - right.score
+      return left.option.normalizedName.length - right.option.normalizedName.length
+    })
+    .map(({ option }) => option)
+}
+
+function typoDistance(left = '', right = '') {
+  if (!left || !right) return Number.POSITIVE_INFINITY
+  if (left === right) return 0
+
+  const rows = left.length + 1
+  const cols = right.length + 1
+  const matrix = Array.from({ length: rows }, () => Array(cols).fill(0))
+
+  for (let row = 0; row < rows; row += 1) matrix[row][0] = row
+  for (let col = 0; col < cols; col += 1) matrix[0][col] = col
+
+  for (let row = 1; row < rows; row += 1) {
+    for (let col = 1; col < cols; col += 1) {
+      const cost = left[row - 1] === right[col - 1] ? 0 : 1
+      matrix[row][col] = Math.min(
+        matrix[row - 1][col] + 1,
+        matrix[row][col - 1] + 1,
+        matrix[row - 1][col - 1] + cost
+      )
+    }
+  }
+
+  return matrix[left.length][right.length]
 }

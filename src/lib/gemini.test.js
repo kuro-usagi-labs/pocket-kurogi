@@ -79,14 +79,38 @@ describe('analyzeWithRegex', () => {
     })
   })
 
-  it('asks for confirmation on unknown wallets instead of guessing', () => {
+  it('asks for confirmation on typo wallet names instead of guessing', () => {
     const result = analyzeWithRegex('beli kopi 50rb dari bcaa', walletOptions, goalOptions)
 
     expect(result).toMatchObject({
       type: 'needs_confirmation',
-      reason: 'unknown_wallet',
-      action: 'create_wallet',
-      walletName: 'bcaa',
+      reason: 'ambiguous_wallet',
+    })
+    expect(result.prompt).toContain('typo')
+    expect(result.candidates[0].name).toBe('BCA')
+  })
+
+  it('guides incomplete transfer commands with a safe format', () => {
+    const result = analyzeWithRegex('trf dari bcaa ke dana', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'needs_confirmation',
+      reason: 'missing_amount',
+      intent: {
+        type: 'transfer',
+      },
+    })
+    expect(result.prompt).toContain('transfer 100rb dari BCA ke DANA')
+  })
+
+  it('normalizes transfer typos and parses complete transfers', () => {
+    const result = analyzeWithRegex('tranfer 250rb dri bank jago syariah ke bca bisnis', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'transfer',
+      fromWalletId: 'wallet-jago',
+      toWalletId: 'wallet-bisnis',
+      amount: 250000,
     })
   })
 

@@ -1,12 +1,18 @@
 import { useState, useRef } from 'react'
 import { Mic, Paperclip, Send, X } from 'lucide-react'
+import { transcribeVoiceNote } from '../../lib/voiceTranscription'
 
 export default function ChatInput({ onSend, isTyping, onNotify }) {
   const [inputValue, setInputValue] = useState('')
-  const [isListening, setIsListening] = useState(false)
+  const [voiceState, setVoiceState] = useState('idle')
   const [selectedImage, setSelectedImage] = useState(null)
   const fileInputRef = useRef(null)
   const recognitionRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const audioStreamRef = useRef(null)
+  const recordTimeoutRef = useRef(null)
+  const isVoiceBusy = voiceState !== 'idle'
 
   const handleSubmit = (e) => {
     e?.preventDefault()
@@ -35,13 +41,42 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     e.target.value = ''
   }
 
-  const handleMicClick = () => {
-    if (isListening && recognitionRef.current) {
+  const sendTranscript = (transcript) => {
+    const cleanedTranscript = String(transcript || '').trim()
+    if (!cleanedTranscript || isTyping) return
+
+    onSend({
+      text: cleanedTranscript,
+      imageFile: selectedImage?.file || null,
+      imagePreview: selectedImage?.previewUrl || null,
+    })
+    setInputValue('')
+    setSelectedImage(null)
+  }
+
+  const handleMicClick = async () => {
+    if (voiceState === 'listening' && recognitionRef.current) {
       recognitionRef.current.stop()
       return
     }
 
+    if (voiceState === 'recording' && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop()
+      return
+    }
+
+    if (isVoiceBusy || isTyping) return
+
+    if (navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined') {
+      await startAudioRecording()
+      return
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    startSpeechRecognition(SpeechRecognition)
+  }
+
+  const startSpeechRecognition = (SpeechRecognition) => {
     if (!SpeechRecognition) {
       onNotify?.('Browser ini belum mendukung input suara.', 'info')
       return
@@ -54,37 +89,112 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     recognition.maxAlternatives = 1
 
     recognition.onstart = () => {
-      setIsListening(true)
+      setVoiceState('listening')
+      onNotify?.('Saya mendengarkan. Silakan bicara.', 'info')
     }
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
       setInputValue(transcript)
-      if (transcript.trim() && !isTyping) {
-        onSend({
-          text: transcript.trim(),
-          imageFile: selectedImage?.file || null,
-          imagePreview: selectedImage?.previewUrl || null,
-        })
-        setInputValue('')
-        setSelectedImage(null)
-      }
+      sendTranscript(transcript)
     }
 
     recognition.onerror = (event) => {
       console.error('Speech recognition error', event.error)
-      setIsListening(false)
+      setVoiceState('idle')
+      onNotify?.('Input suara berhenti. Coba rekam ulang.', 'error')
     }
 
     recognition.onend = () => {
-      setIsListening(false)
+      setVoiceState('idle')
     }
 
     recognition.start()
   }
 
+  const startAudioRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      onNotify?.('Browser ini belum mendukung voice note.', 'info')
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = getSupportedAudioMimeType()
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      audioChunksRef.current = []
+      audioStreamRef.current = stream
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      recorder.onerror = () => {
+        cleanupRecording()
+        setVoiceState('idle')
+        onNotify?.('Voice note gagal direkam.', 'error')
+      }
+
+      recorder.onstop = async () => {
+        window.clearTimeout(recordTimeoutRef.current)
+        setVoiceState('transcribing')
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || 'audio/webm',
+        })
+        cleanupRecording()
+
+        if (!audioBlob.size) {
+          setVoiceState('idle')
+          onNotify?.('Voice note kosong. Coba rekam ulang.', 'info')
+          return
+        }
+
+        const { text, error } = await transcribeVoiceNote(audioBlob)
+        setVoiceState('idle')
+
+        if (error || !text) {
+          onNotify?.('Voice note belum bisa ditranskrip. Coba lagi.', 'error')
+          return
+        }
+
+        setInputValue(text)
+        sendTranscript(text)
+      }
+
+      recorder.start()
+      setVoiceState('recording')
+      onNotify?.('Merekam voice note. Tekan lagi untuk selesai.', 'info')
+      recordTimeoutRef.current = window.setTimeout(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          mediaRecorderRef.current.stop()
+        }
+      }, 60_000)
+    } catch (error) {
+      console.error('Voice recording error', error)
+      cleanupRecording()
+      setVoiceState('idle')
+      onNotify?.('Akses mikrofon belum tersedia.', 'error')
+    }
+  }
+
+  const cleanupRecording = () => {
+    audioStreamRef.current?.getTracks().forEach((track) => track.stop())
+    audioStreamRef.current = null
+    mediaRecorderRef.current = null
+    audioChunksRef.current = []
+  }
+
+  const voicePlaceholder = {
+    listening: 'Mendengarkan...',
+    recording: 'Merekam voice note...',
+    transcribing: 'Menulis ulang suara...',
+  }[voiceState] || 'Tulis pesan atau perintah...'
+
   return (
-    <div className="pointer-events-none absolute bottom-[88px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-8">
+    <div className="pointer-events-none absolute bottom-[88px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-8 md:bottom-6">
       <div className="flex w-full max-w-4xl flex-col gap-2.5">
         {selectedImage && (
           <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[18px] border border-midnight/10 bg-white shadow-lg">
@@ -100,7 +210,19 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         )}
 
-        <div className="pointer-events-auto flex w-full items-center gap-2 rounded-[24px] border border-midnight/10 bg-white p-2 shadow-[0_16px_42px_rgba(15,23,42,0.10)]">
+        {isVoiceBusy ? (
+          <div className="pointer-events-auto self-start rounded-full border border-emerald-100 bg-white px-3.5 py-2 font-jakarta text-[12px] font-extrabold text-emerald-700 shadow-sm">
+            {voiceState === 'transcribing'
+              ? 'Memproses suara'
+              : voiceState === 'recording'
+                ? 'Merekam. Tekan mic untuk selesai'
+                : 'Mendengarkan'}
+          </div>
+        ) : null}
+
+        <div className={`pointer-events-auto flex w-full items-center gap-2 rounded-[24px] border bg-white p-2 shadow-[0_16px_42px_rgba(15,23,42,0.10)] transition-colors ${
+          isVoiceBusy ? 'border-emerald-200' : 'border-midnight/10'
+        }`}>
           <input
             type="file"
             accept="image/*"
@@ -120,21 +242,26 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             <input
               type="text"
               className="h-12 w-full rounded-[16px] border border-midnight/8 bg-white px-4 font-inter text-[16px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:ring-0"
-              placeholder={isListening ? 'Mendengarkan...' : 'Tulis pesan atau perintah...'}
+              placeholder={voicePlaceholder}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              disabled={isListening}
+              disabled={isVoiceBusy}
               autoComplete="off"
             />
             <button
               type="button"
               onClick={handleMicClick}
-              aria-label={isListening ? 'Hentikan suara' : 'Input suara'}
+              aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
+              disabled={voiceState === 'transcribing' || isTyping}
               className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] transition-all ${
-                isListening ? 'animate-pulse bg-red-50 text-red-500' : 'text-midnight hover:bg-champagne'
+                voiceState === 'listening' || voiceState === 'recording'
+                  ? 'animate-pulse bg-red-50 text-red-500'
+                  : voiceState === 'transcribing'
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : 'text-midnight hover:bg-champagne'
               }`}
             >
-              <Mic size={24} strokeWidth={isListening ? 2.8 : 2.2} />
+              <Mic size={24} strokeWidth={isVoiceBusy ? 2.8 : 2.2} />
             </button>
             <button
               type="submit"
@@ -153,4 +280,15 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
       </div>
     </div>
   )
+}
+
+function getSupportedAudioMimeType() {
+  const options = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/mpeg',
+  ]
+
+  return options.find((type) => MediaRecorder.isTypeSupported(type)) || ''
 }

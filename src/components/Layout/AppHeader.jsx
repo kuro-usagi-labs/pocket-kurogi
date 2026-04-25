@@ -3,7 +3,7 @@ import KurogiLogo from '../shared/KurogiLogo'
 
 export default function AppHeader({ balance = 0, formatRupiah, onBalanceClick }) {
   return (
-    <header className="mx-auto flex w-full max-w-5xl shrink-0 items-center justify-between gap-4 px-5 pb-5 pt-7 font-jakarta sm:px-8 lg:px-10">
+    <header className="mx-auto flex w-full max-w-5xl shrink-0 items-center justify-between gap-4 px-5 pb-5 pt-7 font-jakarta sm:px-8 md:hidden lg:px-10">
       <div className="flex min-w-0 items-center gap-3.5">
         <KurogiLogo size={62} className="shadow-sm" />
         <div className="min-w-0">

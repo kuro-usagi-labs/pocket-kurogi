@@ -23,6 +23,25 @@ export default function MessageBubble({ msg, formatRupiah }) {
           )}
           <div className="whitespace-pre-wrap font-medium leading-[1.62]">{displayText}</div>
 
+          {!isUser && Array.isArray(msg.metadata?.candidates) && msg.metadata.candidates.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {msg.metadata.candidates.slice(0, 5).map((candidate) => (
+                <span
+                  key={candidate.id || candidate.name}
+                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 font-jakarta text-[12px] font-extrabold text-emerald-700"
+                >
+                  {candidate.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {!isUser && msg.metadata?.intentStatus === 'needs_confirmation' ? (
+            <div className="mt-3 rounded-[14px] border border-amber-100 bg-amber-50 px-3.5 py-2.5 font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
+              Balas dengan nama pilihan, "Ya", atau "Batal".
+            </div>
+          ) : null}
+
           {msg.card && (
             <div className="mt-4 rounded-[16px] border border-emerald-100 bg-emerald-50/50 p-4 text-midnight">
               <div className="mb-4 flex items-center gap-3.5">

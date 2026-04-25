@@ -27,6 +27,7 @@ const LEDGER_AMOUNT_REQUIRED_REPLY =
   'Saya perlu nominal yang jelas. Contoh: "Beli kopi 50k tunai".'
 const GENERIC_UNKNOWN_REPLY =
   'Saya belum bisa memetakan permintaan itu ke aksi yang aman. Coba minta analisis keuangan, cek ringkasan, atau tulis transaksi dengan nominal yang jelas.'
+const TRANSFER_INTENT_PATTERN = /\b(transfer|trf|tf|trasfer|tranfer|pindah|pindahin|geser|kirim|kirimkan|oper|mutasi|move)\b/i
 
 /**
  * Analyze user text for transaction/advice intents.
@@ -132,7 +133,7 @@ async function callAnalyzerFunction(
 }
 
 export function analyzeWithRegex(text, walletOptions, goalOptions = [], archivedWalletOptions = []) {
-  let normalizedText = normalizeNumericText(text.toLowerCase().trim())
+  let normalizedText = normalizeIntentText(normalizeNumericText(text.toLowerCase().trim()))
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
 
@@ -589,36 +590,57 @@ function detectGoalWithdrawalIntent(normalizedText, walletOptions = [], goalOpti
 }
 
 function detectWalletTransferIntent(normalizedText, walletOptions = []) {
-  if (!/(transfer|pindah|geser|kirim)/i.test(normalizedText)) {
+  if (!TRANSFER_INTENT_PATTERN.test(normalizedText)) {
     return null
   }
 
   const sourceResolution = findOptionAfterKeyword({
     text: normalizedText,
     options: walletOptions,
-    keywords: ['dari'],
-    stopKeywords: ['ke'],
+    keywords: ['dari', 'dr', 'asal', 'sumber', 'from', 'pakai', 'pake', 'via'],
+    stopKeywords: ['ke', 'tujuan', 'menuju', 'to'],
   })
   const destinationResolution = findOptionAfterKeyword({
     text: normalizedText,
     options: walletOptions,
-    keywords: ['ke'],
+    keywords: ['ke', 'tujuan', 'menuju', 'to'],
   })
 
   const amountMatch = matchMoney(normalizedText)
   if (!amountMatch) {
-    return null
+    return createNeedsConfirmation({
+      reason: 'missing_amount',
+      prompt: buildTransferGuide({
+        intro: 'Saya menangkap ini sebagai transfer antar dompet, tapi nominalnya belum jelas.',
+        walletOptions,
+      }),
+      candidates: walletOptions,
+      intent: {
+        type: 'transfer',
+        fromWalletId: sourceResolution.match?.id || null,
+        from: sourceResolution.match?.name || null,
+        toWalletId: destinationResolution.match?.id || null,
+        to: destinationResolution.match?.name || null,
+      },
+    })
   }
 
   if (!sourceResolution.match || !destinationResolution.match) {
-    const missingWalletName =
-      extractRawReferenceAfterKeyword(normalizedText, ['dari']) ||
-      extractRawReferenceAfterKeyword(normalizedText, ['ke'])
+    const missingSourceName = !sourceResolution.match
+      ? extractRawReferenceAfterKeyword(normalizedText, ['dari', 'dr', 'asal', 'sumber', 'from', 'pakai', 'pake', 'via'])
+      : ''
+    const missingDestinationName = !destinationResolution.match
+      ? extractRawReferenceAfterKeyword(normalizedText, ['ke', 'tujuan', 'menuju', 'to'])
+      : ''
+    const missingWalletName = missingSourceName || missingDestinationName
 
     if (missingWalletName) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${missingWalletName}" belum ada. Buat dompet baru?`,
+        prompt: buildTransferGuide({
+          intro: `Saya belum menemukan dompet "${missingWalletName}". Mungkin ada typo, atau dompetnya belum dibuat.`,
+          walletOptions,
+        }),
         action: 'create_wallet',
         walletName: missingWalletName,
         intent: {
@@ -641,7 +663,10 @@ function detectWalletTransferIntent(normalizedText, walletOptions = []) {
     if (candidateList.length > 0) {
       return createNeedsConfirmation({
         reason: 'ambiguous_wallet',
-        prompt: `Transfer antar dompet belum jelas. Kandidat yang cocok: ${formatCandidateNames(candidateList)}.`,
+        prompt: buildTransferGuide({
+          intro: `Saya mendeteksi kemungkinan typo/kemiripan nama dompet. Kandidat yang cocok: ${formatCandidateNames(candidateList)}.`,
+          walletOptions,
+        }),
         candidates: candidateList,
         intent: {
           type: 'transfer',
@@ -655,7 +680,22 @@ function detectWalletTransferIntent(normalizedText, walletOptions = []) {
       })
     }
 
-    return null
+    return createNeedsConfirmation({
+      reason: 'missing_transfer_wallet',
+      prompt: buildTransferGuide({
+        intro: 'Transfer antar dompet butuh dompet asal dan tujuan yang jelas.',
+        walletOptions,
+      }),
+      candidates: walletOptions,
+      intent: {
+        type: 'transfer',
+        fromWalletId: sourceResolution.match?.id || null,
+        from: sourceResolution.match?.name || null,
+        toWalletId: destinationResolution.match?.id || null,
+        to: destinationResolution.match?.name || null,
+        amount: parseMoneyMatch(amountMatch),
+      },
+    })
   }
 
   return {
@@ -682,7 +722,7 @@ function resolveWalletForTransaction(normalizedText, walletOptions) {
   if (walletResolution.candidates.length > 0) {
     return createNeedsConfirmation({
       reason: 'ambiguous_wallet',
-      prompt: `Dompet untuk transaksi ini belum jelas. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`,
+      prompt: `Saya mendeteksi kemungkinan typo/kemiripan nama dompet. Pilih yang benar: ${formatCandidateNames(walletResolution.candidates)}.`,
       candidates: walletResolution.candidates,
     })
   }
@@ -1180,7 +1220,15 @@ function buildUnknownReply(normalizedText) {
     return GENERIC_UNKNOWN_REPLY
   }
 
-  if (/(beli|bayar|keluar|masuk|gaji|bonus|topup|transfer|tabung|nabung|setor|cair|tarik|pindah)/i.test(normalizedText)) {
+  if (TRANSFER_INTENT_PATTERN.test(normalizedText)) {
+    return [
+      'Saya menangkap ini sebagai transfer antar dompet, tapi detailnya belum lengkap.',
+      'Format aman: "transfer 100rb dari BCA ke DANA".',
+      'Sebutkan nominal, dompet asal, dan dompet tujuan.',
+    ].join('\n')
+  }
+
+  if (/(beli|bayar|keluar|masuk|gaji|bonus|topup|tabung|nabung|setor|cair|tarik|pindah)/i.test(normalizedText)) {
     return LEDGER_AMOUNT_REQUIRED_REPLY
   }
 
@@ -1189,6 +1237,33 @@ function buildUnknownReply(normalizedText) {
   }
 
   return LEDGER_AMOUNT_REQUIRED_REPLY
+}
+
+function normalizeIntentText(value = '') {
+  return String(value || '')
+    .replace(/\b(tranfer|trasfer|transfr|trnasfer)\b/gi, 'transfer')
+    .replace(/\b(trf|tf)\b/gi, 'transfer')
+    .replace(/\b(dri|dr)\b/gi, 'dari')
+    .replace(/\b(kpd|kepada|tu)\b/gi, 'ke')
+    .replace(/\b(pake|pk|pke)\b/gi, 'pakai')
+    .replace(/\b(nabng|nabungin)\b/gi, 'nabung')
+    .replace(/\b(byr|bayr)\b/gi, 'bayar')
+    .replace(/\b(blnja|blanja)\b/gi, 'belanja')
+    .replace(/\b(msk)\b/gi, 'masuk')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function buildTransferGuide({ intro, walletOptions = [] }) {
+  const walletHint = walletOptions.length > 0
+    ? `Dompet aktif: ${formatCandidateNames(walletOptions.slice(0, 5))}.`
+    : 'Buat dompet dulu kalau belum ada.'
+
+  return [
+    intro,
+    'Format aman: "transfer 100rb dari BCA ke DANA".',
+    walletHint,
+  ].join('\n')
 }
 
 function shouldEscalateTransactionCategory(regexResult, text, learningContext = {}) {

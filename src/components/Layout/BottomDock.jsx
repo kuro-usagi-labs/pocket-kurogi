@@ -10,7 +10,7 @@ const navItems = [
 export default function BottomDock({ activeTab, onTabChange }) {
   return (
     <div
-      className="pointer-events-none absolute bottom-0 left-0 z-50 flex w-full justify-center border-t border-midnight/8 bg-white/92 px-3 backdrop-blur-xl"
+      className="pointer-events-none absolute bottom-0 left-0 z-50 flex w-full justify-center border-t border-midnight/8 bg-white/92 px-3 backdrop-blur-xl md:hidden"
       style={{ paddingBottom: 'calc(0.45rem + env(safe-area-inset-bottom))' }}
     >
       <nav className="pointer-events-auto relative isolate grid w-full max-w-3xl grid-cols-4 gap-1 pt-2">
