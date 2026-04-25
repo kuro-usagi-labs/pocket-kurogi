@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { ArrowUp, Mic, X, Image as ImageIcon } from 'lucide-react'
+import { Mic, Paperclip, Send, X } from 'lucide-react'
 
 export default function ChatInput({ onSend, isTyping, onNotify }) {
   const [inputValue, setInputValue] = useState('')
@@ -84,10 +84,10 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-[78px] left-0 z-40 flex w-full flex-col items-center px-3 md:bottom-6 md:px-8">
-      <div className="flex w-full max-w-[372px] flex-col gap-2.5 md:max-w-3xl">
+    <div className="pointer-events-none absolute bottom-[88px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-8">
+      <div className="flex w-full max-w-4xl flex-col gap-2.5">
         {selectedImage && (
-          <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-lg border border-midnight/10 bg-white shadow-lg">
+          <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[18px] border border-midnight/10 bg-white shadow-lg">
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
             <button
               type="button"
@@ -100,7 +100,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         )}
 
-        <div className="glass-panel pointer-events-auto flex w-full items-center gap-1.5 rounded-lg p-1.5 shadow-[0_16px_38px_rgba(17,24,39,0.12)]">
+        <div className="pointer-events-auto flex w-full items-center gap-2 rounded-[24px] border border-midnight/10 bg-white p-2 shadow-[0_16px_42px_rgba(15,23,42,0.10)]">
           <input
             type="file"
             accept="image/*"
@@ -112,15 +112,15 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-champagne text-muted transition-all hover:bg-cream hover:text-midnight"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-midnight/8 bg-white text-midnight transition-all hover:bg-champagne"
           >
-            <ImageIcon size={20} strokeWidth={2.1} />
+            <Paperclip size={23} strokeWidth={2.1} />
           </button>
-          <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-1">
+          <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2">
             <input
               type="text"
-              className="w-full border-none bg-transparent px-2 font-inter text-[14.5px] font-semibold text-midnight outline-none placeholder:text-muted/55 focus:ring-0"
-              placeholder={isListening ? 'Mendengarkan...' : 'Catat atau tanya...'}
+              className="h-12 w-full rounded-[16px] border border-midnight/8 bg-white px-4 font-inter text-[16px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:ring-0"
+              placeholder={isListening ? 'Mendengarkan...' : 'Tulis pesan atau perintah...'}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               disabled={isListening}
@@ -130,23 +130,23 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               type="button"
               onClick={handleMicClick}
               aria-label={isListening ? 'Hentikan suara' : 'Input suara'}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-all ${
-                isListening ? 'animate-pulse bg-red-50 text-red-500' : 'text-muted hover:bg-champagne hover:text-midnight'
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] transition-all ${
+                isListening ? 'animate-pulse bg-red-50 text-red-500' : 'text-midnight hover:bg-champagne'
               }`}
             >
-              <Mic size={19} strokeWidth={isListening ? 2.8 : 2.2} />
+              <Mic size={24} strokeWidth={isListening ? 2.8 : 2.2} />
             </button>
             <button
               type="submit"
               aria-label="Kirim"
               disabled={(!inputValue.trim() && !selectedImage) || isTyping}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-all ${
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] transition-all sm:h-14 sm:w-14 ${
                 (inputValue.trim() || selectedImage) && !isTyping
-                  ? 'bg-midnight text-white shadow-lg shadow-midnight/20 active:scale-95'
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}
             >
-              <ArrowUp size={20} strokeWidth={2.5} />
+              <Send size={23} strokeWidth={2.5} />
             </button>
           </form>
         </div>

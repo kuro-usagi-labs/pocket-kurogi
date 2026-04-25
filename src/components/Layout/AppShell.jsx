@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
@@ -12,9 +11,7 @@ import ChatView from '../Chat/ChatView'
 import HistoryView from '../History/HistoryView'
 import WalletsView from '../Wallets/WalletsView'
 import AnalyticsView from '../Analytics/AnalyticsView'
-import DesktopSidebar from './DesktopSidebar'
-import DesktopHeader from './DesktopHeader'
-import DesktopRightPanel from './DesktopRightPanel'
+import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
 import StatusToast from '../shared/StatusToast'
 import { useAdvisor } from '../../hooks/useAdvisor'
@@ -1652,40 +1649,15 @@ export default function AppShell() {
   }, [renameGoal, showNotice, syncFinancialViews])
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-champagne font-inter text-midnight selection:bg-gold/20 selection:text-midnight">
-      <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-
-      <main className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden">
-        <DesktopHeader
-          activeTab={activeTab}
+    <div className="flex h-[100dvh] overflow-hidden bg-white font-inter text-midnight selection:bg-emerald-100 selection:text-midnight">
+      <main className="mx-auto flex h-[100dvh] w-full max-w-6xl min-w-0 flex-col overflow-hidden bg-white">
+        <AppHeader
           balance={grandTotalBalance}
           formatRupiah={formatRupiah}
+          onBalanceClick={() => setActiveTab('wallets')}
         />
 
-        <div className="flex-1 flex overflow-hidden">
-          <section className="relative flex flex-1 overflow-hidden bg-champagne">
-            <div className="w-full h-full flex flex-col relative overflow-hidden">
-              <header className="relative z-50 flex shrink-0 items-center justify-between border-b border-midnight/8 bg-white/92 px-4 py-3.5 backdrop-blur-xl md:hidden">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-midnight text-white shadow-sm">
-                    <Sparkles size={16} strokeWidth={2.1} />
-                  </div>
-                  <div className="min-w-0">
-                    <h1 className="truncate font-jakarta text-[16px] font-extrabold tracking-tight text-midnight">
-                      Pocket Kurogi
-                    </h1>
-                    <p className="text-[11px] font-semibold text-muted">Chat keuangan</p>
-                  </div>
-                </div>
-                <div className="min-w-0 rounded-lg border border-midnight/8 bg-champagne px-3 py-2 text-right">
-                  <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-muted">Saldo</p>
-                  <span className="block max-w-[132px] truncate font-jakarta text-[12px] font-extrabold tracking-tight text-midnight">
-                    {formatRupiah(grandTotalBalance)}
-                  </span>
-                </div>
-              </header>
-
-              <div className="flex-1 relative overflow-hidden bg-transparent">
+        <div className="relative flex-1 overflow-hidden">
                 <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
                   <ChatView
                     messages={
@@ -1705,11 +1677,12 @@ export default function AppShell() {
                     hasMore={hasMoreMessages}
                     loadingMore={loadingMoreMessages}
                     onLoadMore={loadMoreMessages}
+                    onNavigate={setActiveTab}
                   />
                 </div>
 
                 <div
-                  className={`absolute inset-x-0 top-0 bottom-[72px] w-full overflow-y-auto no-scrollbar animate-fade-in md:inset-0 ${
+                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in ${
                     activeTab === 'history' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1724,7 +1697,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-x-0 top-0 bottom-[72px] w-full overflow-y-auto no-scrollbar animate-fade-in md:inset-0 ${
+                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in ${
                     activeTab === 'wallets' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1744,7 +1717,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-x-0 top-0 bottom-[72px] w-full overflow-y-auto no-scrollbar animate-fade-in md:inset-0 ${
+                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in ${
                     activeTab === 'analytics' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1754,21 +1727,9 @@ export default function AppShell() {
                     formatRupiah={formatRupiah}
                   />
                 </div>
-              </div>
-
-              <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
-            </div>
-          </section>
-
-          <DesktopRightPanel
-            analytics={analytics}
-            transactions={transactions}
-            onExecuteStrategy={(message) => {
-              setActiveTab('chat')
-              handleSend(message)
-            }}
-          />
         </div>
+
+        <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
       </main>
 
       {actionDialog ? (

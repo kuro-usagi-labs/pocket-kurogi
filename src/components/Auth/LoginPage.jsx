@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { ArrowRight, Mail } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import KurogiLogo from '../shared/KurogiLogo'
 
 export default function LoginPage() {
   const { signInWithPassword, signUp, signInWithMagicLink } = useAuth()
@@ -34,22 +35,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] w-full items-center justify-center bg-champagne px-4 font-inter">
-      <div className="w-full max-w-[388px] animate-fade-in">
-        <div className="mb-7">
-          <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg bg-midnight text-white shadow-premium">
-            <Sparkles size={19} strokeWidth={2} />
-          </div>
-          <h1 className="font-jakarta text-[30px] font-extrabold tracking-tight text-midnight">
+    <div className="flex min-h-[100dvh] w-full items-center justify-center bg-white px-5 py-5 font-inter sm:py-8">
+      <div className="grid w-full max-w-5xl animate-fade-in gap-5 sm:gap-8 lg:grid-cols-[1fr_420px] lg:items-center">
+        <div className="max-w-xl">
+          <KurogiLogo size={74} className="mb-4 shadow-sm sm:h-[86px] sm:w-[86px]" />
+          <h1 className="font-jakarta text-[36px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[56px]">
             Pocket Kurogi
           </h1>
-          <p className="mt-2 text-[14px] font-semibold text-muted">
-            Catatan keuangan via chat.
+          <p className="mt-3 text-[17px] font-medium leading-relaxed text-muted sm:mt-4 sm:text-[20px]">
+            Asisten keuangan yang bantu catat transaksi, rapikan dompet, dan baca arus kas lewat chat.
           </p>
+          <div className="mt-8 hidden grid-cols-3 gap-3 sm:grid">
+            {['Chat', 'Histori', 'Dompet'].map((item) => (
+              <div key={item} className="rounded-[18px] border border-midnight/10 bg-white px-5 py-4 shadow-sm">
+                <p className="font-jakarta text-[15px] font-bold text-midnight">{item}</p>
+                <p className="mt-1 text-[13px] font-medium text-muted">Rapi</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-lg border border-midnight/8 bg-white p-5 shadow-premium">
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-champagne p-1">
+        <form onSubmit={handleSubmit} className="rounded-[24px] border border-midnight/10 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.10)] sm:p-6">
+          <div className="mb-5 grid grid-cols-2 gap-1 rounded-[18px] bg-champagne p-1.5 sm:mb-6">
             {[
               { id: 'login', label: 'Masuk' },
               { id: 'register', label: 'Daftar' },
@@ -58,7 +65,7 @@ export default function LoginPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => { setMode(tab.id); setError(null); setMessage(null) }}
-                className={`rounded-md py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] transition-all ${
+                className={`rounded-[14px] py-3 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] transition-all sm:py-3.5 sm:text-[13px] ${
                   mode === tab.id
                     ? 'bg-midnight text-white shadow-sm'
                     : 'text-muted hover:text-midnight'
@@ -69,7 +76,7 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <label className="mb-2 block font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+          <label className="mb-2 block font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
             Email
           </label>
           <input
@@ -78,12 +85,12 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="nama@email.com"
-            className="mb-4 w-full rounded-lg border border-midnight/10 bg-champagne px-4 py-3.5 text-[14.5px] font-semibold text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:ring-2 focus:ring-gold/20"
+            className="mb-4 w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3.5 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100 sm:py-4"
           />
 
           {mode !== 'magic' && (
             <>
-              <label className="mb-2 block font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+              <label className="mb-2 block font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
                 Password
               </label>
               <input
@@ -93,18 +100,18 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimal 6 karakter"
                 minLength={6}
-                className="w-full rounded-lg border border-midnight/10 bg-champagne px-4 py-3.5 text-[14.5px] font-semibold text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:ring-2 focus:ring-gold/20"
+                className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3.5 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100 sm:py-4"
               />
             </>
           )}
 
           {error && (
-            <p className="mt-3 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+            <p className="mt-3 rounded-[16px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-600">
               {error}
             </p>
           )}
           {message && (
-            <p className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-[12px] font-semibold text-emerald-700">
+            <p className="mt-3 rounded-[16px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-700">
               {message}
             </p>
           )}
@@ -112,15 +119,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-5 w-full rounded-lg bg-midnight py-4 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-white shadow-lg shadow-midnight/15 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] bg-emerald-500 py-3.5 font-jakarta text-[15px] font-extrabold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 sm:mt-5 sm:py-4"
           >
-            {loading
+            <span>{loading
               ? 'Memproses...'
               : mode === 'register'
                 ? 'Buat akun'
                 : mode === 'magic'
                   ? 'Kirim link'
-                  : 'Masuk'}
+                  : 'Masuk'}</span>
+            {mode === 'magic' ? <Mail size={19} /> : <ArrowRight size={19} />}
           </button>
 
           <div className="mt-4 text-center">
@@ -131,7 +139,7 @@ export default function LoginPage() {
                 setError(null)
                 setMessage(null)
               }}
-              className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted transition-colors hover:text-midnight"
+              className="font-jakarta text-[13px] font-extrabold text-muted transition-colors hover:text-midnight"
             >
               {mode === 'magic' ? 'Pakai password' : 'Masuk via link'}
             </button>
