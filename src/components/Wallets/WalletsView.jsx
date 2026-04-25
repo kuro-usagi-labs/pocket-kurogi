@@ -146,11 +146,11 @@ export default function WalletsView({
         </div>
       </section>
 
-      <section className="mb-6 rounded-[26px] border border-midnight/10 bg-[#FBFCFE] p-3 shadow-[0_18px_44px_rgba(15,23,42,0.04)] sm:p-4">
+      <section className="mb-6 lg:hidden">
         {wallets.length > 0 ? (
-          <div className="space-y-3">
+          <div className="rounded-[26px] border border-midnight/10 bg-[#FBFCFE] p-3 shadow-[0_18px_44px_rgba(15,23,42,0.04)]">
             {wallets.map((wallet) => (
-              <WalletRow
+              <MobileWalletCard
                 key={wallet.id}
                 wallet={wallet}
                 formatRupiah={formatRupiah}
@@ -160,19 +160,46 @@ export default function WalletsView({
             ))}
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setShowAddWallet(true)}
-            className="flex w-full items-center gap-4 rounded-[22px] border border-dashed border-midnight/15 bg-white px-5 py-6 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
-          >
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600">
-              <Plus size={28} strokeWidth={2.2} />
-            </span>
-            <span>
-              <span className="block font-jakarta text-[18px] font-extrabold text-midnight">Tambah dompet</span>
-              <span className="mt-1 block text-[15px] font-medium text-muted">Mulai dari dompet utama kamu.</span>
-            </span>
-          </button>
+          <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
+        )}
+      </section>
+
+      <section className="mb-6 hidden lg:block">
+        {wallets.length > 0 ? (
+          <div className="rounded-[28px] border border-midnight/10 bg-white p-4 shadow-[0_22px_48px_rgba(15,23,42,0.055)]">
+            <div className="mb-4 flex items-center justify-between gap-4 px-2">
+              <div>
+                <p className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+                  Dompet aktif
+                </p>
+                <p className="mt-1 text-[14px] font-medium text-muted">
+                  {activeWalletCount} dompet tersambung
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddWallet(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-emerald-100 bg-emerald-50 px-4 font-jakarta text-[13px] font-bold text-emerald-700 transition-all hover:border-emerald-200 hover:bg-emerald-100"
+              >
+                <Plus size={16} strokeWidth={2.4} />
+                Tambah
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {wallets.map((wallet) => (
+                <DesktopWalletCard
+                  key={wallet.id}
+                  wallet={wallet}
+                  formatRupiah={formatRupiah}
+                  onRename={() => handleRenameWallet(wallet)}
+                  onDelete={() => onDeleteWallet(wallet.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <EmptyWalletCard onAdd={() => setShowAddWallet(true)} desktop />
         )}
       </section>
 
@@ -305,8 +332,68 @@ export default function WalletsView({
   )
 }
 
-function WalletRow({ wallet, formatRupiah, onRename, onDelete }) {
+function MobileWalletCard({ wallet, formatRupiah, onRename, onDelete }) {
   const balance = formatWalletBalance(wallet.current_balance)
+
+  return (
+    <div className="grid min-h-[132px] grid-cols-[74px_minmax(0,1fr)_minmax(86px,auto)] items-center gap-4 border-b border-midnight/8 bg-white px-3 py-5 first:rounded-t-[22px] last:rounded-b-[22px] last:border-b-0 sm:min-h-[148px] sm:grid-cols-[104px_minmax(0,1fr)_auto] sm:px-5">
+      <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F0F7FF] to-white ring-1 ring-midnight/5 sm:h-[88px] sm:w-[88px] sm:rounded-[26px]">
+        <WalletIcon walletName={wallet.name} size={44} />
+      </div>
+      <div className="min-w-0">
+        <h3 className="truncate font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[26px]">
+          {wallet.name}
+        </h3>
+        <p className="mt-2 truncate text-[16px] font-medium text-muted sm:text-[18px]">
+          {formatWalletTypeLabel(wallet.wallet_type)}
+        </p>
+      </div>
+      <div className="flex min-w-0 flex-col items-end gap-5 text-right sm:min-w-[128px]">
+        <p className="max-w-[132px] truncate font-jakarta text-[21px] font-extrabold tracking-tight text-midnight sm:max-w-[180px] sm:text-[24px]">
+          {formatRupiah(balance)}
+        </p>
+        <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} />
+      </div>
+    </div>
+  )
+}
+
+function DesktopWalletCard({ wallet, formatRupiah, onRename, onDelete }) {
+  const balance = formatWalletBalance(wallet.current_balance)
+
+  return (
+    <div className="group grid min-h-[150px] grid-cols-[76px_minmax(0,1fr)] gap-4 rounded-[22px] border border-midnight/8 bg-[#FCFDFE] p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
+      <div className="flex h-[76px] w-[76px] items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F0F7FF] to-white ring-1 ring-midnight/5">
+        <WalletIcon walletName={wallet.name} size={42} />
+      </div>
+
+      <div className="flex min-w-0 flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate font-jakarta text-[21px] font-extrabold leading-tight tracking-tight text-midnight">
+              {wallet.name}
+            </h3>
+            <p className="mt-1.5 truncate text-[14px] font-medium text-muted">
+              {formatWalletTypeLabel(wallet.wallet_type)}
+            </p>
+          </div>
+          <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} compact />
+        </div>
+
+        <div className="mt-auto flex items-end justify-between gap-3 pt-5">
+          <span className="rounded-full bg-emerald-50 px-3 py-1 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
+            Aktif
+          </span>
+          <p className="max-w-[210px] truncate text-right font-jakarta text-[23px] font-extrabold tracking-tight text-midnight">
+            {formatRupiah(balance)}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -349,56 +436,56 @@ function WalletRow({ wallet, formatRupiah, onRename, onDelete }) {
   }
 
   return (
-    <div className="grid grid-cols-[auto,minmax(0,1fr),auto] items-start gap-4 rounded-[24px] border border-midnight/8 bg-white px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.03)] transition-all hover:border-emerald-200/80 hover:shadow-[0_16px_34px_rgba(15,23,42,0.06)] sm:px-5 sm:py-5">
-      <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-slate-50 to-white ring-1 ring-midnight/5 sm:h-[76px] sm:w-[76px]">
-        <WalletIcon walletName={wallet.name} size={40} />
-      </div>
-      <div className="min-w-0">
-        <h3 className="truncate font-jakarta text-[21px] font-extrabold tracking-tight text-midnight sm:text-[22px]">
-          {wallet.name}
-        </h3>
-        <p className="mt-2 text-[15px] font-medium text-muted sm:text-[16px]">
-          {formatWalletTypeLabel(wallet.wallet_type)}
-        </p>
-      </div>
-      <div className="relative flex min-w-[88px] flex-col items-end pt-1 text-right">
-        <p className="font-jakarta text-[20px] font-extrabold tracking-tight text-midnight sm:text-[21px]">
-          {formatRupiah(balance)}
-        </p>
-        <div ref={menuRef} className="relative mt-4">
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setMenuOpen((open) => !open)}
+        className={`${compact ? 'h-9 w-9 rounded-[12px]' : 'h-11 w-11 rounded-[14px]'} flex items-center justify-center border border-midnight/8 bg-slate-50 text-muted shadow-sm transition-all hover:border-midnight/12 hover:bg-white hover:text-midnight`}
+        aria-label={`Aksi untuk ${walletName}`}
+        aria-expanded={menuOpen}
+      >
+        <MoreHorizontal size={compact ? 16 : 18} />
+      </button>
+
+      {menuOpen ? (
+        <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[16px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
           <button
             type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-midnight/8 bg-slate-50 text-muted shadow-sm transition-all hover:border-midnight/12 hover:bg-white hover:text-midnight"
-            aria-label={`Aksi untuk ${wallet.name}`}
-            aria-expanded={menuOpen}
+            onClick={handleRenameClick}
+            className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-midnight transition-colors hover:bg-slate-50"
           >
-            <MoreHorizontal size={18} />
+            <Pencil size={15} />
+            Ubah
           </button>
-
-          {menuOpen ? (
-            <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[16px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
-              <button
-                type="button"
-                onClick={handleRenameClick}
-                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-midnight transition-colors hover:bg-slate-50"
-              >
-                <Pencil size={15} />
-                Ubah
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteClick}
-                className="mt-1 flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50"
-              >
-                <Trash2 size={15} />
-                Hapus
-              </button>
-            </div>
-          ) : null}
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className="mt-1 flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50"
+          >
+            <Trash2 size={15} />
+            Hapus
+          </button>
         </div>
-      </div>
+      ) : null}
     </div>
+  )
+}
+
+function EmptyWalletCard({ onAdd, desktop = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onAdd}
+      className={`${desktop ? 'rounded-[28px] px-7 py-8' : 'rounded-[22px] px-5 py-6'} flex w-full items-center gap-4 border border-dashed border-midnight/15 bg-white text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40`}
+    >
+      <span className={`${desktop ? 'h-18 w-18' : 'h-16 w-16'} flex shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600`}>
+        <Plus size={28} strokeWidth={2.2} />
+      </span>
+      <span>
+        <span className="block font-jakarta text-[18px] font-extrabold text-midnight">Tambah dompet</span>
+        <span className="mt-1 block text-[15px] font-medium text-muted">Mulai dari dompet utama kamu.</span>
+      </span>
+    </button>
   )
 }
 
