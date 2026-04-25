@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
@@ -17,7 +17,11 @@ export function useCategories() {
   const [loading, setLoading] = useState(true)
 
   const fetchCategories = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      setCategories([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const { data, error } = await supabase
       .from('categories')
@@ -186,7 +190,7 @@ export function useCategories() {
     return { data, error: null, created: true }
   }, [categories, user])
 
-  const categoryOptions = buildCategoryOptions(categories)
+  const categoryOptions = useMemo(() => buildCategoryOptions(categories), [categories])
 
   return {
     categories,

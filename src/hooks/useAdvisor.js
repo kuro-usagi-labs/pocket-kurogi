@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { buildAIContextString } from '../lib/aiContext'
 
 export function useAdvisor({
@@ -90,7 +90,7 @@ export function useAdvisor({
 
   const grandTotalBalance = financialStats.totalBalance + financialStats.totalGoalsBalance
 
-  const getAIContextString = () => buildAIContextString({
+  const getAIContextString = useCallback(() => buildAIContextString({
     grandTotalBalance,
     totalBalance: financialStats.totalBalance,
     totalGoalsBalance: financialStats.totalGoalsBalance,
@@ -104,7 +104,7 @@ export function useAdvisor({
     topIncomeCategories: financialStats.topIncomeCategories,
     budgetAlerts: financialStats.budgetAlerts,
     goals: financialStats.goals,
-  })
+  }), [financialStats, grandTotalBalance])
 
   return {
     ...financialStats,

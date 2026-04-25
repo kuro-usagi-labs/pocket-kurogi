@@ -1,6 +1,10 @@
-import { useState, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Mic, Paperclip, Send, X } from 'lucide-react'
 import { transcribeVoiceNote } from '../../lib/voiceTranscription'
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic'])
+const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic'])
 
 export default function ChatInput({ onSend, isTyping, onNotify }) {
   const [inputValue, setInputValue] = useState('')
@@ -13,6 +17,21 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   const audioStreamRef = useRef(null)
   const recordTimeoutRef = useRef(null)
   const isVoiceBusy = voiceState !== 'idle'
+
+  const cleanupRecording = useCallback(() => {
+    window.clearTimeout(recordTimeoutRef.current)
+    recordTimeoutRef.current = null
+    audioStreamRef.current?.getTracks().forEach((track) => track.stop())
+    audioStreamRef.current = null
+    mediaRecorderRef.current = null
+    audioChunksRef.current = []
+  }, [])
+
+  useEffect(() => () => {
+    window.clearTimeout(recordTimeoutRef.current)
+    recognitionRef.current?.stop?.()
+    cleanupRecording()
+  }, [cleanupRecording])
 
   const handleSubmit = (e) => {
     e?.preventDefault()
@@ -29,6 +48,18 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (!isSupportedImage(file)) {
+      onNotify?.('Format gambar belum didukung. Gunakan JPG, PNG, WebP, atau HEIC.', 'error')
+      e.target.value = ''
+      return
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      onNotify?.('Ukuran gambar maksimal 5 MB.', 'error')
+      e.target.value = ''
+      return
+    }
 
     const reader = new FileReader()
     reader.onloadend = () => {
@@ -180,13 +211,6 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     }
   }
 
-  const cleanupRecording = () => {
-    audioStreamRef.current?.getTracks().forEach((track) => track.stop())
-    audioStreamRef.current = null
-    mediaRecorderRef.current = null
-    audioChunksRef.current = []
-  }
-
   const voicePlaceholder = {
     listening: 'Mendengarkan...',
     recording: 'Merekam voice note...',
@@ -291,4 +315,9 @@ function getSupportedAudioMimeType() {
   ]
 
   return options.find((type) => MediaRecorder.isTypeSupported(type)) || ''
+}
+
+function isSupportedImage(file) {
+  const extension = file.name?.includes('.') ? file.name.split('.').pop().toLowerCase() : ''
+  return SUPPORTED_IMAGE_TYPES.has(file.type) || SUPPORTED_IMAGE_EXTENSIONS.has(extension)
 }

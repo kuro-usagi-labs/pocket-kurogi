@@ -9,11 +9,11 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Register standard service worker
-if ('serviceWorker' in navigator) {
+// Register the service worker only for production builds.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.log('SW registration failed: ', err);
-    });
-  });
+      console.warn('SW registration failed: ', err)
+    })
+  })
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
@@ -9,10 +9,6 @@ import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
 import DesktopHeader from './DesktopHeader'
 import DesktopSidebar from './DesktopSidebar'
-import ChatView from '../Chat/ChatView'
-import HistoryView from '../History/HistoryView'
-import WalletsView from '../Wallets/WalletsView'
-import AnalyticsView from '../Analytics/AnalyticsView'
 import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
 import StatusToast from '../shared/StatusToast'
@@ -31,6 +27,11 @@ import {
   parseMoneyMatch,
   resolveOptionReference,
 } from '../../lib/chatEntities'
+
+const ChatView = lazy(() => import('../Chat/ChatView'))
+const HistoryView = lazy(() => import('../History/HistoryView'))
+const WalletsView = lazy(() => import('../Wallets/WalletsView'))
+const AnalyticsView = lazy(() => import('../Analytics/AnalyticsView'))
 
 const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
 const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
@@ -158,6 +159,19 @@ function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, formatR
     confirmLabel: 'Hapus Target',
     tone: 'danger',
   }
+}
+
+function ViewLoadingFallback() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-white">
+      <div className="flex items-center gap-3 rounded-full border border-midnight/8 bg-white px-4 py-3 shadow-sm">
+        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+        <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
+          Memuat
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function withWalletAttached(intent, wallet) {
@@ -469,9 +483,9 @@ export default function AppShell() {
   const [dialogSubmitting, setDialogSubmitting] = useState(false)
   const [notice, setNotice] = useState(null)
 
-  const walletOptions = buildWalletOptions(wallets)
-  const archivedWalletOptions = buildWalletOptions(archivedWallets)
-  const goalOptions = buildGoalOptions(goals)
+  const walletOptions = useMemo(() => buildWalletOptions(wallets), [wallets])
+  const archivedWalletOptions = useMemo(() => buildWalletOptions(archivedWallets), [archivedWallets])
+  const goalOptions = useMemo(() => buildGoalOptions(goals), [goals])
 
   const formatRupiah = useCallback((number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -1685,75 +1699,76 @@ export default function AppShell() {
         />
 
         <div className="relative flex-1 overflow-hidden md:m-5 md:mt-0 md:rounded-[28px] md:border md:border-midnight/8 md:bg-white md:shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
-                <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
-                  <ChatView
-                    messages={
-                      messages.length > 0
-                        ? messages
-                        : [
-                            {
-                              ...WELCOME_MESSAGE,
-                              time: getCurrentTimeLabel(),
-                            },
-                          ]
-                    }
-                    isTyping={isTyping}
-                    onSend={handleSend}
-                    onNotify={showNotice}
-                    formatRupiah={formatRupiah}
-                    hasMore={hasMoreMessages}
-                    loadingMore={loadingMoreMessages}
-                    onLoadMore={loadMoreMessages}
-                    onNavigate={setActiveTab}
-                  />
-                </div>
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
+              <ChatView
+                messages={
+                  messages.length > 0
+                    ? messages
+                    : [
+                        {
+                          ...WELCOME_MESSAGE,
+                          time: getCurrentTimeLabel(),
+                        },
+                      ]
+                }
+                isTyping={isTyping}
+                onSend={handleSend}
+                onNotify={showNotice}
+                formatRupiah={formatRupiah}
+                hasMore={hasMoreMessages}
+                loadingMore={loadingMoreMessages}
+                onLoadMore={loadMoreMessages}
+                onNavigate={setActiveTab}
+              />
+            </div>
 
-                <div
-                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
-                    activeTab === 'history' ? 'block' : 'hidden'
-                  }`}
-                >
-                  <HistoryView
-                    transactions={transactions}
-                    formatRupiah={formatRupiah}
-                    onDeleteTransaction={handleDeleteTransaction}
-                    hasMore={hasMoreTransactions}
-                    loadingMore={loadingMoreTransactions}
-                    onLoadMore={loadMoreTransactions}
-                  />
-                </div>
+            <div
+              className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
+                activeTab === 'history' ? 'block' : 'hidden'
+              }`}
+            >
+              <HistoryView
+                transactions={transactions}
+                formatRupiah={formatRupiah}
+                onDeleteTransaction={handleDeleteTransaction}
+                hasMore={hasMoreTransactions}
+                loadingMore={loadingMoreTransactions}
+                onLoadMore={loadMoreTransactions}
+              />
+            </div>
 
-                <div
-                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
-                    activeTab === 'wallets' ? 'block' : 'hidden'
-                  }`}
-                >
-                  <WalletsView
-                    wallets={wallets}
-                    totalBalance={grandTotalBalance}
-                    goals={goals}
-                    conflicts={conflicts}
-                    onAddWallet={handleAddWallet}
-                    onDeleteWallet={handleDeleteWallet}
-                    onRenameWallet={handleRenameWallet}
-                    onAddGoal={handleAddGoal}
-                    onDeleteGoal={handleDeleteGoal}
-                    onRenameGoal={handleRenameGoal}
-                    formatRupiah={formatRupiah}
-                  />
-                </div>
+            <div
+              className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
+                activeTab === 'wallets' ? 'block' : 'hidden'
+              }`}
+            >
+              <WalletsView
+                wallets={wallets}
+                goals={goals}
+                conflicts={conflicts}
+                onAddWallet={handleAddWallet}
+                onDeleteWallet={handleDeleteWallet}
+                onRenameWallet={handleRenameWallet}
+                onAddGoal={handleAddGoal}
+                onDeleteGoal={handleDeleteGoal}
+                onRenameGoal={handleRenameGoal}
+                formatRupiah={formatRupiah}
+              />
+            </div>
 
-                <div
-                  className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
-                    activeTab === 'analytics' ? 'block' : 'hidden'
-                  }`}
-                >
-                  <AnalyticsView
-                    analytics={analytics}
-                    budgets={budgets}
-                    formatRupiah={formatRupiah}
-                  />
-                </div>
+            <div
+              className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
+                activeTab === 'analytics' ? 'block' : 'hidden'
+              }`}
+            >
+              <AnalyticsView
+                analytics={analytics}
+                budgets={budgets}
+                formatRupiah={formatRupiah}
+              />
+            </div>
+          </Suspense>
         </div>
 
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
