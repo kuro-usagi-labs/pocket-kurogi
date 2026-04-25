@@ -32,40 +32,42 @@ export default function AddGoalModal({ onClose, onSubmit }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-0">
-      <div 
-        className="absolute inset-0 bg-midnight/30 backdrop-blur-md transition-opacity"
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-midnight/35 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
-      
-      <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl relative z-10 animate-scale-in">
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-10">
+
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl animate-scale-in">
+        <div className="p-5 md:p-6">
+          <div className="mb-7 flex items-center justify-between">
             <div>
-              <h3 className="text-[22px] font-jakarta font-bold text-midnight tracking-tight">Buat Milestone Baru</h3>
-              <p className="text-midnight/40 text-[13px] font-medium mt-1">Siapkan target jangka panjang Anda</p>
+              <h3 className="font-jakarta text-[22px] font-extrabold tracking-tight text-midnight">Target Baru</h3>
+              <p className="mt-1 text-[13px] font-semibold text-muted">Nominal dan deadline.</p>
             </div>
-            <button 
+            <button
+              type="button"
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center bg-ivory rounded-full text-midnight/30 hover:text-midnight transition-colors"
+              aria-label="Tutup"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-champagne text-muted transition-colors hover:text-midnight"
             >
               <X size={20} strokeWidth={2.5} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-extrabold text-muted uppercase tracking-widest ml-1">Nama Target</label>
+              <label className="ml-1 font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">Nama target</label>
               <div className="relative">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-midnight/30">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                   <Target size={18} />
                 </div>
                 <input
                   autoFocus
                   type="text"
                   required
-                  placeholder="Contoh: Dana Properti, Liburan, Pendidikan"
-                  className="w-full bg-ivory border-none rounded-2xl py-4 pl-12 pr-6 text-midnight font-bold placeholder:text-midnight/20 focus:ring-2 focus:ring-gold/50 transition-all text-sm outline-none"
+                  placeholder="Contoh: Dana Darurat"
+                  className="w-full rounded-lg border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-sm font-bold text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:ring-2 focus:ring-gold/20"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -73,16 +75,16 @@ export default function AddGoalModal({ onClose, onSubmit }) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-extrabold text-muted uppercase tracking-widest ml-1">Target Dana (Rp)</label>
+              <label className="ml-1 font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">Nominal</label>
               <div className="relative">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-midnight/30">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                   <DollarSign size={18} />
                 </div>
                 <input
                   type="number"
                   required
                   placeholder="0"
-                  className="w-full bg-ivory border-none rounded-2xl py-4 pl-12 pr-6 text-midnight font-bold placeholder:text-midnight/20 focus:ring-2 focus:ring-gold/50 transition-all text-sm outline-none"
+                  className="w-full rounded-lg border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-sm font-bold text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:ring-2 focus:ring-gold/20"
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
                 />
@@ -90,14 +92,14 @@ export default function AddGoalModal({ onClose, onSubmit }) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-extrabold text-muted uppercase tracking-widest ml-1">Deadline (Opsional)</label>
+              <label className="ml-1 font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">Deadline</label>
               <div className="relative">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-midnight/30">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                   <Calendar size={18} />
                 </div>
                 <input
                   type="date"
-                  className="w-full bg-ivory border-none rounded-2xl py-4 pl-12 pr-6 text-midnight font-bold placeholder:text-midnight/20 focus:ring-2 focus:ring-gold/50 transition-all text-sm outline-none"
+                  className="w-full rounded-lg border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-sm font-bold text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:ring-2 focus:ring-gold/20"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
                 />
@@ -107,9 +109,9 @@ export default function AddGoalModal({ onClose, onSubmit }) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-midnight text-white py-4 rounded-2xl font-extrabold text-[12px] uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-midnight/20 mt-4"
+              className="mt-2 w-full rounded-lg bg-midnight py-4 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-white shadow-lg shadow-midnight/15 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
             >
-              {submitting ? 'Memproses...' : 'Simpan Target'}
+              {submitting ? 'Memproses...' : 'Simpan'}
             </button>
             {errorMessage ? (
               <p className="text-[12px] font-semibold text-red-600">

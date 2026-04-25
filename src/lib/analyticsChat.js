@@ -63,7 +63,7 @@ export function buildAnalyticsReply({
   const totalTracked = totalIncome + totalExpense + Math.abs(totalSavings) + transferVolume
 
   if (totalTracked <= 0) {
-    return `Belum ada data ledger untuk ${periodLabel}. Coba catat transaksi dulu, lalu tanya lagi supaya saya bisa membacakan polanya.`
+    return `Belum ada data untuk ${periodLabel}. Catat transaksi dulu, lalu tanya lagi.`
   }
 
   const nextGoal = goals

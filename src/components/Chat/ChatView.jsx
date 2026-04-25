@@ -6,6 +6,7 @@ export default function ChatView({
   messages,
   isTyping,
   onSend,
+  onNotify,
   formatRupiah,
   hasMore = false,
   loadingMore = false,
@@ -74,29 +75,27 @@ export default function ChatView({
 
   return (
     <div className="absolute inset-0 h-full w-full">
-      {/* Gradient mask */}
-      <div className="absolute bottom-[92px] md:bottom-0 left-0 w-full h-[196px] md:h-[140px] bg-gradient-to-t from-champagne via-champagne/90 to-transparent z-30 pointer-events-none" />
+      <div className="pointer-events-none absolute bottom-[62px] left-0 z-30 h-[210px] w-full bg-gradient-to-t from-champagne via-champagne/96 to-transparent md:bottom-0 md:h-[136px]" />
 
-      {/* Messages container */}
       <div
         ref={containerRef}
-        className="absolute inset-0 overflow-y-auto px-5 md:px-24 pt-6 pb-[286px] md:pb-[160px] scroll-smooth no-scrollbar z-20 flex flex-col max-w-4xl mx-auto w-full"
+        className="no-scrollbar absolute inset-0 z-20 mx-auto flex w-full max-w-4xl flex-col overflow-y-auto scroll-smooth px-4 pb-[220px] pt-5 md:px-8 md:pb-[152px] md:pt-8"
       >
         {hasMore && (
-          <div className="flex justify-center mb-5">
+          <div className="mb-5 flex justify-center">
             <button
               type="button"
               onClick={handleLoadMore}
-              className="px-4 py-2 rounded-full bg-white/80 border border-midnight/10 text-[11px] font-extrabold uppercase tracking-[0.18em] text-midnight/60 font-jakarta shadow-sm hover:bg-white transition-colors"
+              className="rounded-lg border border-midnight/10 bg-white px-3 py-2 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted shadow-sm transition-colors hover:text-midnight"
             >
-              {loadingMore ? 'Memuat...' : 'Muat Percakapan Lama'}
+              {loadingMore ? 'Memuat...' : 'Muat lagi'}
             </button>
           </div>
         )}
 
-        <div className="flex justify-center mb-8">
-          <span className="px-4 py-1.5 rounded-full bg-cream text-midnight/60 text-[10px] font-extrabold uppercase tracking-[0.25em] font-jakarta shadow-sm">
-            Today
+        <div className="mb-6 flex justify-center">
+          <span className="rounded-full border border-midnight/8 bg-white px-3 py-1.5 font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted shadow-sm">
+            Hari ini
           </span>
         </div>
 
@@ -106,19 +105,18 @@ export default function ChatView({
 
         {/* Typing indicator */}
         {isTyping && (
-          <div className="flex w-full mb-6 items-start animate-fade-in">
-            <div className="bg-white border border-midnight/5 shadow-[0_8px_32px_rgba(15,23,42,0.04)] rounded-[22px] rounded-bl-[6px] px-5 py-4 flex gap-1.5 items-center justify-center h-[46px]">
-              <div className="w-1.5 h-1.5 bg-midnight/40 rounded-full typing-dot" />
-              <div className="w-1.5 h-1.5 bg-midnight/40 rounded-full typing-dot" />
-              <div className="w-1.5 h-1.5 bg-midnight/40 rounded-full typing-dot" />
+          <div className="mb-6 flex w-full animate-fade-in items-start">
+            <div className="flex h-[42px] items-center justify-center gap-1.5 rounded-2xl rounded-bl-md border border-midnight/8 bg-white px-4 shadow-sm">
+              <div className="typing-dot h-1.5 w-1.5 rounded-full bg-muted/70" />
+              <div className="typing-dot h-1.5 w-1.5 rounded-full bg-muted/70" />
+              <div className="typing-dot h-1.5 w-1.5 rounded-full bg-muted/70" />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      {/* Chat input */}
-      <ChatInput onSend={onSend} isTyping={isTyping} />
+      <ChatInput onSend={onSend} isTyping={isTyping} onNotify={onNotify} />
     </div>
   )
 }

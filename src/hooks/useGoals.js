@@ -63,7 +63,7 @@ export function useGoals() {
     return {
       data: null,
       error: new Error(
-        `Progress target ${id} tidak bisa diubah langsung. Gunakan flow setoran target agar saldo dan ledger tetap sinkron.`
+        `Progress target ${id} tidak bisa diubah langsung. Gunakan setoran target agar saldo tetap sinkron.`
       ),
     }
   }, [])

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -16,6 +16,7 @@ import DesktopSidebar from './DesktopSidebar'
 import DesktopHeader from './DesktopHeader'
 import DesktopRightPanel from './DesktopRightPanel'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
+import StatusToast from '../shared/StatusToast'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
@@ -37,7 +38,7 @@ const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
 const WELCOME_MESSAGE = {
   id: 'welcome',
   sender: 'bot',
-  text: 'Halo! Saya asisten keuangan Anda. Anda bisa mencatat transaksi atau langsung bertanya seperti "bulan ini boros di mana?"',
+  text: 'Halo. Catat transaksi atau tanya arus kasmu.',
 }
 
 function isAffirmative(text = '') {
@@ -66,7 +67,7 @@ function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = 
     return [
       `Hapus dompet ${highlightedName}?`,
       `Saldo yang masih tersisa: ${highlightedBalance}.`,
-      'Kalau lanjut, dompet akan dihapus dari daftar aktif. Riwayat ledger lama tetap disimpan supaya histori tetap aman.',
+      'Kalau lanjut, dompet masuk arsip. Histori tetap aman.',
       markdown
         ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
         : 'Lanjutkan penghapusan?',
@@ -75,7 +76,7 @@ function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = 
 
   return [
     `Hapus dompet ${highlightedName}?`,
-    'Jika dompet ini belum punya riwayat ledger, dompet akan dihapus permanen. Jika sudah pernah dipakai, dompet akan dihapus dari daftar aktif supaya histori tetap aman.',
+    'Dompet akan dihapus atau masuk arsip sesuai histori.',
     markdown
       ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
       : 'Lanjutkan penghapusan?',
@@ -107,6 +108,18 @@ function buildWalletRestoreSuccess(walletName) {
   return `Dompet **${walletName}** berhasil dipulihkan ke daftar aktif.`
 }
 
+function buildWalletDeletionNotice(walletName, mode) {
+  if (mode === 'deleted') {
+    return `Dompet ${walletName} berhasil dihapus permanen.`
+  }
+
+  return `Dompet ${walletName} berhasil dipindahkan ke arsip.`
+}
+
+function buildWalletRestoreNotice(walletName) {
+  return `Dompet ${walletName} berhasil dipulihkan ke daftar aktif.`
+}
+
 function getWalletDeletionDialogCopy(wallet, formatRupiah) {
   const balance = Number(wallet?.current_balance || 0)
   const walletName = wallet?.name || 'dompet ini'
@@ -116,7 +129,7 @@ function getWalletDeletionDialogCopy(wallet, formatRupiah) {
       title: `Hapus dompet "${walletName}"?`,
       paragraphs: [
         `Saldo yang masih tersisa: ${formatRupiah(balance)}.`,
-        'Kalau lanjut, dompet akan dihapus dari daftar aktif. Riwayat ledger lama tetap disimpan supaya histori tetap aman.',
+        'Kalau lanjut, dompet masuk arsip. Histori tetap aman.',
       ],
       confirmLabel: 'Hapus Dompet',
       tone: 'danger',
@@ -126,8 +139,7 @@ function getWalletDeletionDialogCopy(wallet, formatRupiah) {
   return {
     title: `Hapus dompet "${walletName}"?`,
     paragraphs: [
-      'Jika dompet ini belum punya riwayat ledger, dompet akan dihapus permanen.',
-      'Jika dompet ini sudah pernah dipakai, dompet akan dihapus dari daftar aktif supaya histori tetap aman.',
+      'Dompet akan dihapus atau masuk arsip sesuai histori.',
     ],
     confirmLabel: 'Hapus Dompet',
     tone: 'danger',
@@ -151,10 +163,10 @@ function getWalletRestoreDialogCopy(wallet) {
 function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, formatRupiah) {
   if (refundAmount > 0) {
     return {
-      title: `Hapus target "${goal?.name || 'milestone ini'}"?`,
+      title: `Hapus target "${goal?.name || 'target ini'}"?`,
       paragraphs: [
         `Dana sebesar ${formatRupiah(refundAmount)} akan dikembalikan ke dompet ${refundTargetName}.`,
-        'Riwayat ledger pengembalian tetap dicatat supaya saldo dan histori tetap sinkron.',
+        'Saldo dan histori tetap sinkron.',
       ],
       confirmLabel: 'Hapus Target',
       tone: 'danger',
@@ -162,9 +174,9 @@ function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, formatR
   }
 
   return {
-    title: `Hapus target "${goal?.name || 'milestone ini'}"?`,
+    title: `Hapus target "${goal?.name || 'target ini'}"?`,
     paragraphs: [
-      'Target ini akan dihapus dari daftar milestone aktif.',
+      'Target ini akan dihapus.',
     ],
     confirmLabel: 'Hapus Target',
     tone: 'danger',
@@ -470,6 +482,7 @@ export default function AppShell() {
   const [pendingAction, setPendingAction] = useState(null)
   const [actionDialog, setActionDialog] = useState(null)
   const [dialogSubmitting, setDialogSubmitting] = useState(false)
+  const [notice, setNotice] = useState(null)
 
   const walletOptions = buildWalletOptions(wallets)
   const archivedWalletOptions = buildWalletOptions(archivedWallets)
@@ -507,6 +520,26 @@ export default function AppShell() {
     [refetchAnalytics, refetchGoals, refetchNameConflicts, refetchTransactions, refetchWallets]
   )
 
+  const showNotice = useCallback((message, tone = 'info') => {
+    setNotice({
+      id: Date.now(),
+      message,
+      tone,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!notice) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice((current) => (current?.id === notice.id ? null : current))
+    }, 3600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [notice])
+
   const persistBotResponse = useCallback(async (response) => {
     if (!response?.text) {
       return
@@ -533,7 +566,7 @@ export default function AppShell() {
     const result = await deleteTransaction(transactionId)
 
     if (result.error) {
-      window.alert(mapDomainError(result.error))
+      showNotice(mapDomainError(result.error), 'error')
       return result
     }
 
@@ -542,8 +575,9 @@ export default function AppShell() {
       analytics: true,
     })
 
+    showNotice('Transaksi berhasil dihapus dan saldo terkait sudah diperbarui.', 'success')
     return result
-  }, [deleteTransaction, syncFinancialViews])
+  }, [deleteTransaction, showNotice, syncFinancialViews])
 
   const resolveTransactionCategory = useCallback(
     async ({ analysis, rawText }) => {
@@ -830,13 +864,13 @@ export default function AppShell() {
 
       if (analysis.type === 'bulk_delete_wallets') {
         return {
-          text: 'Dompet tidak bisa dihapus massal. Hapus satu per satu agar tiap dompet bisa dikonfirmasi dan histori ledger tetap aman.',
+          text: 'Dompet tidak bisa dihapus massal. Hapus satu per satu agar aman.',
         }
       }
 
       if (analysis.type === 'bulk_delete_transactions') {
         return {
-          text: 'Riwayat ledger tidak bisa dihapus massal lagi. Jika ada transaksi salah, hapus satu per satu dari riwayat agar saldo ikut direvert dengan aman.',
+          text: 'Riwayat tidak bisa dihapus massal. Hapus satu per satu.',
         }
       }
 
@@ -1221,7 +1255,7 @@ export default function AppShell() {
         }
 
         return {
-          text: 'Ketik "Ya" jika dompet baru memang ingin dibuat, sebut nama dompet aktif yang benar, atau "Batal" jika tidak.',
+          text: 'Ketik "Ya", sebut dompet yang benar, atau "Batal".',
           intentStatus: 'needs_confirmation',
         }
       }
@@ -1484,10 +1518,11 @@ export default function AppShell() {
       await syncFinancialViews({
         names: true,
       })
+      showNotice(`Target ${goalData.name} berhasil dibuat.`, 'success')
     }
 
     return result
-  }, [addGoal, syncFinancialViews])
+  }, [addGoal, showNotice, syncFinancialViews])
 
   const handleDeleteGoal = useCallback(async (id) => {
     const targetGoal = goals.find((goal) => goal.id === id)
@@ -1500,6 +1535,7 @@ export default function AppShell() {
     setActionDialog({
       type: 'delete_goal',
       goalId: id,
+      goalName: targetGoal?.name || 'target ini',
       walletId: refundAmount > 0 ? preferredWallet?.id || null : null,
       ...dialogCopy,
     })
@@ -1516,10 +1552,11 @@ export default function AppShell() {
         analytics: true,
         names: true,
       })
+      showNotice(`Dompet ${result.data.name} berhasil dibuat.`, 'success')
     }
 
     return result
-  }, [addWallet, syncFinancialViews])
+  }, [addWallet, showNotice, syncFinancialViews])
 
   const handleDeleteWallet = useCallback(async (id) => {
     const targetWallet = wallets.find((wallet) => wallet.id === id)
@@ -1572,7 +1609,7 @@ export default function AppShell() {
         })
 
         if (result.error) {
-          window.alert(mapDomainError(result.error))
+          showNotice(mapDomainError(result.error), 'error')
           return
         }
 
@@ -1582,13 +1619,14 @@ export default function AppShell() {
           analytics: true,
           names: true,
         })
+        showNotice(`Target ${actionDialog.goalName} berhasil dihapus.`, 'success')
       }
 
       if (actionDialog.type === 'delete_wallet') {
         const result = await deleteWallet(actionDialog.walletId)
 
         if (result.error) {
-          window.alert(mapDomainError(result.error))
+          showNotice(mapDomainError(result.error), 'error')
           return
         }
 
@@ -1597,13 +1635,14 @@ export default function AppShell() {
           analytics: true,
           names: true,
         })
+        showNotice(buildWalletDeletionNotice(actionDialog.walletName, result.mode), 'success')
       }
 
       if (actionDialog.type === 'restore_wallet') {
         const result = await restoreWallet(actionDialog.walletId)
 
         if (result.error) {
-          window.alert(mapDomainError(result.error))
+          showNotice(mapDomainError(result.error), 'error')
           return
         }
 
@@ -1612,13 +1651,14 @@ export default function AppShell() {
           analytics: true,
           names: true,
         })
+        showNotice(buildWalletRestoreNotice(actionDialog.walletName), 'success')
       }
 
       setActionDialog(null)
     } finally {
       setDialogSubmitting(false)
     }
-  }, [actionDialog, deleteGoal, deleteWallet, dialogSubmitting, restoreWallet, syncFinancialViews])
+  }, [actionDialog, deleteGoal, deleteWallet, dialogSubmitting, restoreWallet, showNotice, syncFinancialViews])
 
   const handleRenameWallet = useCallback(async (walletId, nextName) => {
     const result = await renameWallet(walletId, nextName)
@@ -1628,10 +1668,11 @@ export default function AppShell() {
         wallets: true,
         names: true,
       })
+      showNotice(`Nama dompet berhasil diubah menjadi ${result.data.wallet_name}.`, 'success')
     }
 
     return result
-  }, [renameWallet, syncFinancialViews])
+  }, [renameWallet, showNotice, syncFinancialViews])
 
   const handleRenameGoal = useCallback(async (goalId, nextName) => {
     const result = await renameGoal(goalId, nextName)
@@ -1640,32 +1681,41 @@ export default function AppShell() {
       await syncFinancialViews({
         names: true,
       })
+      showNotice(`Nama target berhasil diubah menjadi ${nextName}.`, 'success')
     }
 
     return result
-  }, [renameGoal, syncFinancialViews])
+  }, [renameGoal, showNotice, syncFinancialViews])
 
   return (
-    <div className="bg-champagne font-inter text-midnight overflow-hidden h-[100dvh] flex selection:bg-gold/20 selection:text-midnight">
+    <div className="flex h-[100dvh] overflow-hidden bg-champagne font-inter text-midnight selection:bg-gold/20 selection:text-midnight">
       <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden">
-        <DesktopHeader />
+        <DesktopHeader
+          activeTab={activeTab}
+          balance={grandTotalBalance}
+          formatRupiah={formatRupiah}
+        />
 
         <div className="flex-1 flex overflow-hidden">
-          <section className="flex-1 flex overflow-hidden relative bg-champagne">
+          <section className="relative flex flex-1 overflow-hidden bg-champagne">
             <div className="w-full h-full flex flex-col relative overflow-hidden">
-              <header className="md:hidden shrink-0 z-50 relative bg-ivory/90 backdrop-blur-xl border-b border-midnight/5 px-6 py-5 flex justify-between items-center transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-midnight flex items-center justify-center text-white shadow-md shadow-midnight/20">
-                    <Sparkles size={16} strokeWidth={2} />
+              <header className="relative z-50 flex shrink-0 items-center justify-between border-b border-midnight/8 bg-white/92 px-4 py-3.5 backdrop-blur-xl md:hidden">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-midnight text-white shadow-sm">
+                    <Sparkles size={16} strokeWidth={2.1} />
                   </div>
-                  <h1 className="text-[17px] font-bold tracking-tight text-midnight font-jakarta">
-                    Pocket Kurogi
-                  </h1>
+                  <div className="min-w-0">
+                    <h1 className="truncate font-jakarta text-[16px] font-extrabold tracking-tight text-midnight">
+                      Pocket Kurogi
+                    </h1>
+                    <p className="text-[11px] font-semibold text-muted">Chat keuangan</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-midnight font-jakarta tracking-tight font-bold">
+                <div className="min-w-0 rounded-lg border border-midnight/8 bg-champagne px-3 py-2 text-right">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-muted">Saldo</p>
+                  <span className="block max-w-[132px] truncate font-jakarta text-[12px] font-extrabold tracking-tight text-midnight">
                     {formatRupiah(grandTotalBalance)}
                   </span>
                 </div>
@@ -1686,6 +1736,7 @@ export default function AppShell() {
                     }
                     isTyping={isTyping}
                     onSend={handleSend}
+                    onNotify={showNotice}
                     formatRupiah={formatRupiah}
                     hasMore={hasMoreMessages}
                     loadingMore={loadingMoreMessages}
@@ -1694,7 +1745,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                  className={`absolute inset-x-0 top-0 bottom-[72px] w-full overflow-y-auto no-scrollbar animate-fade-in md:inset-0 ${
                     activeTab === 'history' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1709,7 +1760,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                  className={`absolute inset-x-0 top-0 bottom-[72px] w-full overflow-y-auto no-scrollbar animate-fade-in md:inset-0 ${
                     activeTab === 'wallets' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1731,7 +1782,7 @@ export default function AppShell() {
                 </div>
 
                 <div
-                  className={`absolute inset-0 h-full w-full overflow-y-auto no-scrollbar animate-fade-in ${
+                  className={`absolute inset-x-0 top-0 bottom-[72px] w-full overflow-y-auto no-scrollbar animate-fade-in md:inset-0 ${
                     activeTab === 'analytics' ? 'block' : 'hidden'
                   }`}
                 >
@@ -1767,6 +1818,14 @@ export default function AppShell() {
           submitting={dialogSubmitting}
           onCancel={closeActionDialog}
           onConfirm={handleActionDialogConfirm}
+        />
+      ) : null}
+
+      {notice ? (
+        <StatusToast
+          message={notice.message}
+          tone={notice.tone}
+          onClose={() => setNotice(null)}
         />
       ) : null}
     </div>

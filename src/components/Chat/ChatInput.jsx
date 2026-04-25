@@ -1,9 +1,7 @@
 import { useState, useRef } from 'react'
-import { Plus, ArrowUp, Mic, X, Image as ImageIcon } from 'lucide-react'
+import { ArrowUp, Mic, X, Image as ImageIcon } from 'lucide-react'
 
-
-
-export default function ChatInput({ onSend, isTyping }) {
+export default function ChatInput({ onSend, isTyping, onNotify }) {
   const [inputValue, setInputValue] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
@@ -34,125 +32,123 @@ export default function ChatInput({ onSend, isTyping }) {
       })
     }
     reader.readAsDataURL(file)
-    e.target.value = '' // Reset input
+    e.target.value = ''
   }
 
   const handleMicClick = () => {
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      return;
+      recognitionRef.current.stop()
+      return
     }
 
-    // Check support for speech recognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      alert('Maaf, browser Anda tidak mendukung fitur input suara.');
-      return;
+      onNotify?.('Browser ini belum mendukung input suara.', 'info')
+      return
     }
 
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.lang = 'id-ID';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    const recognition = new SpeechRecognition()
+    recognitionRef.current = recognition
+    recognition.lang = 'id-ID'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
 
     recognition.onstart = () => {
-      setIsListening(true);
-    };
+      setIsListening(true)
+    }
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInputValue(transcript);
-      // Auto send if confident
+      const transcript = event.results[0][0].transcript
+      setInputValue(transcript)
       if (transcript.trim() && !isTyping) {
         onSend({
           text: transcript.trim(),
           imageFile: selectedImage?.file || null,
           imagePreview: selectedImage?.previewUrl || null,
-        });
-        setInputValue('');
-        setSelectedImage(null);
+        })
+        setInputValue('')
+        setSelectedImage(null)
       }
-    };
+    }
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error', event.error);
-      setIsListening(false);
-    };
+      console.error('Speech recognition error', event.error)
+      setIsListening(false)
+    }
 
     recognition.onend = () => {
-      setIsListening(false);
-    };
+      setIsListening(false)
+    }
 
-    recognition.start();
+    recognition.start()
   }
 
   return (
-    <div className="absolute bottom-[126px] md:bottom-12 left-0 w-full px-4 flex flex-col items-center z-40 pointer-events-none">
-
-
-      {/* Input Form & Preview Container */}
-      <div className="w-full max-w-[356px] md:max-w-3xl flex flex-col gap-2.5">
-        {/* Image Preview */}
+    <div className="pointer-events-none absolute bottom-[78px] left-0 z-40 flex w-full flex-col items-center px-3 md:bottom-6 md:px-8">
+      <div className="flex w-full max-w-[372px] flex-col gap-2.5 md:max-w-3xl">
         {selectedImage && (
-          <div className="self-end relative w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2 border-white pointer-events-auto bg-midnight/5">
+          <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-lg border border-midnight/10 bg-white shadow-lg">
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
             <button
+              type="button"
               onClick={() => setSelectedImage(null)}
-              className="absolute top-1 right-1 bg-midnight/60 text-white rounded-full p-1 backdrop-blur-md hover:bg-midnight transition-colors"
+              aria-label="Hapus gambar"
+              className="absolute right-1.5 top-1.5 rounded-full bg-midnight/80 p-1 text-white backdrop-blur-md transition-colors hover:bg-midnight"
             >
               <X size={14} strokeWidth={3} />
             </button>
           </div>
         )}
 
-        {/* Input Form */}
-        <div className="w-full glass-panel p-2 rounded-[28px] shadow-[0_16px_36px_rgba(15,23,42,0.1)] flex items-center gap-2.5 pointer-events-auto">
-          <input 
-            type="file" 
-            accept="image/*" 
-            ref={fileInputRef} 
-            onChange={handleImageUpload} 
-            className="hidden" 
+        <div className="glass-panel pointer-events-auto flex w-full items-center gap-1.5 rounded-lg p-1.5 shadow-[0_16px_38px_rgba(17,24,39,0.12)]">
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            className="hidden"
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-11 h-11 flex items-center justify-center text-midnight bg-cream rounded-full hover:bg-[#EBE7D9] transition-all shrink-0"
+            aria-label="Tambah gambar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-champagne text-muted transition-all hover:bg-cream hover:text-midnight"
           >
-            <Plus size={22} strokeWidth={2} />
+            <ImageIcon size={20} strokeWidth={2.1} />
           </button>
-          <form onSubmit={handleSubmit} className="flex-1 flex items-center">
-          <input
-            type="text"
-            className="w-full bg-transparent border-none focus:ring-0 text-midnight font-inter placeholder:text-midnight/30 px-2 text-[14.5px] outline-none font-medium"
-            placeholder={isListening ? "Mendengarkan..." : "Catat transaksi atau tanya kondisi uangmu..."}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            disabled={isListening}
-            autoComplete="off"
-          />
-          <button 
-            type="button" 
-            onClick={handleMicClick}
-            className={`mr-2 p-1 transition-all rounded-full ${
-              isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-midnight/30 hover:text-midnight/70'
-            }`}
-          >
-            <Mic size={20} strokeWidth={isListening ? 3 : 2.5} />
-          </button>
-          <button
-            type="submit"
-            disabled={(!inputValue.trim() && !selectedImage) || isTyping}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 ${
-              (inputValue.trim() || selectedImage) && !isTyping
-                ? 'bg-midnight text-white shadow-lg shadow-midnight/20 active:scale-95'
-                : 'bg-ivory text-midnight/20'
-            }`}
-          >
-            <ArrowUp size={20} strokeWidth={2.5} />
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-1">
+            <input
+              type="text"
+              className="w-full border-none bg-transparent px-2 font-inter text-[14.5px] font-semibold text-midnight outline-none placeholder:text-muted/55 focus:ring-0"
+              placeholder={isListening ? 'Mendengarkan...' : 'Catat atau tanya...'}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              disabled={isListening}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={handleMicClick}
+              aria-label={isListening ? 'Hentikan suara' : 'Input suara'}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-all ${
+                isListening ? 'animate-pulse bg-red-50 text-red-500' : 'text-muted hover:bg-champagne hover:text-midnight'
+              }`}
+            >
+              <Mic size={19} strokeWidth={isListening ? 2.8 : 2.2} />
+            </button>
+            <button
+              type="submit"
+              aria-label="Kirim"
+              disabled={(!inputValue.trim() && !selectedImage) || isTyping}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-all ${
+                (inputValue.trim() || selectedImage) && !isTyping
+                  ? 'bg-midnight text-white shadow-lg shadow-midnight/20 active:scale-95'
+                  : 'bg-champagne text-muted/35'
+              }`}
+            >
+              <ArrowUp size={20} strokeWidth={2.5} />
+            </button>
+          </form>
         </div>
       </div>
     </div>

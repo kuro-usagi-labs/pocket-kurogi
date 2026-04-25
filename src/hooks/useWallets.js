@@ -286,7 +286,7 @@ export function useWallets() {
 
     return {
       error: new Error(
-        'Dompet tidak bisa dihapus massal. Hapus satu per satu supaya tiap aksi bisa dikonfirmasi dan ledger tetap aman.'
+        'Dompet tidak bisa dihapus massal. Hapus satu per satu.'
       ),
     }
   }, [user])

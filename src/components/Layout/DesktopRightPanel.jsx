@@ -1,4 +1,4 @@
-import { Landmark, ChevronRight, ReceiptText } from 'lucide-react'
+import { ChevronRight, ReceiptText, Sparkles } from 'lucide-react'
 
 export default function DesktopRightPanel({ analytics, transactions = [], onExecuteStrategy }) {
   const {
@@ -23,90 +23,99 @@ export default function DesktopRightPanel({ analytics, transactions = [], onExec
     }).format(number)
   }
 
+  const topCategory = topExpenseCategories[0]
+
   return (
-    <aside className="hidden xl:flex shrink-0 w-80 bg-[#faf9f4] flex-col p-8 space-y-8 border-l border-black/5 overflow-y-auto overflow-x-hidden relative h-full">
-      <div>
-        <h3 className="text-[10px] font-extrabold text-midnight/40 tracking-[0.2em] uppercase mb-6">Asset Intelligence</h3>
-        <div className="space-y-4">
-          
-          {/* Health Score */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-midnight/5 relative overflow-hidden group">
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-gold/5 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-            <div className="relative z-10">
-              <p className="text-[10px] font-bold text-midnight/40 uppercase tracking-widest mb-2">Vault Health</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-jakarta font-extrabold text-midnight">{healthScore}</span>
-                <span className={`text-xs font-bold ${liquidityRatio >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {liquidityRatio >= 0 ? '+' : ''}{liquidityRatio.toFixed(1)}%
-                </span>
-              </div>
-              <p className="text-[10px] text-midnight/50 font-medium mt-2">
-                Savings Rate {savingsRate.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-
-          {/* Allocation Mix */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-midnight/5">
-            <p className="text-[10px] font-bold text-midnight/40 uppercase tracking-widest mb-6">Allocation Mix</p>
-            <div className="space-y-5">
-              {topExpenseCategories.slice(0, 3).map((categorySummary, idx) => {
-                const cat = categorySummary.name
-                const percentage = Math.round(Number(categorySummary.percentage || 0))
-                const colors = ['bg-midnight', 'bg-gold', 'bg-slate-300']
-                return (
-                  <div key={cat} className={`flex justify-between items-center ${idx === 2 ? 'opacity-50' : ''}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-1 h-4 rounded-full ${colors[idx] || colors[0]}`}></div>
-                      <span className="text-xs font-bold text-slate-600 capitalize">{cat}</span>
-                    </div>
-                    <span className="text-xs font-bold">{percentage}%</span>
-                  </div>
-                )
-              })}
-              {topExpenseCategories.length === 0 && (
-                <p className="text-xs text-midnight/40 italic">No expense data yet</p>
-              )}
-            </div>
-          </div>
-
-          {/* Action Card */}
-          <div className="bg-midnight p-6 rounded-2xl shadow-xl relative overflow-hidden mt-4">
-            <div className="absolute top-0 right-0 p-2 opacity-10">
-              <Landmark size={48} className="text-white" />
-            </div>
-            <h4 className="text-white text-sm font-bold mb-2">Yield Optimization</h4>
-            <p className="text-white/60 text-[11px] leading-relaxed mb-4">
-              Your largest expense is <span className="text-gold font-bold capitalize">{topExpenseCategories[0]?.name || 'Unknown'}</span>. 
-              Reduce it by 20% to save <span className="text-gold font-bold">
-                {topExpenseCategories[0]?.amount ? formatRupiah(topExpenseCategories[0].amount * 0.2) : 'Rp0'}
-              </span> this month.
-            </p>
-            <button 
-              onClick={() => onExecuteStrategy('Melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?')}
-              className="w-full py-2.5 bg-gold text-white text-[10px] font-extrabold uppercase tracking-widest rounded-lg hover:brightness-110 transition-all active:scale-[0.98]"
-            >
-              Execute Strategy
-            </button>
-          </div>
-        </div>
+    <aside className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto overflow-x-hidden border-l border-midnight/8 bg-white p-5 xl:flex">
+      <div className="mb-4">
+        <h3 className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.16em] text-muted">Insight</h3>
       </div>
 
-      <div className="pt-4 pb-12">
-        <h4 className="text-[10px] font-bold text-midnight/40 tracking-widest uppercase mb-4">Recent Activity</h4>
+      <div className="space-y-2.5">
+        <section className="rounded-lg border border-midnight/8 bg-champagne p-4">
+          <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+            Skor tabung
+          </p>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <span className="font-jakarta text-[42px] font-extrabold leading-none tracking-tight text-midnight">
+              {healthScore}
+            </span>
+            <span className={`font-jakarta text-[12px] font-extrabold ${liquidityRatio >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {liquidityRatio >= 0 ? '+' : ''}{liquidityRatio.toFixed(1)}%
+            </span>
+          </div>
+          <p className="mt-2.5 text-[12px] font-semibold text-muted">
+            Savings rate {savingsRate.toFixed(1)}%
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-midnight/8 bg-white p-4 shadow-sm">
+          <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+            Pengeluaran
+          </p>
+          <div className="mt-3 space-y-2.5">
+            {topExpenseCategories.slice(0, 3).map((categorySummary, idx) => {
+              const cat = categorySummary.name
+              const percentage = Math.round(Number(categorySummary.percentage || 0))
+              const colors = ['bg-gold', 'bg-indigo-500', 'bg-rose-400']
+
+              return (
+                <div key={cat} className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className={`h-3 w-3 shrink-0 rounded-full ${colors[idx] || colors[0]}`} />
+                    <span className="truncate text-[12px] font-bold capitalize text-midnight">{cat}</span>
+                  </div>
+                  <span className="text-[12px] font-extrabold text-muted">{percentage}%</span>
+                </div>
+              )
+            })}
+            {topExpenseCategories.length === 0 && (
+              <p className="text-[12px] font-medium text-muted">Belum ada data.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-midnight/8 bg-midnight p-4 text-white shadow-sm">
+          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+            <Sparkles size={17} />
+          </div>
+          <h4 className="font-jakarta text-[15px] font-extrabold tracking-tight">Saran cepat</h4>
+          <p className="mt-2 text-[12px] font-medium leading-relaxed text-white/65">
+            {topCategory
+              ? `${topCategory.name}: hemat ${formatRupiah(Number(topCategory.amount || 0) * 0.2)}.`
+              : 'Tanya strategi bulan ini.'}
+          </p>
+          <button
+            onClick={() => onExecuteStrategy('Melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?')}
+            className="mt-4 w-full rounded-lg bg-white px-4 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-midnight transition-all hover:bg-champagne active:scale-[0.98]"
+          >
+            Tanya saran
+          </button>
+        </section>
+      </div>
+
+      <div className="mt-6 pb-6">
+        <h4 className="mb-3 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.16em] text-muted">
+          Terbaru
+        </h4>
         <div className="space-y-2">
-          {transactions.slice(0, 3).map((tx) => (
-            <div key={tx.id} className="bg-white rounded-xl p-4 border border-midnight/5 flex items-center gap-3 hover:border-gold transition-colors cursor-pointer group">
-              <div className="w-10 h-10 rounded-lg bg-[#faf9f4] flex items-center justify-center border border-midnight/5 shrink-0">
-                <ReceiptText size={18} className="text-midnight/40 group-hover:text-midnight transition-colors" />
+          {transactions.slice(0, 4).map((tx) => (
+            <div key={tx.id} className="flex items-center gap-3 rounded-lg border border-midnight/8 bg-white p-3 shadow-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-champagne text-muted">
+                <ReceiptText size={18} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold truncate text-midnight">{tx.desc}</p>
-                <p className="text-[9px] text-midnight/60 font-bold">{formatRupiah(tx.amount)} • {tx.date}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-bold text-midnight">{tx.desc}</p>
+                <p className="mt-0.5 truncate text-[10px] font-semibold text-muted">{formatRupiah(tx.amount)} - {tx.date}</p>
               </div>
-              <ChevronRight size={14} className="text-midnight/30" />
+              <ChevronRight size={14} className="shrink-0 text-muted/70" />
             </div>
           ))}
+          {transactions.length === 0 && (
+            <div className="rounded-lg border border-dashed border-midnight/15 bg-champagne px-4 py-5 text-center text-[12px] font-medium text-muted">
+              Belum ada transaksi.
+            </div>
+          )}
         </div>
       </div>
     </aside>

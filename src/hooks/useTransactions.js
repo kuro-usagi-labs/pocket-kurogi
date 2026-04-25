@@ -266,7 +266,7 @@ export function useTransactions() {
 
     return {
       error: new Error(
-        `Riwayat ledger untuk ${startDate} hingga ${endDate} tidak bisa dihapus massal karena akan merusak saldo dan analytics.`
+        `Riwayat ${startDate} hingga ${endDate} tidak bisa dihapus massal.`
       ),
     }
   }, [user])
@@ -276,7 +276,7 @@ export function useTransactions() {
 
     return {
       error: new Error(
-        'Riwayat ledger tidak bisa dihapus massal. Hapus transaksi satu per satu agar saldo ikut direvert dengan aman.'
+        'Riwayat tidak bisa dihapus massal. Hapus satu per satu.'
       ),
     }
   }, [user])

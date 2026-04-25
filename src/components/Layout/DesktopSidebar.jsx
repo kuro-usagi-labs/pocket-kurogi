@@ -1,4 +1,4 @@
-import { MessageSquare, LineChart, Wallet, Clock, HelpCircle, LogOut } from 'lucide-react'
+import { MessageSquare, LineChart, Wallet, Clock, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 export default function DesktopSidebar({ activeTab, setActiveTab }) {
@@ -6,19 +6,22 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
 
   const navItems = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
-    { id: 'history', label: 'History', icon: Clock },
-    { id: 'wallets', label: 'Wallets', icon: Wallet },
-    { id: 'analytics', label: 'Analytics', icon: LineChart },
+    { id: 'history', label: 'Histori', icon: Clock },
+    { id: 'wallets', label: 'Dompet', icon: Wallet },
+    { id: 'analytics', label: 'Analitik', icon: LineChart },
   ]
 
   return (
-    <aside className="hidden md:flex flex-col shrink-0 h-full w-64 bg-[#faf9f4] py-8 z-40 border-r border-midnight/5 font-jakarta tracking-tight">
-      <div className="mb-12 px-8">
-        <h1 className="text-xl font-bold tracking-tighter text-midnight">The Vault</h1>
-        <p className="text-[10px] text-midnight/50 font-bold tracking-[0.2em] uppercase mt-1">Pocket Kurogi</p>
+    <aside className="hidden md:flex h-full w-[228px] shrink-0 flex-col border-r border-midnight/8 bg-white px-4 py-5 font-jakarta tracking-tight">
+      <div className="mb-7 px-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-midnight text-[15px] font-extrabold text-white shadow-premium">
+          PK
+        </div>
+        <h1 className="mt-4 text-[19px] font-extrabold tracking-tight text-midnight">Pocket Kurogi</h1>
+        <p className="mt-1 text-[12px] font-semibold text-muted">Catat. Tanya. Rapikan.</p>
       </div>
 
-      <nav className="flex-1 flex flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1">
         {navItems.map((item) => {
           const isActive = activeTab === item.id
           const Icon = item.icon
@@ -26,30 +29,26 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-3 px-8 py-4 w-full text-left transition-all duration-300 border-r-2 ${
-                isActive 
-                  ? 'text-midnight font-bold border-gold bg-midnight/5' 
-                  : 'text-midnight/50 font-medium border-transparent hover:bg-midnight/5 hover:text-midnight/80'
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[14px] transition-all ${
+                isActive
+                  ? 'bg-midnight text-white shadow-premium'
+                  : 'text-muted hover:bg-champagne hover:text-midnight'
               }`}
             >
-              <Icon size={20} className={isActive ? 'text-midnight' : 'text-midnight/50'} />
-              <span className="text-sm">{item.label}</span>
+              <Icon size={18} strokeWidth={2.1} />
+              <span className="font-bold">{item.label}</span>
             </button>
           )
         })}
       </nav>
 
-      <div className="px-8 mt-auto flex flex-col gap-1">
-        <button className="flex items-center gap-3 py-3 text-midnight/50 font-medium hover:text-midnight transition-colors">
-          <HelpCircle size={20} />
-          <span className="text-sm">Help</span>
-        </button>
-        <button 
+      <div className="mt-auto border-t border-midnight/8 pt-4">
+        <button
           onClick={signOut}
-          className="flex items-center gap-3 py-3 text-midnight/50 font-medium hover:text-red-600 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-bold text-muted transition-colors hover:bg-red-50 hover:text-red-600"
         >
-          <LogOut size={20} />
-          <span className="text-sm">Sign Out</span>
+          <LogOut size={18} />
+          <span>Keluar</span>
         </button>
       </div>
     </aside>

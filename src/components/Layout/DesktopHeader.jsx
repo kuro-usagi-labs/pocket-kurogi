@@ -1,28 +1,56 @@
-import { Search, Bell, Menu } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
-export default function DesktopHeader() {
+const PAGE_COPY = {
+  chat: {
+    title: 'Chat',
+    subtitle: 'Catat transaksi dan tanya arus kas.',
+  },
+  history: {
+    title: 'Histori',
+    subtitle: 'Semua transaksi tersimpan.',
+  },
+  wallets: {
+    title: 'Dompet',
+    subtitle: 'Saldo, arsip, dan target.',
+  },
+  analytics: {
+    title: 'Analitik',
+    subtitle: 'Ringkasan uang bulan ini.',
+  },
+}
+
+export default function DesktopHeader({ activeTab = 'chat', balance = 0, formatRupiah }) {
   const { user } = useAuth()
-  
+
   const emailName = user?.email?.split('@')[0] || 'User'
   const displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1)
+  const page = PAGE_COPY[activeTab] || PAGE_COPY.chat
 
   return (
-    <header className="hidden md:flex justify-between items-center w-full px-12 py-6 bg-[#faf9f4]/80 backdrop-blur-xl sticky top-0 z-30 shadow-sm shadow-black/5 border-b border-black/5 font-jakarta font-medium h-[88px] shrink-0">
-      <div className="flex items-center gap-8 flex-1">
-        <h2 className="text-xl font-bold tracking-tight text-midnight">
-          Financial Dashboard
+    <header className="sticky top-0 z-30 hidden h-[76px] w-full shrink-0 items-center justify-between border-b border-midnight/8 bg-champagne/88 px-6 font-jakarta backdrop-blur-xl md:flex">
+      <div className="min-w-0">
+        <h2 className="text-[21px] font-extrabold tracking-tight text-midnight">
+          {page.title}
         </h2>
+        <p className="mt-0.5 text-[12px] font-semibold text-muted">
+          {page.subtitle}
+        </p>
       </div>
-      
-      <div className="flex items-center gap-6">
-        
-        <div className="flex items-center gap-3 pl-4 border-l border-black/5">
-          <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold text-midnight">{displayName}</p>
-            <p className="text-[10px] text-midnight/50">Wealth Client</p>
+
+      <div className="flex items-center gap-4">
+        <div className="rounded-lg border border-midnight/8 bg-white px-3.5 py-2 text-right shadow-sm">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">Saldo</p>
+          <p className="mt-0.5 text-[14px] font-extrabold tracking-tight text-midnight">
+            {formatRupiah ? formatRupiah(balance) : balance}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 border-l border-midnight/8 pl-4">
+          <div className="hidden text-right sm:block">
+            <p className="text-[13px] font-extrabold text-midnight">{displayName}</p>
+            <p className="text-[11px] font-semibold text-muted">Akun</p>
           </div>
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gold/20 flex items-center justify-center bg-ivory text-xl font-bold bg-midnight text-white shadow-inner">
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-midnight text-[17px] font-extrabold text-white">
             {displayName.charAt(0)}
           </div>
         </div>

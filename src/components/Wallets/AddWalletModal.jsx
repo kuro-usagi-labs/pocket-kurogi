@@ -26,42 +26,44 @@ export default function AddWalletModal({ onClose, onSubmit }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-midnight/40 backdrop-blur-md flex items-center justify-center p-4 transition-opacity animate-fade-in">
-      <div className="bg-champagne rounded-[32px] p-7 w-full max-w-[340px] shadow-2xl border border-white/20">
-        <div className="flex justify-between items-center mb-7">
-          <h2 className="text-[19px] font-bold text-midnight font-jakarta tracking-tight">
-            Portofolio Baru
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-midnight/40 p-4 backdrop-blur-md transition-opacity animate-fade-in">
+      <div className="w-full max-w-[360px] rounded-lg border border-white/30 bg-white p-5 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="font-jakarta text-[20px] font-extrabold tracking-tight text-midnight">
+            Dompet Baru
           </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-muted hover:text-midnight bg-ivory border border-midnight/5 rounded-full p-2 hover:bg-[#EBE7D9] transition-colors"
+            aria-label="Tutup"
+            className="rounded-lg border border-midnight/8 bg-champagne p-2 text-muted transition-colors hover:text-midnight"
           >
             <X size={16} strokeWidth={2} />
           </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
-            <label className="block text-[10.5px] font-extrabold text-muted uppercase mb-2 tracking-[0.15em] font-jakarta">
-              Institusi / Nama
+            <label className="mb-2 block font-jakarta text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-muted">
+              Nama dompet
             </label>
             <input
               required
               type="text"
-              placeholder="Cth: Mandiri, Investasi..."
-              className="w-full bg-ivory border border-midnight/10 rounded-2xl px-4 py-3.5 text-[14.5px] font-semibold text-midnight focus:outline-none focus:ring-1 focus:ring-midnight/40 font-inter transition-all"
+              placeholder="Contoh: BCA"
+              className="w-full rounded-lg border border-midnight/10 bg-champagne px-4 py-3.5 font-inter text-[14.5px] font-semibold text-midnight transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gold/20"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="mb-8">
-            <label className="block text-[10.5px] font-extrabold text-muted uppercase mb-2 tracking-[0.15em] font-jakarta">
-              Likuiditas Awal (Rp)
+            <label className="mb-2 block font-jakarta text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-muted">
+              Saldo awal
             </label>
             <input
               required
               type="number"
               placeholder="500000"
-              className="w-full bg-ivory border border-midnight/10 rounded-2xl px-4 py-3.5 text-[14.5px] font-semibold text-midnight focus:outline-none focus:ring-1 focus:ring-midnight/40 font-inter transition-all"
+              className="w-full rounded-lg border border-midnight/10 bg-champagne px-4 py-3.5 font-inter text-[14.5px] font-semibold text-midnight transition-all placeholder:text-muted/50 focus:border-gold/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gold/20"
               value={balance}
               onChange={(e) => setBalance(e.target.value)}
             />
@@ -74,9 +76,9 @@ export default function AddWalletModal({ onClose, onSubmit }) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-midnight text-white font-bold font-jakarta text-[13px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl shadow-midnight/20 hover:opacity-90 active:scale-95 transition-all"
+            className="w-full rounded-lg bg-midnight py-4 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-white shadow-lg shadow-midnight/15 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
           >
-            {submitting ? 'Memproses...' : 'Inisialisasi'}
+            {submitting ? 'Memproses...' : 'Simpan'}
           </button>
         </form>
       </div>

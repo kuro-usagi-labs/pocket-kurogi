@@ -1,328 +1,444 @@
 import { useState } from 'react'
-import { Plus, X, Target, Flag, Pencil, AlertTriangle, Archive, RotateCcw } from 'lucide-react'
+import { Plus, X, Target, Pencil, AlertTriangle, Archive, RotateCcw, Wallet } from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
 import AddGoalModal from './AddGoalModal'
+import RenameEntityModal from '../shared/RenameEntityModal'
 
-export default function WalletsView({ 
-  wallets, 
+function formatWalletBalance(value) {
+  return Number(value || 0)
+}
+
+function formatCompactRupiah(value) {
+  const amount = Number(value || 0)
+  const absoluteAmount = Math.abs(amount)
+  const sign = amount < 0 ? '-' : ''
+
+  if (absoluteAmount >= 1_000_000) {
+    const compactValue = new Intl.NumberFormat('id-ID', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    }).format(absoluteAmount / 1_000_000)
+
+    return `${sign}Rp${compactValue} jt`
+  }
+
+  if (absoluteAmount >= 1_000) {
+    const compactValue = new Intl.NumberFormat('id-ID', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(absoluteAmount / 1_000)
+
+    return `${sign}Rp${compactValue} rb`
+  }
+
+  return `${sign}Rp${absoluteAmount}`
+}
+
+export default function WalletsView({
+  wallets,
   archivedWallets = [],
-  totalBalance, 
-  goals = [], 
+  totalBalance,
+  goals = [],
   conflicts = { wallets: [], goals: [] },
-  onAddWallet, 
-  onDeleteWallet, 
+  onAddWallet,
+  onDeleteWallet,
   onRestoreWallet,
   onRenameWallet,
-  onAddGoal, 
-  onDeleteGoal, 
+  onAddGoal,
+  onDeleteGoal,
   onRenameGoal,
-  formatRupiah 
+  formatRupiah,
 }) {
   const [showAddWallet, setShowAddWallet] = useState(false)
   const [showAddGoal, setShowAddGoal] = useState(false)
   const [walletTab, setWalletTab] = useState('active')
+  const [renameDialog, setRenameDialog] = useState(null)
+
   const hasConflicts = conflicts.wallets.length > 0 || conflicts.goals.length > 0
   const activeWalletCount = wallets.length
   const archivedWalletCount = archivedWallets.length
+  const archivedBalance = archivedWallets.reduce(
+    (sum, wallet) => sum + formatWalletBalance(wallet.current_balance),
+    0
+  )
+  const fundedGoalsCount = goals.filter((goal) => Number(goal.current_amount || 0) > 0).length
   const showingArchivedWallets = walletTab === 'archived'
   const visibleWallets = showingArchivedWallets ? archivedWallets : wallets
 
-  const handleRenameWallet = async (wallet) => {
-    const nextName = window.prompt('Nama baru untuk dompet ini:', wallet.name)
-    if (!nextName || nextName.trim() === wallet.name) return
-
-    const result = await onRenameWallet(wallet.id, nextName)
-    if (result?.error) {
-      window.alert(result.error.message || 'Nama dompet belum bisa diubah.')
-    }
+  const handleRenameWallet = (wallet) => {
+    setRenameDialog({
+      type: 'wallet',
+      id: wallet.id,
+      initialValue: wallet.name,
+      title: 'Ubah Dompet',
+      subtitle: '',
+      label: 'Nama Dompet',
+      placeholder: 'Contoh: BCA',
+      submitLabel: 'Simpan',
+    })
   }
 
-  const handleRenameGoal = async (goal) => {
-    const nextName = window.prompt('Nama baru untuk target ini:', goal.name)
-    if (!nextName || nextName.trim() === goal.name) return
+  const handleRenameGoal = (goal) => {
+    setRenameDialog({
+      type: 'goal',
+      id: goal.id,
+      initialValue: goal.name,
+      title: 'Ubah Target',
+      subtitle: '',
+      label: 'Nama Target',
+      placeholder: 'Contoh: Dana Darurat',
+      submitLabel: 'Simpan',
+    })
+  }
 
-    const result = await onRenameGoal(goal.id, nextName)
-    if (result?.error) {
-      window.alert(result.error.message || 'Nama target belum bisa diubah.')
+  const handleRenameSubmit = async (nextName) => {
+    if (!renameDialog) {
+      return { error: new Error('Tidak ada item yang sedang diubah.') }
     }
+
+    if (renameDialog.type === 'wallet') {
+      return onRenameWallet(renameDialog.id, nextName)
+    }
+
+    return onRenameGoal(renameDialog.id, nextName)
   }
 
   return (
-    <div className="pt-8 px-6 pb-[140px]">
+    <div className="mx-auto max-w-6xl px-4 pb-6 pt-5 md:px-6 md:pb-8 md:pt-6">
       {hasConflicts ? (
-        <div className="mb-6 rounded-[24px] border border-amber-200 bg-amber-50/90 px-5 py-4 shadow-sm">
+        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700">
+            <div className="mt-0.5 rounded-lg bg-amber-100 p-2 text-amber-700">
               <AlertTriangle size={16} />
             </div>
-            <div className="space-y-2">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-amber-800 font-jakarta">
-                Audit Nama Diperlukan
+            <div className="min-w-0">
+              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.14em] text-amber-800">
+                Nama bentrok
               </p>
-              <p className="text-[13px] font-medium leading-relaxed text-amber-900/80">
-                Ada dompet atau target dengan nama aktif yang bentrok. Rename item terkait dulu supaya index unik backend bisa aktif dengan aman.
-              </p>
-              {conflicts.wallets.map((conflict) => (
-                <p key={`wallet-${conflict.normalizedName}`} className="text-[12px] font-semibold text-amber-900/80">
-                  Dompet: {conflict.items.map((item) => item.name).join(', ')}
-                </p>
-              ))}
-              {conflicts.goals.map((conflict) => (
-                <p key={`goal-${conflict.normalizedName}`} className="text-[12px] font-semibold text-amber-900/80">
-                  Target: {conflict.items.map((item) => item.name).join(', ')}
-                </p>
-              ))}
+              <div className="mt-1 space-y-1 text-[12px] font-semibold text-amber-900/80">
+                {conflicts.wallets.map((conflict) => (
+                  <p key={`wallet-${conflict.normalizedName}`}>
+                    Dompet: {conflict.items.map((item) => item.name).join(', ')}
+                  </p>
+                ))}
+                {conflicts.goals.map((conflict) => (
+                  <p key={`goal-${conflict.normalizedName}`}>
+                    Target: {conflict.items.map((item) => item.name).join(', ')}
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Total Balance */}
-      <div className="mb-8 pl-1">
-        <h2 className="text-[10px] font-extrabold text-muted uppercase tracking-[0.25em] mb-2 font-jakarta opacity-80">
-          Akumulasi Saldo
-        </h2>
-        <div className="flex items-baseline gap-2">
-          <span className="text-[38px] font-extrabold text-midnight font-jakarta tracking-tighter leading-tight drop-shadow-sm">
-            {formatRupiah(totalBalance)}
-          </span>
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-jakarta text-[22px] font-extrabold tracking-tight text-midnight">Dompet</h2>
+          <p className="mt-1 text-[13px] font-semibold text-muted">Saldo, arsip, target.</p>
         </div>
+        <button
+          onClick={() => setShowAddWallet(true)}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-midnight px-3.5 py-2.5 font-jakarta text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] sm:px-4 sm:py-3"
+        >
+          <Plus size={15} strokeWidth={2.4} />
+          Tambah
+        </button>
       </div>
 
-      <div className="mb-5 flex items-center gap-2 rounded-[24px] bg-white/75 p-2 shadow-[0_6px_24px_rgba(15,23,42,0.04)] backdrop-blur-sm">
-        <button
+      <section className="mb-4 rounded-lg border border-midnight/8 bg-white p-4 shadow-sm md:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+              Total aktif
+            </p>
+            <p className="mt-1.5 break-words font-jakarta text-[32px] font-extrabold leading-tight tracking-tight text-midnight md:text-[40px]">
+              {formatRupiah(totalBalance)}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 border-t border-midnight/8 pt-3 lg:min-w-[420px] lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+            <Stat label="Aktif" value={activeWalletCount} />
+            <Stat label="Arsip" value={formatCompactRupiah(archivedBalance)} />
+            <Stat label="Target" value={`${fundedGoalsCount}/${goals.length || 0}`} />
+          </div>
+        </div>
+      </section>
+
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg border border-midnight/8 bg-white p-1 shadow-sm">
+        <TabButton
+          active={!showingArchivedWallets}
+          label="Aktif"
+          value={`${activeWalletCount} dompet`}
           onClick={() => setWalletTab('active')}
-          className={`flex-1 rounded-[18px] px-4 py-3 text-left transition-all ${
-            showingArchivedWallets
-              ? 'text-midnight/55 hover:bg-ivory'
-              : 'bg-midnight text-white shadow-lg shadow-midnight/15'
-          }`}
-        >
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] font-jakarta">
-            Aktif
-          </p>
-          <p className={`mt-1 text-[13px] font-bold ${showingArchivedWallets ? 'text-midnight' : 'text-white'}`}>
-            {activeWalletCount} dompet aktif
-          </p>
-        </button>
-        <button
+        />
+        <TabButton
+          active={showingArchivedWallets}
+          label="Arsip"
+          value={`${archivedWalletCount} dompet`}
           onClick={() => setWalletTab('archived')}
-          className={`flex-1 rounded-[18px] px-4 py-3 text-left transition-all ${
-            showingArchivedWallets
-              ? 'bg-midnight text-white shadow-lg shadow-midnight/15'
-              : 'text-midnight/55 hover:bg-ivory'
-          }`}
-        >
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] font-jakarta">
-            Arsip
-          </p>
-          <p className={`mt-1 text-[13px] font-bold ${showingArchivedWallets ? 'text-white' : 'text-midnight'}`}>
-            {archivedWalletCount} dompet tersimpan
-          </p>
-        </button>
+        />
       </div>
 
       {showingArchivedWallets ? (
-        <div className="mb-6 rounded-[24px] border border-midnight/8 bg-white/80 px-5 py-4 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-midnight/5 p-2 text-midnight/70">
-              <Archive size={16} />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-midnight font-jakarta">
-                Arsip Dompet
-              </p>
-              <p className="text-[13px] font-medium leading-relaxed text-midnight/65">
-                Dompet arsip tetap terlihat di sini supaya tidak ada histori yang terasa hilang. Ledger lamanya masih aman, tetapi dompet ini tidak dipakai lagi untuk input aktif maupun chat.
-              </p>
-            </div>
-          </div>
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-midnight/8 bg-white px-4 py-3 text-muted shadow-sm">
+          <Archive size={17} className="mt-0.5 shrink-0 text-midnight/60" />
+          <p className="text-[13px] font-medium leading-relaxed">
+            Dompet arsip hanya untuk histori. Pulihkan untuk dipakai lagi.
+          </p>
         </div>
       ) : null}
 
-      {/* Wallet Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-10">
-        {visibleWallets.map((wallet) => (
-          <div
-            key={wallet.id}
-            className={`rounded-[24px] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.03)] relative group transition-colors ${
-              showingArchivedWallets
-                ? 'bg-[#F5F1E6] border border-midnight/8'
-                : 'bg-white border border-midnight/5 hover:border-midnight/10'
-            }`}
-          >
-            {showingArchivedWallets ? (
-              <>
-                <span className="absolute top-3 right-3 rounded-full bg-midnight/8 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.18em] text-midnight/60">
-                  Arsip
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {visibleWallets.map((wallet) => {
+          const balance = formatWalletBalance(wallet.current_balance)
+
+          return (
+            <div
+              key={wallet.id}
+              className={`flex min-h-[188px] flex-col rounded-lg border p-4 shadow-sm transition-all ${
+                showingArchivedWallets
+                  ? 'border-midnight/8 bg-cream/60'
+                  : 'border-midnight/8 bg-white hover:border-midnight/16 hover:shadow-premium'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-midnight/8 bg-champagne text-midnight">
+                    <WalletIcon walletName={wallet.name} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                      {showingArchivedWallets ? 'Arsip' : 'Aktif'}
+                    </p>
+                    <h3 className="mt-1 truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight">
+                      {wallet.name}
+                    </h3>
+                  </div>
+                </div>
+
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] ${
+                    showingArchivedWallets ? 'bg-midnight/8 text-muted' : 'bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {showingArchivedWallets ? 'Arsip' : 'Aktif'}
                 </span>
-                <button
-                  onClick={() => onRestoreWallet(wallet.id)}
-                  className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/85 px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-midnight/70 shadow-sm transition-all hover:bg-white hover:text-midnight"
-                  title="Pulihkan dompet ke daftar aktif"
-                >
-                  <RotateCcw size={11} strokeWidth={2.3} />
-                  Pulihkan
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => handleRenameWallet(wallet)}
-                  className="absolute top-3 left-3 p-1.5 text-muted/30 hover:text-midnight hover:bg-ivory rounded-full transition-all"
-                  title="Ubah nama dompet"
-                >
-                  <Pencil size={13} strokeWidth={2} />
-                </button>
-                <button
-                  onClick={() => onDeleteWallet(wallet.id)}
-                  className="absolute top-3 right-3 p-1.5 text-muted/30 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                  title="Hapus dompet dari daftar aktif"
-                >
-                  <X size={14} strokeWidth={2} />
-                </button>
-              </>
-            )}
-            <div className={`w-11 h-11 rounded-full flex items-center justify-center text-midnight mb-4 border shadow-sm ${
-              showingArchivedWallets ? 'bg-white/65 border-midnight/8' : 'bg-ivory border-midnight/5'
-            }`}>
-              <WalletIcon walletName={wallet.name} />
+              </div>
+
+              <div className="mt-4">
+                <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                  Saldo
+                </p>
+                <p className="mt-1.5 break-words font-jakarta text-[24px] font-extrabold leading-tight tracking-tight text-midnight">
+                  {formatRupiah(balance)}
+                </p>
+              </div>
+
+              <div className="mt-auto pt-4">
+                {showingArchivedWallets ? (
+                  <button
+                    onClick={() => onRestoreWallet(wallet.id)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-midnight px-4 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-white transition-all hover:brightness-110 active:scale-[0.98]"
+                    title="Pulihkan dompet"
+                  >
+                    <RotateCcw size={15} strokeWidth={2.3} />
+                    Pulihkan
+                  </button>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleRenameWallet(wallet)}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+                      title="Ubah nama"
+                    >
+                      <Pencil size={14} strokeWidth={2.1} />
+                      Ubah
+                    </button>
+                    <button
+                      onClick={() => onDeleteWallet(wallet.id)}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+                      title="Arsipkan dompet"
+                    >
+                      <X size={15} strokeWidth={2.1} />
+                      Arsip
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="text-[10px] font-extrabold text-muted uppercase tracking-widest truncate">
-              {wallet.name}
-            </p>
-            <p className="text-[16px] font-extrabold text-midnight mt-1 font-jakarta">
-              {formatRupiah(Number(wallet.current_balance))}
-            </p>
-          </div>
-        ))}
+          )
+        })}
 
         {!showingArchivedWallets ? (
-          <div
+          <button
+            type="button"
             onClick={() => setShowAddWallet(true)}
-            className="border border-dashed border-midnight/20 bg-ivory/40 hover:bg-ivory rounded-[24px] p-5 flex flex-col items-center justify-center cursor-pointer transition-all min-h-[130px] group"
+            className="flex min-h-[204px] flex-col items-center justify-center rounded-lg border border-dashed border-midnight/20 bg-white/60 p-6 text-center transition-all hover:border-midnight/30 hover:bg-white"
           >
-            <div className="bg-white w-10 h-10 rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-105 transition-transform">
-              <Plus size={20} className="text-midnight/60" strokeWidth={2} />
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-champagne text-midnight">
+              <Wallet size={22} strokeWidth={2} />
             </div>
-            <p className="text-[10.5px] font-extrabold text-midnight/60 font-jakarta uppercase tracking-widest text-center leading-relaxed">
-              Tambah<br />Portofolio
+            <p className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
+              Dompet baru
             </p>
-          </div>
+          </button>
         ) : null}
       </div>
 
-      {visibleWallets.length === 0 ? (
-        <div className="mb-10 rounded-[28px] border border-dashed border-midnight/15 bg-white/70 px-6 py-7 text-center shadow-sm">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted font-jakarta">
-            {showingArchivedWallets ? 'Belum Ada Arsip' : 'Belum Ada Dompet Aktif'}
-          </p>
-          <p className="mt-2 text-[13px] font-medium leading-relaxed text-midnight/65">
-            {showingArchivedWallets
-              ? 'Begitu ada dompet yang dihapus dari daftar aktif, dompet itu akan tetap muncul di tab arsip ini.'
-              : 'Buat dompet baru untuk mulai mencatat saldo dan transaksi.'}
-          </p>
+      {visibleWallets.length === 0 && showingArchivedWallets ? (
+        <div className="mb-8 rounded-lg border border-dashed border-midnight/15 bg-white px-5 py-8 text-center shadow-sm">
+          <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada arsip.</p>
         </div>
       ) : null}
 
-      {/* Goals Section */}
-      {goals.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-[10px] font-extrabold text-muted uppercase tracking-[0.25em] mb-6 font-jakarta opacity-80 pl-1">
-            Financial Milestones
-          </h2>
-          <div className="space-y-4">
-            {goals.map((goal) => {
-              const progress = Math.min(100, (goal.current_amount / goal.target_amount) * 100)
-              return (
-                <div key={goal.id} className="bg-white p-5 rounded-[28px] border border-midnight/5 shadow-sm relative overflow-hidden group">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gold/10 rounded-2xl flex items-center justify-center text-gold">
-                        <Target size={20} />
-                      </div>
-                      <div>
-                        <h4 className="text-[14px] font-bold text-midnight tracking-tight">{goal.name}</h4>
-                        <p className="text-[10px] text-midnight/40 font-bold uppercase tracking-widest leading-none mt-1">
-                          {formatRupiah(goal.target_amount)} Target
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => handleRenameGoal(goal)}
-                        className="p-1.5 text-midnight/20 hover:text-midnight hover:bg-ivory rounded-full transition-all"
-                        title="Ubah nama target"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button 
-                        onClick={() => onDeleteGoal(goal.id)}
-                        className="p-1.5 text-midnight/10 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[11px] font-bold text-midnight/60">
-                        <span>{formatRupiah(goal.current_amount)} Terkumpul</span>
-                        <span>{Math.round(progress)}%</span>
-                    </div>
-                    <div className="w-full h-2.5 bg-ivory rounded-full overflow-hidden border border-midnight/5">
-                      <div 
-                        className="h-full bg-gold transition-all duration-1000 shadow-[0_0_12px_rgba(212,175,55,0.3)]"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-jakarta text-[18px] font-extrabold tracking-tight text-midnight">Target</h2>
+          <p className="mt-1 text-[13px] font-semibold text-muted">{goals.length} target</p>
         </div>
-      )}
-
-      {/* Milestone CTA Card */}
-      <div className="bg-midnight p-8 rounded-[32px] flex flex-col justify-between items-start text-white shadow-2xl shadow-midnight/30 relative overflow-hidden">
-        <div className="w-14 h-14 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center mb-6 border border-white/5">
-          <Flag size={26} className="text-white" strokeWidth={1.5} />
-        </div>
-        <div className="relative z-10">
-          <h3 className="text-[22px] font-jakarta font-bold mb-2.5 leading-tight tracking-tight">
-            Rencanakan Milestone
-          </h3>
-          <p className="text-white/60 text-[13.5px] font-inter leading-relaxed mb-8 font-medium">
-            Tetapkan target untuk akuisisi properti, perjalanan, atau pertumbuhan jangka panjang.
-          </p>
-          <button 
-            onClick={() => setShowAddGoal(true)}
-            className="bg-champagne text-midnight px-7 py-3.5 rounded-full font-jakarta font-extrabold text-[11px] tracking-[0.15em] uppercase hover:opacity-90 hover:scale-105 active:scale-95 transition-all w-full shadow-lg shadow-black/20"
-          >
-            Buat Target Baru
-          </button>
-        </div>
-        <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-gold/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -top-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+        <button
+          onClick={() => setShowAddGoal(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-4 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-midnight shadow-sm transition-all hover:bg-champagne"
+        >
+          <Plus size={15} strokeWidth={2.4} />
+          Target
+        </button>
       </div>
 
-      {/* Modals */}
+      {goals.length > 0 ? (
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {goals.map((goal) => {
+            const progress = Math.min(100, (goal.current_amount / goal.target_amount) * 100)
+            const remainingAmount = Math.max(Number(goal.target_amount || 0) - Number(goal.current_amount || 0), 0)
+
+            return (
+              <div
+                key={goal.id}
+                className="rounded-lg border border-midnight/8 bg-white p-4 shadow-sm transition-all hover:border-midnight/16 hover:shadow-premium"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-gold">
+                      <Target size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight">
+                        {goal.name}
+                      </h4>
+                      <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                        {formatRupiah(goal.target_amount)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="rounded-full bg-midnight/5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-muted">
+                    {Math.round(progress)}%
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-[11px] font-bold text-muted">
+                    <span>{formatRupiah(goal.current_amount)}</span>
+                    <span>Sisa {formatRupiah(remainingAmount)}</span>
+                  </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-cream">
+                    <div
+                      className="h-full rounded-full bg-gold transition-all duration-700"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleRenameGoal(goal)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+                    title="Ubah target"
+                  >
+                    <Pencil size={14} strokeWidth={2.1} />
+                    Ubah
+                  </button>
+                  <button
+                    onClick={() => onDeleteGoal(goal.id)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+                  >
+                    <X size={15} strokeWidth={2.1} />
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowAddGoal(true)}
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/60 px-5 py-8 text-center transition-all hover:border-midnight/30 hover:bg-white"
+        >
+          <Target size={20} className="text-muted" />
+          <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
+            Buat target
+          </span>
+        </button>
+      )}
+
       {showAddWallet && (
         <AddWalletModal
           onClose={() => setShowAddWallet(false)}
           onSubmit={onAddWallet}
         />
       )}
-      
+
       {showAddGoal && (
         <AddGoalModal
           onClose={() => setShowAddGoal(false)}
           onSubmit={onAddGoal}
         />
       )}
+
+      {renameDialog ? (
+        <RenameEntityModal
+          title={renameDialog.title}
+          subtitle={renameDialog.subtitle}
+          label={renameDialog.label}
+          placeholder={renameDialog.placeholder}
+          initialValue={renameDialog.initialValue}
+          submitLabel={renameDialog.submitLabel}
+          onClose={() => setRenameDialog(null)}
+          onSubmit={handleRenameSubmit}
+        />
+      ) : null}
     </div>
+  )
+}
+
+function Stat({ label, value }) {
+  return (
+    <div className="min-w-0 rounded-md bg-champagne px-2.5 py-2.5 md:bg-transparent md:px-0 md:py-0">
+      <p className="truncate font-jakarta text-[9px] font-extrabold uppercase tracking-[0.12em] text-muted md:text-[10px]">
+        {label}
+      </p>
+      <p className="mt-1 truncate font-jakarta text-[14px] font-extrabold tracking-tight text-midnight md:text-[17px]">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function TabButton({ active, label, value, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-3 py-2.5 text-left transition-all ${
+        active ? 'bg-midnight text-white shadow-sm' : 'text-muted hover:bg-champagne hover:text-midnight'
+      }`}
+    >
+      <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.12em]">{label}</p>
+      <p className={`mt-0.5 text-[12px] font-bold ${active ? 'text-white/75' : 'text-muted'}`}>{value}</p>
+    </button>
   )
 }

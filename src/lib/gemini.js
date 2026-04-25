@@ -24,7 +24,7 @@ const TRANSACTION_CATEGORIES = [
 ]
 
 const LEDGER_AMOUNT_REQUIRED_REPLY =
-  'Saya perlu nominal yang jelas untuk mencatat ledger. Contoh: "Beli kopi 50k tunai".'
+  'Saya perlu nominal yang jelas. Contoh: "Beli kopi 50k tunai".'
 const GENERIC_UNKNOWN_REPLY =
   'Saya belum bisa memetakan permintaan itu ke aksi yang aman. Coba minta analisis keuangan, cek ringkasan, atau tulis transaksi dengan nominal yang jelas.'
 
@@ -472,7 +472,7 @@ function detectGoalContributionIntent(normalizedText, walletOptions = [], goalOp
     if (rawWalletName) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${rawWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${rawWalletName}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: rawWalletName,
         intent: {
@@ -556,7 +556,7 @@ function detectGoalWithdrawalIntent(normalizedText, walletOptions = [], goalOpti
     if (rawWalletName) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${rawWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${rawWalletName}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: rawWalletName,
         intent: {
@@ -618,7 +618,7 @@ function detectWalletTransferIntent(normalizedText, walletOptions = []) {
     if (missingWalletName) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${missingWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${missingWalletName}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: missingWalletName,
         intent: {
@@ -694,7 +694,7 @@ function resolveWalletForTransaction(normalizedText, walletOptions) {
   if (rawWalletName) {
     return createNeedsConfirmation({
       reason: 'unknown_wallet',
-      prompt: `Dompet "${rawWalletName}" belum ada. Buat wallet baru dengan nama itu?`,
+      prompt: `Dompet "${rawWalletName}" belum ada. Buat dompet baru?`,
       action: 'create_wallet',
       walletName: rawWalletName,
       intent: {
@@ -745,7 +745,7 @@ function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions,
     if (analysis.wallet) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${analysis.wallet}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${analysis.wallet}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: analysis.wallet,
         intent: {
@@ -782,7 +782,7 @@ function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions,
     if (analysis.from && !fromResolution.match) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${analysis.from}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${analysis.from}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: analysis.from,
         intent: {
@@ -795,7 +795,7 @@ function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions,
     if (analysis.to && !toResolution.match) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${analysis.to}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${analysis.to}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: analysis.to,
         intent: {
@@ -832,7 +832,7 @@ function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions,
       if (analysis.sourceWallet || analysis.wallet) {
         return createNeedsConfirmation({
           reason: 'unknown_wallet',
-          prompt: `Dompet "${analysis.sourceWallet || analysis.wallet}" belum ada. Buat wallet baru dengan nama itu?`,
+          prompt: `Dompet "${analysis.sourceWallet || analysis.wallet}" belum ada. Buat dompet baru?`,
           action: 'create_wallet',
           walletName: analysis.sourceWallet || analysis.wallet,
           intent: {
@@ -889,7 +889,7 @@ function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions,
     if (goalResolution.match && analysis.wallet && !destinationResolution.match) {
       return createNeedsConfirmation({
         reason: 'unknown_wallet',
-        prompt: `Dompet "${analysis.wallet}" belum ada. Buat wallet baru dengan nama itu?`,
+        prompt: `Dompet "${analysis.wallet}" belum ada. Buat dompet baru?`,
         action: 'create_wallet',
         walletName: analysis.wallet,
         intent: {

@@ -9,10 +9,10 @@ function AppContent() {
     return (
       <div className="h-[100dvh] w-full flex items-center justify-center bg-champagne">
         <div className="animate-fade-in flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-midnight flex items-center justify-center shadow-xl shadow-midnight/30">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-midnight shadow-xl shadow-midnight/20">
+            <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
           </div>
-          <p className="text-muted/40 text-[10px] font-extrabold tracking-[0.2em] uppercase font-jakarta">
+          <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
             Loading
           </p>
         </div>
