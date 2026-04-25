@@ -1,32 +1,120 @@
-import { createElement, useEffect, useRef, useState } from 'react'
-import { Calendar, Info, MoreHorizontal, Plus, Target, Trash2, Pencil, AlertTriangle, Wallet, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  AlertTriangle,
+  Calendar,
+  ChevronRight,
+  Info,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Target,
+  Trash2,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { WalletIcon } from '../shared/CategoryIcon'
 import AddWalletModal from './AddWalletModal'
 import AddGoalModal from './AddGoalModal'
 import RenameEntityModal from '../shared/RenameEntityModal'
 
+const WALLET_FILTERS = [
+  { id: 'all', label: 'Semua' },
+  { id: 'cash', label: 'Tunai' },
+  { id: 'bank', label: 'Bank' },
+  { id: 'e_wallet', label: 'E-Wallet' },
+]
+
+const WALLET_TYPE_META = {
+  cash: {
+    label: 'Tunai',
+    description: 'Dompet tunai',
+    badgeClass: 'bg-emerald-50 text-emerald-700',
+    iconClass: 'from-emerald-50 to-white text-emerald-600 ring-emerald-100/80',
+    accentClass: 'bg-emerald-500',
+  },
+  bank: {
+    label: 'Bank',
+    description: 'Rekening bank',
+    badgeClass: 'bg-sky-50 text-sky-700',
+    iconClass: 'from-sky-50 to-white text-sky-600 ring-sky-100/80',
+    accentClass: 'bg-sky-500',
+  },
+  e_wallet: {
+    label: 'E-Wallet',
+    description: 'Saldo e-wallet',
+    badgeClass: 'bg-blue-50 text-blue-700',
+    iconClass: 'from-blue-50 to-white text-blue-600 ring-blue-100/80',
+    accentClass: 'bg-blue-500',
+  },
+  savings: {
+    label: 'Tabungan',
+    description: 'Tabungan',
+    badgeClass: 'bg-amber-50 text-amber-700',
+    iconClass: 'from-amber-50 to-white text-amber-600 ring-amber-100/80',
+    accentClass: 'bg-amber-500',
+  },
+  investment: {
+    label: 'Investasi',
+    description: 'Investasi',
+    badgeClass: 'bg-violet-50 text-violet-700',
+    iconClass: 'from-violet-50 to-white text-violet-600 ring-violet-100/80',
+    accentClass: 'bg-violet-500',
+  },
+  goal: {
+    label: 'Target',
+    description: 'Dompet target',
+    badgeClass: 'bg-teal-50 text-teal-700',
+    iconClass: 'from-teal-50 to-white text-teal-600 ring-teal-100/80',
+    accentClass: 'bg-teal-500',
+  },
+  default: {
+    label: 'Dompet',
+    description: 'Dompet aktif',
+    badgeClass: 'bg-slate-100 text-slate-700',
+    iconClass: 'from-slate-50 to-white text-slate-600 ring-slate-100',
+    accentClass: 'bg-slate-400',
+  },
+}
+
 function formatWalletBalance(value) {
   return Number(value || 0)
 }
 
-function formatWalletTypeLabel(walletType) {
+function normalizeWalletType(walletType) {
   const normalized = String(walletType || '')
     .toLowerCase()
     .replace(/[\s-]+/g, '_')
 
-  if (normalized === 'bank') return 'Dompet bank'
-  if (normalized === 'cash') return 'Dompet tunai'
-  if (normalized === 'e_wallet' || normalized === 'ewallet') return 'Dompet e-wallet'
-  if (normalized === 'savings') return 'Tabungan'
-  if (normalized === 'investment') return 'Investasi'
-  if (normalized === 'goal') return 'Dompet target'
+  if (normalized === 'ewallet') return 'e_wallet'
+  if (normalized === 'tunai') return 'cash'
+  if (normalized === 'rekening') return 'bank'
 
-  return normalized ? `Dompet ${normalized.replace(/_/g, ' ')}` : 'Dompet aktif'
+  return normalized || 'default'
+}
+
+function getWalletMeta(wallet) {
+  const normalizedType = normalizeWalletType(wallet?.wallet_type)
+  const meta = WALLET_TYPE_META[normalizedType] || WALLET_TYPE_META.default
+
+  return {
+    ...meta,
+    type: normalizedType,
+  }
+}
+
+function getWalletDescription(wallet, meta) {
+  if (meta.type === 'bank') return `Rekening ${wallet.name}`
+  if (meta.type === 'e_wallet') return `Saldo ${wallet.name}`
+  return meta.description
+}
+
+function walletMatchesFilter(wallet, filterId) {
+  if (filterId === 'all') return true
+  return getWalletMeta(wallet).type === filterId
 }
 
 export default function WalletsView({
   wallets,
-  totalBalance,
   goals = [],
   conflicts = { wallets: [], goals: [] },
   onAddWallet,
@@ -40,10 +128,17 @@ export default function WalletsView({
   const [showAddWallet, setShowAddWallet] = useState(false)
   const [showAddGoal, setShowAddGoal] = useState(false)
   const [renameDialog, setRenameDialog] = useState(null)
+  const [activeWalletFilter, setActiveWalletFilter] = useState('all')
+  const [manageMode, setManageMode] = useState(false)
 
   const hasConflicts = conflicts.wallets.length > 0 || conflicts.goals.length > 0
   const activeWalletCount = wallets.length
   const fundedGoalsCount = goals.filter((goal) => Number(goal.current_amount || 0) > 0).length
+  const activeFilterLabel = WALLET_FILTERS.find((filter) => filter.id === activeWalletFilter)?.label || 'Dompet'
+  const filteredWallets = useMemo(
+    () => wallets.filter((wallet) => walletMatchesFilter(wallet, activeWalletFilter)),
+    [activeWalletFilter, wallets]
+  )
 
   const handleRenameWallet = (wallet) => {
     setRenameDialog({
@@ -84,9 +179,9 @@ export default function WalletsView({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-5 pb-8 pt-3 sm:px-8 lg:px-10">
+    <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8">
       {hasConflicts ? (
-        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 rounded-lg bg-amber-100 p-2 text-amber-700">
               <AlertTriangle size={16} />
@@ -112,112 +207,114 @@ export default function WalletsView({
         </div>
       ) : null}
 
-      <div className="mb-7 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="font-jakarta text-[34px] font-extrabold tracking-tight text-midnight sm:text-[42px]">Dompet</h2>
-          <p className="mt-2 text-[17px] font-medium text-muted">Kelola saldo dan target keuanganmu.</p>
-        </div>
-        <button
-          onClick={() => setShowAddWallet(true)}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-[16px] bg-emerald-500 px-4 py-3 font-jakarta text-[15px] font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-600 active:scale-[0.98] sm:px-7 sm:py-4 sm:text-[18px]"
-        >
-          <Plus size={22} strokeWidth={2.4} />
-          <span className="hidden sm:inline">Tambah dompet</span>
-          <span className="sm:hidden">Tambah</span>
-        </button>
-      </div>
-
-      <section className="mb-5 rounded-[22px] border border-midnight/10 bg-white p-5 shadow-[0_14px_38px_rgba(15,23,42,0.05)] sm:p-7">
-        <div className="flex flex-col gap-5">
-          <div>
-            <p className="font-jakarta text-[18px] font-medium text-muted">
-              Total aktif
-            </p>
-            <p className="mt-2 break-words font-jakarta text-[38px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[48px]">
-              {formatRupiah(totalBalance)}
+      <section className="mb-6 rounded-[22px] border border-midnight/10 bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.045)] sm:p-5 lg:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-jakarta text-[26px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
+              Dompet
+            </h2>
+            <p className="mt-1 text-[13px] font-semibold text-muted sm:text-[14px]">
+              {activeWalletCount} dompet aktif
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Stat icon={Wallet} label="Aktif" value={activeWalletCount} />
-            <Stat icon={Info} label="Riwayat" value="Aman" muted />
-            <Stat icon={Target} label="Target" value={`${fundedGoalsCount}/${goals.length || 0}`} />
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAddWallet(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-midnight/10 bg-white text-emerald-600 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50"
+              aria-label="Tambah dompet"
+              title="Tambah dompet"
+            >
+              <Plus size={18} strokeWidth={2.4} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setManageMode((current) => !current)}
+              aria-pressed={manageMode}
+              className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-3.5 font-jakarta text-[13px] font-bold transition-all ${
+                manageMode
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-transparent bg-white text-emerald-600 hover:bg-emerald-50'
+              }`}
+            >
+              <SlidersHorizontal size={17} strokeWidth={2.3} />
+              Kelola
+            </button>
           </div>
         </div>
-      </section>
 
-      <section className="mb-6 lg:hidden">
-        {wallets.length > 0 ? (
-          <div className="rounded-[26px] border border-midnight/10 bg-[#FBFCFE] p-3 shadow-[0_18px_44px_rgba(15,23,42,0.04)]">
-            {wallets.map((wallet) => (
-              <MobileWalletCard
+        <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+          {WALLET_FILTERS.map((filter) => {
+            const isActive = activeWalletFilter === filter.id
+
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setActiveWalletFilter(filter.id)}
+                className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
+                  isActive
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.10)]'
+                    : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
+                }`}
+              >
+                {filter.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {wallets.length === 0 ? (
+            <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
+          ) : filteredWallets.length > 0 ? (
+            filteredWallets.map((wallet, index) => (
+              <WalletListItem
                 key={wallet.id}
                 wallet={wallet}
+                featured={activeWalletFilter === 'all' && index === 0}
                 formatRupiah={formatRupiah}
+                manageMode={manageMode}
                 onRename={() => handleRenameWallet(wallet)}
                 onDelete={() => onDeleteWallet(wallet.id)}
               />
-            ))}
-          </div>
-        ) : (
-          <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
-        )}
+            ))
+          ) : (
+            <FilteredWalletEmpty
+              filterLabel={activeFilterLabel}
+              onAdd={() => setShowAddWallet(true)}
+            />
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center gap-3 rounded-[16px] border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-muted">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm">
+            <Info size={20} strokeWidth={2.2} />
+          </span>
+          <p className="min-w-0 text-[13px] font-medium leading-relaxed sm:text-[14px]">
+            <span className="font-jakarta font-extrabold text-emerald-700">Menghapus dompet akan </span>
+            menghapus dompet dan riwayat terkait.
+          </p>
+          <span className="ml-auto hidden shrink-0 items-center gap-1 text-emerald-500/60 sm:flex">
+            <Wallet size={26} strokeWidth={2.1} />
+            <Calendar size={26} strokeWidth={2.1} />
+          </span>
+        </div>
       </section>
 
-      <section className="mb-6 hidden lg:block">
-        {wallets.length > 0 ? (
-          <div className="rounded-[28px] border border-midnight/10 bg-white p-4 shadow-[0_22px_48px_rgba(15,23,42,0.055)]">
-            <div className="mb-4 flex items-center justify-between gap-4 px-2">
-              <div>
-                <p className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
-                  Dompet aktif
-                </p>
-                <p className="mt-1 text-[14px] font-medium text-muted">
-                  {activeWalletCount} dompet tersambung
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddWallet(true)}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-emerald-100 bg-emerald-50 px-4 font-jakarta text-[13px] font-bold text-emerald-700 transition-all hover:border-emerald-200 hover:bg-emerald-100"
-              >
-                <Plus size={16} strokeWidth={2.4} />
-                Tambah
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {wallets.map((wallet) => (
-                <DesktopWalletCard
-                  key={wallet.id}
-                  wallet={wallet}
-                  formatRupiah={formatRupiah}
-                  onRename={() => handleRenameWallet(wallet)}
-                  onDelete={() => onDeleteWallet(wallet.id)}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <EmptyWalletCard onAdd={() => setShowAddWallet(true)} desktop />
-        )}
-      </section>
-
-      <div className="mb-6 flex items-start gap-4 rounded-[16px] border border-emerald-100 bg-emerald-50/50 px-5 py-4 text-muted">
-        <Info size={28} className="mt-0.5 shrink-0 text-emerald-600" />
-        <p className="text-[16px] font-medium leading-relaxed">
-          Menghapus dompet akan menghapus dompet dan riwayat terkait.
-        </p>
-      </div>
-
-      <div className="mb-5 flex items-end justify-between gap-4">
+      <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <h2 className="font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">Target</h2>
-          <p className="mt-1 text-[15px] font-medium text-muted">{goals.length} target</p>
+          <h2 className="font-jakarta text-[22px] font-extrabold tracking-tight text-midnight sm:text-[24px]">
+            Target
+          </h2>
+          <p className="mt-1 text-[13px] font-semibold text-muted">
+            {fundedGoalsCount}/{goals.length || 0} target berjalan
+          </p>
         </div>
         <button
           onClick={() => setShowAddGoal(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-midnight/10 bg-white px-4 py-3 font-jakarta text-[15px] font-bold text-emerald-600 shadow-sm transition-all hover:bg-emerald-50"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-emerald-600 shadow-sm transition-all hover:bg-emerald-50"
         >
           <Plus size={15} strokeWidth={2.4} />
           Target
@@ -233,34 +330,34 @@ export default function WalletsView({
             return (
               <div
                 key={goal.id}
-                className="rounded-[22px] border border-midnight/10 bg-white p-4 shadow-sm transition-all hover:border-emerald-200 sm:p-5"
+                className="rounded-[18px] border border-midnight/10 bg-white p-4 shadow-sm transition-all hover:border-emerald-200"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                      <Target size={30} />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-14 sm:w-14">
+                      <Target size={24} strokeWidth={2.1} />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="truncate font-jakarta text-[19px] font-extrabold tracking-tight text-midnight">
+                      <h4 className="truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight sm:text-[18px]">
                         {goal.name}
                       </h4>
-                      <p className="mt-1 text-[15px] font-medium text-muted">
-                        Terkumpul {formatRupiah(goal.current_amount)} dari target {formatRupiah(goal.target_amount)}
+                      <p className="mt-1 text-[13px] font-medium leading-relaxed text-muted sm:text-[14px]">
+                        Terkumpul {formatRupiah(goal.current_amount)} dari {formatRupiah(goal.target_amount)}
                       </p>
                     </div>
                   </div>
 
-                  <span className="font-jakarta text-[24px] font-extrabold text-emerald-600">
+                  <span className="font-jakarta text-[20px] font-extrabold text-emerald-600">
                     {Math.round(progress)}%
                   </span>
                 </div>
 
-                <div className="mt-5 space-y-2">
+                <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between gap-3 text-[11px] font-bold text-muted">
-                    <span className="inline-flex items-center gap-2"><Calendar size={16} /> Target</span>
+                    <span className="inline-flex items-center gap-2"><Calendar size={14} /> Target</span>
                     <span>Sisa {formatRupiah(remainingAmount)}</span>
                   </div>
-                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-midnight/10">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
                     <div
                       className="h-full rounded-full bg-emerald-500 transition-all duration-700"
                       style={{ width: `${progress}%` }}
@@ -268,10 +365,10 @@ export default function WalletsView({
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleRenameGoal(goal)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
                     title="Ubah target"
                   >
                     <Pencil size={14} strokeWidth={2.1} />
@@ -279,7 +376,7 @@ export default function WalletsView({
                   </button>
                   <button
                     onClick={() => onDeleteGoal(goal.id)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
                   >
                     <X size={15} strokeWidth={2.1} />
                     Hapus
@@ -293,7 +390,7 @@ export default function WalletsView({
         <button
           type="button"
           onClick={() => setShowAddGoal(true)}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/60 px-5 py-8 text-center transition-all hover:border-midnight/30 hover:bg-white"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/70 px-5 py-7 text-center transition-all hover:border-midnight/30 hover:bg-white"
         >
           <Target size={20} className="text-muted" />
           <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
@@ -332,68 +429,70 @@ export default function WalletsView({
   )
 }
 
-function MobileWalletCard({ wallet, formatRupiah, onRename, onDelete }) {
+function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, onDelete }) {
   const balance = formatWalletBalance(wallet.current_balance)
+  const meta = getWalletMeta(wallet)
 
   return (
-    <div className="grid min-h-[132px] grid-cols-[74px_minmax(0,1fr)_minmax(86px,auto)] items-center gap-4 border-b border-midnight/8 bg-white px-3 py-5 first:rounded-t-[22px] last:rounded-b-[22px] last:border-b-0 sm:min-h-[148px] sm:grid-cols-[104px_minmax(0,1fr)_auto] sm:px-5">
-      <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F0F7FF] to-white ring-1 ring-midnight/5 sm:h-[88px] sm:w-[88px] sm:rounded-[26px]">
-        <WalletIcon walletName={wallet.name} size={44} />
-      </div>
-      <div className="min-w-0">
-        <h3 className="truncate font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[26px]">
-          {wallet.name}
-        </h3>
-        <p className="mt-2 truncate text-[16px] font-medium text-muted sm:text-[18px]">
-          {formatWalletTypeLabel(wallet.wallet_type)}
-        </p>
-      </div>
-      <div className="flex min-w-0 flex-col items-end gap-5 text-right sm:min-w-[128px]">
-        <p className="max-w-[132px] truncate font-jakarta text-[21px] font-extrabold tracking-tight text-midnight sm:max-w-[180px] sm:text-[24px]">
-          {formatRupiah(balance)}
-        </p>
-        <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} />
-      </div>
-    </div>
-  )
-}
+    <div className="group relative overflow-visible rounded-[18px] border border-midnight/10 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.04)] transition-all hover:border-emerald-200 hover:shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
+      {featured ? (
+        <span className={`absolute left-0 top-4 h-[calc(100%-2rem)] w-1 rounded-r-full ${meta.accentClass}`} />
+      ) : null}
 
-function DesktopWalletCard({ wallet, formatRupiah, onRename, onDelete }) {
-  const balance = formatWalletBalance(wallet.current_balance)
+      <div className="grid min-h-[102px] grid-cols-[58px_minmax(0,1fr)_minmax(96px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[112px] sm:grid-cols-[70px_minmax(0,1fr)_minmax(130px,auto)] sm:gap-4 sm:px-4">
+        <div className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[70px] sm:w-[70px] sm:rounded-[20px]`}>
+          <WalletIcon walletName={wallet.name} size={34} strokeWidth={2.2} />
+        </div>
 
-  return (
-    <div className="group grid min-h-[150px] grid-cols-[76px_minmax(0,1fr)] gap-4 rounded-[22px] border border-midnight/8 bg-[#FCFDFE] p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
-      <div className="flex h-[76px] w-[76px] items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F0F7FF] to-white ring-1 ring-midnight/5">
-        <WalletIcon walletName={wallet.name} size={42} />
-      </div>
-
-      <div className="flex min-w-0 flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate font-jakarta text-[21px] font-extrabold leading-tight tracking-tight text-midnight">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="min-w-0 flex-1 truncate font-jakarta text-[17px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[20px]">
               {wallet.name}
             </h3>
-            <p className="mt-1.5 truncate text-[14px] font-medium text-muted">
-              {formatWalletTypeLabel(wallet.wallet_type)}
-            </p>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 font-jakarta text-[10px] font-extrabold leading-none ${meta.badgeClass} sm:text-[11px]`}>
+              {meta.label}
+            </span>
           </div>
-          <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} compact />
+          <p className="mt-2 truncate text-[13px] font-medium text-muted sm:text-[15px]">
+            {getWalletDescription(wallet, meta)}
+          </p>
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 pt-5">
-          <span className="rounded-full bg-emerald-50 px-3 py-1 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
-            Aktif
-          </span>
-          <p className="max-w-[210px] truncate text-right font-jakarta text-[23px] font-extrabold tracking-tight text-midnight">
+        <div className="flex min-w-0 flex-col items-end gap-2 text-right">
+          <p className="max-w-[96px] truncate font-jakarta text-[16px] font-extrabold tracking-tight text-midnight sm:max-w-[174px] sm:text-[20px]">
             {formatRupiah(balance)}
           </p>
+          {manageMode ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onRename}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-midnight/10 bg-white text-muted shadow-sm transition-all hover:border-midnight/20 hover:text-midnight"
+                aria-label={`Ubah ${wallet.name}`}
+                title="Ubah"
+              >
+                <Pencil size={15} strokeWidth={2.1} />
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 shadow-sm transition-all hover:bg-red-100"
+                aria-label={`Hapus ${wallet.name}`}
+                title="Hapus"
+              >
+                <Trash2 size={15} strokeWidth={2.1} />
+              </button>
+            </div>
+          ) : (
+            <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} />
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
+function WalletActionMenu({ walletName, onRename, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -440,11 +539,11 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
-        className={`${compact ? 'h-9 w-9 rounded-[12px]' : 'h-11 w-11 rounded-[14px]'} flex items-center justify-center border border-midnight/8 bg-slate-50 text-muted shadow-sm transition-all hover:border-midnight/12 hover:bg-white hover:text-midnight`}
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-midnight/8 bg-slate-50 text-midnight shadow-sm transition-all hover:border-emerald-200 hover:bg-white hover:text-emerald-700 sm:h-10 sm:w-10"
         aria-label={`Aksi untuk ${walletName}`}
         aria-expanded={menuOpen}
       >
-        <MoreHorizontal size={compact ? 16 : 18} />
+        <ChevronRight size={18} strokeWidth={2.3} />
       </button>
 
       {menuOpen ? (
@@ -471,39 +570,45 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
   )
 }
 
-function EmptyWalletCard({ onAdd, desktop = false }) {
+function EmptyWalletCard({ onAdd }) {
   return (
     <button
       type="button"
       onClick={onAdd}
-      className={`${desktop ? 'rounded-[28px] px-7 py-8' : 'rounded-[22px] px-5 py-6'} flex w-full items-center gap-4 border border-dashed border-midnight/15 bg-white text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40`}
+      className="flex w-full items-center gap-3 rounded-[18px] border border-dashed border-midnight/15 bg-white px-4 py-5 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
     >
-      <span className={`${desktop ? 'h-18 w-18' : 'h-16 w-16'} flex shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600`}>
-        <Plus size={28} strokeWidth={2.2} />
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-600">
+        <Plus size={24} strokeWidth={2.2} />
       </span>
-      <span>
-        <span className="block font-jakarta text-[18px] font-extrabold text-midnight">Tambah dompet</span>
-        <span className="mt-1 block text-[15px] font-medium text-muted">Mulai dari dompet utama kamu.</span>
+      <span className="min-w-0">
+        <span className="block font-jakarta text-[16px] font-extrabold text-midnight">Tambah dompet</span>
+        <span className="mt-1 block text-[13px] font-medium text-muted">Mulai dari dompet utama kamu.</span>
       </span>
     </button>
   )
 }
 
-function Stat({ icon: IconComponent, label, value, muted = false }) {
-
+function FilteredWalletEmpty({ filterLabel, onAdd }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-[16px] border border-midnight/10 bg-white px-3 py-4">
-      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${muted ? 'bg-midnight/5 text-muted' : 'bg-emerald-50 text-emerald-600'}`}>
-        {createElement(IconComponent, { size: 24, strokeWidth: 2.2 })}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate font-jakarta text-[15px] font-medium text-muted">
-          {label}
-        </span>
-        <span className="mt-0.5 block truncate font-jakarta text-[20px] font-extrabold tracking-tight text-midnight">
-          {value}
-        </span>
-      </span>
+    <div className="rounded-[18px] border border-dashed border-midnight/15 bg-slate-50/70 px-4 py-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-jakarta text-[15px] font-extrabold text-midnight">
+            Belum ada {filterLabel.toLowerCase()}
+          </p>
+          <p className="mt-1 text-[13px] font-medium text-muted">
+            Tambahkan dompet baru atau pilih kategori lain.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-all hover:bg-emerald-600"
+          aria-label="Tambah dompet"
+        >
+          <Plus size={18} strokeWidth={2.4} />
+        </button>
+      </div>
     </div>
   )
 }
