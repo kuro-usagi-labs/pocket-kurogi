@@ -387,6 +387,14 @@ function mapDomainError(error) {
     return 'Nama dompet wajib diisi.'
   }
 
+  if (
+    message.includes('server live masih memakai aturan hapus wallet lama') ||
+    message.includes('wallet masih memiliki saldo dan tidak bisa dihapus permanen') ||
+    message.includes('wallet dengan riwayat ledger tidak bisa dihapus permanen')
+  ) {
+    return 'Server live Anda masih memakai aturan hapus wallet lama. Jalankan migration Supabase terbaru agar dompet bersaldo bisa dihapus permanen.'
+  }
+
   return rawMessage
 }
 

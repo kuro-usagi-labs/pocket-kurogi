@@ -3,6 +3,22 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
 
+const LEGACY_WALLET_DELETE_ERRORS = [
+  'wallet masih memiliki saldo dan tidak bisa dihapus permanen',
+  'wallet dengan riwayat ledger tidak bisa dihapus permanen',
+]
+
+function isLegacyWalletDeleteBlocker(error) {
+  const message = String(error?.message || error || '').toLowerCase()
+  return LEGACY_WALLET_DELETE_ERRORS.some((candidate) => message.includes(candidate))
+}
+
+function buildLegacyWalletDeleteError() {
+  return new Error(
+    'Server live masih memakai aturan hapus wallet lama. Terapkan migration Supabase terbaru agar dompet bersaldo dan ber-riwayat bisa dihapus permanen.'
+  )
+}
+
 export function useWallets() {
   const { user } = useAuth()
   const [wallets, setWallets] = useState([])
@@ -178,6 +194,10 @@ export function useWallets() {
       return { error: null, mode: 'deleted' }
     }
 
+    if (isLegacyWalletDeleteBlocker(hardDeleteResult.error)) {
+      return { error: buildLegacyWalletDeleteError(), mode: 'migration_required' }
+    }
+
     return { error: hardDeleteResult.error, mode: null }
   }, [fetchWalletById, fetchWallets, user])
 
@@ -191,6 +211,10 @@ export function useWallets() {
     if (!rpcResult.error) {
       await fetchWallets()
       return { error: null }
+    }
+
+    if (isLegacyWalletDeleteBlocker(rpcResult.error)) {
+      return { error: buildLegacyWalletDeleteError() }
     }
 
     return { error: rpcResult.error }
