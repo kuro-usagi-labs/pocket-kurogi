@@ -135,9 +135,14 @@ export default function WalletsView({
   const activeWalletCount = wallets.length
   const fundedGoalsCount = goals.filter((goal) => Number(goal.current_amount || 0) > 0).length
   const activeFilterLabel = WALLET_FILTERS.find((filter) => filter.id === activeWalletFilter)?.label || 'Dompet'
+  const totalWalletBalance = wallets.reduce((sum, wallet) => sum + Number(wallet.current_balance || 0), 0)
   const filteredWallets = useMemo(
     () => wallets.filter((wallet) => walletMatchesFilter(wallet, activeWalletFilter)),
     [activeWalletFilter, wallets]
+  )
+  const filteredWalletBalance = filteredWallets.reduce(
+    (sum, wallet) => sum + Number(wallet.current_balance || 0),
+    0
   )
 
   const handleRenameWallet = (wallet) => {
@@ -179,7 +184,7 @@ export default function WalletsView({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
       {hasConflicts ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
           <div className="flex items-start gap-3">
@@ -207,197 +212,324 @@ export default function WalletsView({
         </div>
       ) : null}
 
-      <section className="mb-6 rounded-[20px] border border-midnight/[0.08] bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.025)] sm:p-5 lg:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-jakarta text-[26px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
-              Dompet
-            </h2>
-            <p className="mt-1 text-[13px] font-semibold text-muted sm:text-[14px]">
-              {activeWalletCount} dompet aktif
-            </p>
-          </div>
+      <div className="md:hidden">
+        <section className="mb-6 rounded-[20px] border border-midnight/[0.08] bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.025)] sm:p-5 lg:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-jakarta text-[26px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
+                Dompet
+              </h2>
+              <p className="mt-1 text-[13px] font-semibold text-muted sm:text-[14px]">
+                {activeWalletCount} dompet aktif
+              </p>
+            </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddWallet(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-midnight/10 bg-white text-emerald-600 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50"
-              aria-label="Tambah dompet"
-              title="Tambah dompet"
-            >
-              <Plus size={18} strokeWidth={2.4} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setManageMode((current) => !current)}
-              aria-pressed={manageMode}
-              className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-3.5 font-jakarta text-[13px] font-bold transition-all ${
-                manageMode
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-transparent bg-white text-emerald-600 hover:bg-emerald-50'
-              }`}
-            >
-              <SlidersHorizontal size={17} strokeWidth={2.3} />
-              Kelola
-            </button>
-          </div>
-        </div>
-
-        <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
-          {WALLET_FILTERS.map((filter) => {
-            const isActive = activeWalletFilter === filter.id
-
-            return (
+            <div className="flex shrink-0 items-center gap-2">
               <button
-                key={filter.id}
                 type="button"
-                onClick={() => setActiveWalletFilter(filter.id)}
-                className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
-                  isActive
-                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                    : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
+                onClick={() => setShowAddWallet(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-midnight/10 bg-white text-emerald-600 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50"
+                aria-label="Tambah dompet"
+                title="Tambah dompet"
+              >
+                <Plus size={18} strokeWidth={2.4} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setManageMode((current) => !current)}
+                aria-pressed={manageMode}
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-3.5 font-jakarta text-[13px] font-bold transition-all ${
+                  manageMode
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-transparent bg-white text-emerald-600 hover:bg-emerald-50'
                 }`}
               >
-                {filter.label}
+                <SlidersHorizontal size={17} strokeWidth={2.3} />
+                Kelola
               </button>
-            )
-          })}
-        </div>
+            </div>
+          </div>
 
-        <div className="mt-4 space-y-3">
-          {wallets.length === 0 ? (
-            <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
-          ) : filteredWallets.length > 0 ? (
-            filteredWallets.map((wallet, index) => (
-              <WalletListItem
-                key={wallet.id}
-                wallet={wallet}
-                featured={activeWalletFilter === 'all' && index === 0}
-                formatRupiah={formatRupiah}
-                manageMode={manageMode}
-                onRename={() => handleRenameWallet(wallet)}
-                onDelete={() => onDeleteWallet(wallet.id)}
+          <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+            {WALLET_FILTERS.map((filter) => {
+              const isActive = activeWalletFilter === filter.id
+
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setActiveWalletFilter(filter.id)}
+                  className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
+                    isActive
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {wallets.length === 0 ? (
+              <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
+            ) : filteredWallets.length > 0 ? (
+              filteredWallets.map((wallet, index) => (
+                <WalletListItem
+                  key={wallet.id}
+                  wallet={wallet}
+                  featured={activeWalletFilter === 'all' && index === 0}
+                  formatRupiah={formatRupiah}
+                  manageMode={manageMode}
+                  onRename={() => handleRenameWallet(wallet)}
+                  onDelete={() => onDeleteWallet(wallet.id)}
+                />
+              ))
+            ) : (
+              <FilteredWalletEmpty
+                filterLabel={activeFilterLabel}
+                onAdd={() => setShowAddWallet(true)}
               />
-            ))
-          ) : (
-            <FilteredWalletEmpty
-              filterLabel={activeFilterLabel}
-              onAdd={() => setShowAddWallet(true)}
-            />
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-emerald-100/80 bg-emerald-50/55 px-4 py-3 text-muted">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-emerald-600">
-            <Info size={20} strokeWidth={2.2} />
-          </span>
-          <p className="min-w-0 text-[13px] font-medium leading-relaxed sm:text-[14px]">
-            <span className="font-jakarta font-extrabold text-emerald-700">Menghapus dompet akan </span>
-            menghapus dompet dan riwayat terkait.
-          </p>
-          <span className="ml-auto hidden shrink-0 items-center gap-1 text-emerald-500/60 sm:flex">
-            <Wallet size={26} strokeWidth={2.1} />
-            <Calendar size={26} strokeWidth={2.1} />
-          </span>
-        </div>
-      </section>
+          <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-emerald-100/80 bg-emerald-50/55 px-4 py-3 text-muted">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-emerald-600">
+              <Info size={20} strokeWidth={2.2} />
+            </span>
+            <p className="min-w-0 text-[13px] font-medium leading-relaxed sm:text-[14px]">
+              <span className="font-jakarta font-extrabold text-emerald-700">Menghapus dompet akan </span>
+              menghapus dompet dan riwayat terkait.
+            </p>
+            <span className="ml-auto hidden shrink-0 items-center gap-1 text-emerald-500/60 sm:flex">
+              <Wallet size={26} strokeWidth={2.1} />
+              <Calendar size={26} strokeWidth={2.1} />
+            </span>
+          </div>
+        </section>
 
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-jakarta text-[22px] font-extrabold tracking-tight text-midnight sm:text-[24px]">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-jakarta text-[22px] font-extrabold tracking-tight text-midnight sm:text-[24px]">
+              Target
+            </h2>
+            <p className="mt-1 text-[13px] font-semibold text-muted">
+              {fundedGoalsCount}/{goals.length || 0} target berjalan
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddGoal(true)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-emerald-600 shadow-sm transition-all hover:bg-emerald-50"
+          >
+            <Plus size={15} strokeWidth={2.4} />
             Target
-          </h2>
-          <p className="mt-1 text-[13px] font-semibold text-muted">
-            {fundedGoalsCount}/{goals.length || 0} target berjalan
-          </p>
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddGoal(true)}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-emerald-600 shadow-sm transition-all hover:bg-emerald-50"
-        >
-          <Plus size={15} strokeWidth={2.4} />
-          Target
-        </button>
+
+        {goals.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3">
+            {goals.map((goal) => (
+              <MobileGoalCard
+                key={goal.id}
+                goal={goal}
+                formatRupiah={formatRupiah}
+                onRename={() => handleRenameGoal(goal)}
+                onDelete={() => onDeleteGoal(goal.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAddGoal(true)}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/70 px-5 py-7 text-center transition-all hover:border-midnight/30 hover:bg-white"
+          >
+            <Target size={20} className="text-muted" />
+            <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
+              Buat target
+            </span>
+          </button>
+        )}
       </div>
 
-      {goals.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3">
-          {goals.map((goal) => {
-            const progress = Math.min(100, (goal.current_amount / goal.target_amount) * 100)
-            const remainingAmount = Math.max(Number(goal.target_amount || 0) - Number(goal.current_amount || 0), 0)
+      <div className="hidden md:block">
+        <div className="mb-4 grid gap-4 xl:grid-cols-3">
+          <DesktopWalletStatCard
+            label="Saldo aktif"
+            value={formatRupiah(totalWalletBalance)}
+            helper={`${activeWalletCount} dompet aktif`}
+            tone="emerald"
+          />
+          <DesktopWalletStatCard
+            label="Filter aktif"
+            value={formatRupiah(filteredWalletBalance)}
+            helper={activeFilterLabel}
+            tone="sky"
+          />
+          <DesktopWalletStatCard
+            label="Target berjalan"
+            value={`${fundedGoalsCount}/${goals.length || 0}`}
+            helper={goals.length > 0 ? 'sudah terisi' : 'belum dibuat'}
+            tone="amber"
+          />
+        </div>
 
-            return (
-              <div
-                key={goal.id}
-                className="rounded-[18px] border border-midnight/10 bg-white p-4 shadow-sm transition-all hover:border-emerald-200"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-14 sm:w-14">
-                      <Target size={24} strokeWidth={2.1} />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight sm:text-[18px]">
-                        {goal.name}
-                      </h4>
-                      <p className="mt-1 text-[13px] font-medium leading-relaxed text-muted sm:text-[14px]">
-                        Terkumpul {formatRupiah(goal.current_amount)} dari {formatRupiah(goal.target_amount)}
-                      </p>
-                    </div>
-                  </div>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
+          <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+                  Manajemen dana
+                </p>
+                <h2 className="mt-2 font-jakarta text-[28px] font-extrabold tracking-tight text-midnight">
+                  Dompet aktif
+                </h2>
+                <p className="mt-1 text-[14px] font-medium text-muted">
+                  Atur saldo, kelompok dompet, dan akses cepat ke aksi penting.
+                </p>
+              </div>
 
-                  <span className="font-jakarta text-[20px] font-extrabold text-emerald-600">
-                    {Math.round(progress)}%
-                  </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManageMode((current) => !current)}
+                  aria-pressed={manageMode}
+                  className={`inline-flex h-11 items-center justify-center gap-2 rounded-full border px-4 font-jakarta text-[13px] font-bold transition-all ${
+                    manageMode
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-midnight/10 bg-white text-midnight hover:border-emerald-200 hover:text-emerald-700'
+                  }`}
+                >
+                  <SlidersHorizontal size={17} strokeWidth={2.2} />
+                  {manageMode ? 'Selesai kelola' : 'Kelola'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddWallet(true)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 font-jakarta text-[13px] font-bold text-white transition-all hover:bg-emerald-600"
+                >
+                  <Plus size={16} strokeWidth={2.5} />
+                  Tambah dompet
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[18px] border border-midnight/[0.08] bg-champagne/55 p-2">
+              <div className="flex flex-wrap gap-2">
+                {WALLET_FILTERS.map((filter) => {
+                  const isActive = activeWalletFilter === filter.id
+
+                  return (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setActiveWalletFilter(filter.id)}
+                      className={`inline-flex h-10 items-center justify-center rounded-full px-4 font-jakarta text-[13px] font-bold transition-all ${
+                        isActive
+                          ? 'bg-white text-midnight shadow-sm'
+                          : 'text-muted hover:text-midnight'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {wallets.length === 0 ? (
+                <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
+              ) : filteredWallets.length > 0 ? (
+                filteredWallets.map((wallet, index) => (
+                  <WalletListItem
+                    key={wallet.id}
+                    wallet={wallet}
+                    featured={activeWalletFilter === 'all' && index === 0}
+                    formatRupiah={formatRupiah}
+                    manageMode={manageMode}
+                    desktop
+                    onRename={() => handleRenameWallet(wallet)}
+                    onDelete={() => onDeleteWallet(wallet.id)}
+                  />
+                ))
+              ) : (
+                <FilteredWalletEmpty
+                  filterLabel={activeFilterLabel}
+                  onAdd={() => setShowAddWallet(true)}
+                />
+              )}
+            </div>
+          </section>
+
+          <aside className="space-y-5">
+            <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+                    Perencanaan
+                  </p>
+                  <h3 className="mt-2 font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">
+                    Target
+                  </h3>
+                  <p className="mt-1 text-[14px] font-medium text-muted">
+                    Pantau progres tabungan dari sisi desktop.
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowAddGoal(true)}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-emerald-600 transition-all hover:bg-emerald-50"
+                >
+                  <Plus size={15} strokeWidth={2.4} />
+                  Target
+                </button>
+              </div>
 
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between gap-3 text-[11px] font-bold text-muted">
-                    <span className="inline-flex items-center gap-2"><Calendar size={14} /> Target</span>
-                    <span>Sisa {formatRupiah(remainingAmount)}</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
-                    <div
-                      className="h-full rounded-full bg-emerald-500 transition-all duration-700"
-                      style={{ width: `${progress}%` }}
+              <div className="mt-4 space-y-3">
+                {goals.length > 0 ? (
+                  goals.map((goal) => (
+                    <DesktopGoalCard
+                      key={goal.id}
+                      goal={goal}
+                      formatRupiah={formatRupiah}
+                      onRename={() => handleRenameGoal(goal)}
+                      onDelete={() => onDeleteGoal(goal.id)}
                     />
-                  </div>
-                </div>
+                  ))
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddGoal(true)}
+                    className="flex w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-midnight/20 bg-champagne/45 px-5 py-8 text-center transition-all hover:border-midnight/30 hover:bg-champagne/65"
+                  >
+                    <Target size={20} className="text-muted" />
+                    <span className="font-jakarta text-[13px] font-extrabold text-midnight">
+                      Buat target pertama
+                    </span>
+                  </button>
+                )}
+              </div>
+            </section>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleRenameGoal(goal)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
-                    title="Ubah target"
-                  >
-                    <Pencil size={14} strokeWidth={2.1} />
-                    Ubah
-                  </button>
-                  <button
-                    onClick={() => onDeleteGoal(goal.id)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
-                  >
-                    <X size={15} strokeWidth={2.1} />
-                    Hapus
-                  </button>
+            <section className="rounded-[22px] border border-emerald-100 bg-emerald-50/70 p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600">
+                  <Info size={20} strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0">
+                  <h4 className="font-jakarta text-[16px] font-extrabold text-emerald-800">
+                    Penghapusan dompet
+                  </h4>
+                  <p className="mt-1 text-[13px] font-medium leading-relaxed text-emerald-900/75">
+                    Saat dompet dihapus, riwayat terkait ikut dibersihkan agar saldo dan laporan tetap sinkron.
+                  </p>
                 </div>
               </div>
-            )
-          })}
+            </section>
+          </aside>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowAddGoal(true)}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/70 px-5 py-7 text-center transition-all hover:border-midnight/30 hover:bg-white"
-        >
-          <Target size={20} className="text-muted" />
-          <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
-            Buat target
-          </span>
-        </button>
-      )}
+      </div>
 
       {showAddWallet && (
         <AddWalletModal
@@ -429,37 +561,37 @@ export default function WalletsView({
   )
 }
 
-function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, onDelete }) {
+function WalletListItem({ wallet, formatRupiah, featured, manageMode, desktop = false, onRename, onDelete }) {
   const balance = formatWalletBalance(wallet.current_balance)
   const meta = getWalletMeta(wallet)
 
   return (
-    <div className="group relative overflow-visible rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200">
+    <div className={`group relative overflow-visible rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200 ${desktop ? 'md:rounded-[18px] md:shadow-none' : ''}`}>
       {featured ? (
         <span className={`absolute left-0 top-4 h-[calc(100%-2rem)] w-1 rounded-r-full ${meta.accentClass}`} />
       ) : null}
 
-      <div className="grid min-h-[96px] grid-cols-[54px_minmax(0,1fr)_minmax(108px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[104px] sm:grid-cols-[64px_minmax(0,1fr)_minmax(146px,auto)] sm:gap-4 sm:px-4">
-        <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[64px] sm:w-[64px] sm:rounded-[18px]`}>
+      <div className={`grid min-h-[96px] grid-cols-[54px_minmax(0,1fr)_minmax(108px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[104px] sm:grid-cols-[64px_minmax(0,1fr)_minmax(146px,auto)] sm:gap-4 sm:px-4 ${desktop ? 'md:min-h-[118px] md:grid-cols-[72px_minmax(0,1.1fr)_minmax(180px,auto)] md:gap-5 md:px-5' : ''}`}>
+        <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[64px] sm:w-[64px] sm:rounded-[18px] ${desktop ? 'md:h-[72px] md:w-[72px] md:rounded-[20px]' : ''}`}>
           <WalletIcon walletName={wallet.name} size={31} strokeWidth={2.15} />
         </div>
 
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <h3 className="min-w-0 flex-1 truncate font-jakarta text-[16px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[18px]">
+            <h3 className={`min-w-0 flex-1 truncate font-jakarta text-[16px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[18px] ${desktop ? 'md:text-[20px]' : ''}`}>
               {wallet.name}
             </h3>
             <span className={`shrink-0 rounded-full px-2.5 py-1 font-jakarta text-[10px] font-extrabold leading-none ${meta.badgeClass} sm:text-[11px]`}>
               {meta.label}
             </span>
           </div>
-          <p className="mt-1.5 truncate text-[12px] font-medium text-muted sm:text-[14px]">
+          <p className={`mt-1.5 truncate text-[12px] font-medium text-muted sm:text-[14px] ${desktop ? 'md:text-[14px]' : ''}`}>
             {getWalletDescription(wallet, meta)}
           </p>
         </div>
 
         <div className="flex min-w-0 flex-col items-end gap-2 text-right">
-          <p className="max-w-[116px] truncate font-jakarta text-[15px] font-extrabold tracking-tight text-midnight sm:max-w-[166px] sm:text-[18px]">
+          <p className={`max-w-[116px] truncate font-jakarta text-[15px] font-extrabold tracking-tight text-midnight sm:max-w-[166px] sm:text-[18px] ${desktop ? 'md:max-w-[220px] md:text-[22px]' : ''}`}>
             {formatRupiah(balance)}
           </p>
           {manageMode ? (
@@ -566,6 +698,139 @@ function WalletActionMenu({ walletName, onRename, onDelete }) {
           </button>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function MobileGoalCard({ goal, formatRupiah, onRename, onDelete }) {
+  const progress = Math.min(100, (goal.current_amount / goal.target_amount) * 100)
+  const remainingAmount = Math.max(Number(goal.target_amount || 0) - Number(goal.current_amount || 0), 0)
+
+  return (
+    <div className="rounded-[18px] border border-midnight/10 bg-white p-4 shadow-sm transition-all hover:border-emerald-200">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-14 sm:w-14">
+            <Target size={24} strokeWidth={2.1} />
+          </div>
+          <div className="min-w-0">
+            <h4 className="truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight sm:text-[18px]">
+              {goal.name}
+            </h4>
+            <p className="mt-1 text-[13px] font-medium leading-relaxed text-muted sm:text-[14px]">
+              Terkumpul {formatRupiah(goal.current_amount)} dari {formatRupiah(goal.target_amount)}
+            </p>
+          </div>
+        </div>
+
+        <span className="font-jakarta text-[20px] font-extrabold text-emerald-600">
+          {Math.round(progress)}%
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between gap-3 text-[11px] font-bold text-muted">
+          <span className="inline-flex items-center gap-2"><Calendar size={14} /> Target</span>
+          <span>Sisa {formatRupiah(remainingAmount)}</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button
+          onClick={onRename}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+          title="Ubah target"
+        >
+          <Pencil size={14} strokeWidth={2.1} />
+          Ubah
+        </button>
+        <button
+          onClick={onDelete}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+        >
+          <X size={15} strokeWidth={2.1} />
+          Hapus
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DesktopGoalCard({ goal, formatRupiah, onRename, onDelete }) {
+  const progress = Math.min(100, (goal.current_amount / goal.target_amount) * 100)
+  const remainingAmount = Math.max(Number(goal.target_amount || 0) - Number(goal.current_amount || 0), 0)
+
+  return (
+    <div className="rounded-[18px] border border-midnight/[0.08] bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight">
+            {goal.name}
+          </h4>
+          <p className="mt-1 text-[13px] font-medium text-muted">
+            Terkumpul {formatRupiah(goal.current_amount)}
+          </p>
+        </div>
+        <span className="font-jakarta text-[18px] font-extrabold text-emerald-600">
+          {Math.round(progress)}%
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between gap-3 text-[12px] font-semibold text-muted">
+          <span>Target {formatRupiah(goal.target_amount)}</span>
+          <span>Sisa {formatRupiah(remainingAmount)}</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button
+          onClick={onRename}
+          className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-midnight/10 bg-white px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+        >
+          <Pencil size={14} strokeWidth={2.1} />
+          Ubah
+        </button>
+        <button
+          onClick={onDelete}
+          className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-red-100 bg-red-50 px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+        >
+          <X size={15} strokeWidth={2.1} />
+          Hapus
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DesktopWalletStatCard({ label, value, helper, tone = 'emerald' }) {
+  const toneClass = {
+    emerald: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    sky: 'border-sky-100 bg-sky-50 text-sky-700',
+    amber: 'border-amber-100 bg-amber-50 text-amber-700',
+  }[tone] || 'border-slate-200 bg-slate-50 text-slate-700'
+
+  return (
+    <div className={`rounded-[18px] border p-4 ${toneClass}`}>
+      <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] opacity-70">
+        {label}
+      </p>
+      <p className="mt-3 font-jakarta text-[26px] font-extrabold tracking-tight">
+        {value}
+      </p>
+      <p className="mt-1 text-[13px] font-semibold opacity-80">{helper}</p>
     </div>
   )
 }
