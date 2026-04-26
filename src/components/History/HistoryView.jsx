@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, Search, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Search, Trash2, X } from 'lucide-react'
 import { TransactionIcon, WalletIcon } from '../shared/CategoryIcon'
 
 export default function HistoryView({
   transactions,
   formatRupiah,
   onDeleteTransaction,
+  onNavigate,
   hasMore = false,
   loadingMore = false,
   onLoadMore,
 }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
+
   const filteredTransactions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return transactions.filter((transaction) => {
@@ -30,7 +32,10 @@ export default function HistoryView({
         transaction.wallet,
         transaction.category,
         transaction.date,
-      ].filter(Boolean).join(' ').toLowerCase()
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
 
       return haystack.includes(normalizedQuery)
     })
@@ -47,79 +52,284 @@ export default function HistoryView({
     }, {})
   }, [filteredTransactions])
 
+  const summary = useMemo(() => {
+    return transactions.reduce(
+      (result, transaction) => {
+        if (transaction.type === 'income') {
+          result.incomeCount += 1
+          result.totalIncome += Number(transaction.amount || 0)
+        }
+
+        if (transaction.type === 'expense') {
+          result.expenseCount += 1
+          result.totalExpense += Number(transaction.amount || 0)
+        }
+
+        if (transaction.canDelete) {
+          result.deletableCount += 1
+        }
+
+        return result
+      },
+      {
+        totalIncome: 0,
+        totalExpense: 0,
+        incomeCount: 0,
+        expenseCount: 0,
+        deletableCount: 0,
+      }
+    )
+  }, [transactions])
+
+  const showResetButton = query.trim() || filter !== 'all'
+
+  const resetFilters = () => {
+    setQuery('')
+    setFilter('all')
+  }
+
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8">
-      <div className="mb-4 flex flex-col gap-1.5">
-        <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">Histori</h2>
-        <p className="text-[14px] font-semibold text-muted">{transactions.length} transaksi</p>
-      </div>
-
-      <div className="relative mb-3 flex min-h-[52px] items-center rounded-[14px] border border-midnight/[0.08] bg-white p-1.5">
-        <div className="px-3 text-midnight/70">
-          <Search size={22} strokeWidth={2} />
+    <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
+      <div className="md:hidden">
+        <div className="mb-4 flex flex-col gap-1.5">
+          <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">
+            Histori
+          </h2>
+          <p className="text-[14px] font-semibold text-muted">{transactions.length} transaksi</p>
         </div>
-        <input
-          className="w-full border-none bg-transparent px-1 py-2.5 font-jakarta text-[14px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:ring-0"
-          placeholder="Cari transaksi, kategori, atau catatan"
-          type="text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </div>
 
-      <div className="mb-5 flex gap-2 overflow-x-auto no-scrollbar">
-        <FilterButton active={filter === 'all'} label="Semua" onClick={() => setFilter('all')} />
-        <FilterButton active={filter === 'income'} label="Masuk" icon={ArrowDown} onClick={() => setFilter('income')} />
-        <FilterButton active={filter === 'expense'} label="Keluar" icon={ArrowUp} danger onClick={() => setFilter('expense')} />
-      </div>
+        <SearchField query={query} onChange={setQuery} />
 
-      <div className="space-y-6">
-        {transactions.length === 0 ? (
-            <div className="rounded-[20px] border border-dashed border-midnight/15 bg-white px-5 py-10 text-center">
-            <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada transaksi.</p>
-            <p className="mt-1 text-[12px] font-medium text-muted">Mulai dari chat.</p>
-          </div>
-        ) : filteredTransactions.length === 0 ? (
-          <div className="rounded-[20px] border border-dashed border-midnight/15 bg-white px-5 py-10 text-center">
-            <p className="font-jakarta text-[13px] font-bold text-midnight">Tidak ditemukan.</p>
-          </div>
-        ) : (
-          <>
-            {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-              <section key={dateLabel}>
-                <h3 className="mb-2.5 font-jakarta text-[16px] font-bold text-muted">{dateLabel}</h3>
-                <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
-                  {items.map((transaction) => (
-                    <TransactionRow
-                      key={transaction.id}
-                      transaction={transaction}
-                      formatRupiah={formatRupiah}
-                      onDeleteTransaction={onDeleteTransaction}
-                    />
-                  ))}
+        <div className="mb-5 flex gap-2 overflow-x-auto no-scrollbar">
+          <FilterButton active={filter === 'all'} label="Semua" onClick={() => setFilter('all')} />
+          <FilterButton
+            active={filter === 'income'}
+            label="Masuk"
+            icon={ArrowDown}
+            onClick={() => setFilter('income')}
+          />
+          <FilterButton
+            active={filter === 'expense'}
+            label="Keluar"
+            icon={ArrowUp}
+            danger
+            onClick={() => setFilter('expense')}
+          />
+        </div>
+
+        <div className="space-y-6">
+          {transactions.length === 0 ? (
+            <EmptyHistoryState onNavigate={onNavigate} />
+          ) : filteredTransactions.length === 0 ? (
+            <NoHistoryResult onReset={resetFilters} />
+          ) : (
+            <>
+              {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+                <section key={dateLabel}>
+                  <h3 className="mb-2.5 font-jakarta text-[16px] font-bold text-muted">{dateLabel}</h3>
+                  <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
+                    {items.map((transaction) => (
+                      <MobileTransactionRow
+                        key={transaction.id}
+                        transaction={transaction}
+                        formatRupiah={formatRupiah}
+                        onDeleteTransaction={onDeleteTransaction}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+
+              {hasMore && !query.trim() ? (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={onLoadMore}
+                    className="rounded-[14px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
+                  >
+                    {loadingMore ? 'Memuat...' : 'Muat lagi'}
+                  </button>
                 </div>
-              </section>
-            ))}
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
 
-            {hasMore && !query.trim() && (
-              <div className="flex justify-center pt-2">
-                <button
-                  type="button"
-                  onClick={onLoadMore}
-                  className="rounded-[14px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
-                >
-                  {loadingMore ? 'Memuat...' : 'Muat lagi'}
-                </button>
-              </div>
-            )}
-          </>
-        )}
+      <div className="hidden md:block">
+        <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+                Riwayat transaksi
+              </p>
+              <h2 className="mt-2 font-jakarta text-[28px] font-extrabold tracking-tight text-midnight">
+                Histori
+              </h2>
+              <p className="mt-1 text-[13px] font-semibold text-muted">
+                {filteredTransactions.length}
+                {filteredTransactions.length !== transactions.length ? ` dari ${transactions.length}` : ''}
+                {' '}transaksi
+              </p>
+            </div>
+
+            <div className="w-full max-w-[360px]">
+              <SearchField query={query} onChange={setQuery} desktop />
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 xl:grid-cols-4">
+            <DesktopHistoryStatCard
+              label="Total"
+              value={`${transactions.length}`}
+              helper="transaksi"
+              tone="slate"
+            />
+            <DesktopHistoryStatCard
+              label="Masuk"
+              value={formatRupiah(summary.totalIncome)}
+              helper={`${summary.incomeCount} catatan`}
+              tone="emerald"
+            />
+            <DesktopHistoryStatCard
+              label="Keluar"
+              value={formatRupiah(summary.totalExpense)}
+              helper={`${summary.expenseCount} catatan`}
+              tone="rose"
+            />
+            <DesktopHistoryStatCard
+              label="Bisa koreksi"
+              value={`${summary.deletableCount}`}
+              helper="manual"
+              tone="amber"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <FilterButton active={filter === 'all'} label="Semua" onClick={() => setFilter('all')} desktop />
+            <FilterButton
+              active={filter === 'income'}
+              label="Masuk"
+              icon={ArrowDown}
+              onClick={() => setFilter('income')}
+              desktop
+            />
+            <FilterButton
+              active={filter === 'expense'}
+              label="Keluar"
+              icon={ArrowUp}
+              danger
+              onClick={() => setFilter('expense')}
+              desktop
+            />
+
+            {showResetButton ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
+              >
+                <X size={15} strokeWidth={2.2} />
+                Reset
+              </button>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+          {transactions.length === 0 ? (
+            <div className="px-6 py-10">
+              <EmptyHistoryState onNavigate={onNavigate} desktop />
+            </div>
+          ) : filteredTransactions.length === 0 ? (
+            <div className="px-6 py-10">
+              <NoHistoryResult onReset={resetFilters} desktop />
+            </div>
+          ) : (
+            <div className="divide-y divide-midnight/[0.06]">
+              {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+                <section key={dateLabel} className="px-5 py-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="font-jakarta text-[15px] font-extrabold tracking-tight text-midnight">
+                      {dateLabel}
+                    </h3>
+                    <span className="rounded-full bg-champagne px-3 py-1 text-[11px] font-bold text-muted">
+                      {items.length} transaksi
+                    </span>
+                  </div>
+
+                  <div className="overflow-hidden rounded-[18px] border border-midnight/[0.08]">
+                    <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_52px] gap-3 bg-champagne/70 px-4 py-3">
+                      <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                        Transaksi
+                      </span>
+                      <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                        Dompet
+                      </span>
+                      <span className="text-center font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                        Jenis
+                      </span>
+                      <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                        Nominal
+                      </span>
+                      <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                        Aksi
+                      </span>
+                    </div>
+
+                    {items.map((transaction) => (
+                      <DesktopTransactionRow
+                        key={transaction.id}
+                        transaction={transaction}
+                        formatRupiah={formatRupiah}
+                        onDeleteTransaction={onDeleteTransaction}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+
+              {hasMore && !query.trim() ? (
+                <div className="flex justify-center px-5 py-5">
+                  <button
+                    type="button"
+                    onClick={onLoadMore}
+                    className="rounded-full border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
+                  >
+                    {loadingMore ? 'Memuat...' : 'Muat lagi'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )
 }
 
-function FilterButton({ active, label, icon: Icon, danger = false, onClick }) {
+function SearchField({ query, onChange, desktop = false }) {
+  return (
+    <div
+      className={`relative mb-3 flex min-h-[52px] items-center rounded-[14px] border border-midnight/[0.08] bg-white p-1.5 ${
+        desktop ? 'mb-0' : ''
+      }`}
+    >
+      <div className="px-3 text-midnight/70">
+        <Search size={22} strokeWidth={2} />
+      </div>
+      <input
+        className="w-full border-none bg-transparent px-1 py-2.5 font-jakarta text-[14px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:ring-0"
+        placeholder="Cari transaksi, kategori, atau catatan"
+        type="text"
+        value={query}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
+  )
+}
+
+function FilterButton({ active, label, icon: Icon, danger = false, onClick, desktop = false }) {
   return (
     <button
       type="button"
@@ -128,10 +338,18 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick }) {
         active
           ? 'border-emerald-500 bg-emerald-500 text-white'
           : 'border-midnight/10 bg-white text-midnight hover:border-emerald-200'
-      }`}
+      } ${desktop ? 'h-10 rounded-full px-4 text-[12px]' : ''}`}
     >
       {Icon ? (
-        <span className={`flex h-6 w-6 items-center justify-center rounded-full border ${active ? 'border-white/70' : danger ? 'border-red-400 text-red-500' : 'border-emerald-500 text-emerald-600'}`}>
+        <span
+          className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+            active
+              ? 'border-white/70'
+              : danger
+                ? 'border-red-400 text-red-500'
+                : 'border-emerald-500 text-emerald-600'
+          }`}
+        >
           <Icon size={14} strokeWidth={2.2} />
         </span>
       ) : null}
@@ -140,12 +358,51 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick }) {
   )
 }
 
-function TransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
+function EmptyHistoryState({ onNavigate, desktop = false }) {
+  return (
+    <div
+      className={`rounded-[20px] border border-dashed border-midnight/15 bg-white text-center ${
+        desktop ? 'px-6 py-12' : 'px-5 py-10'
+      }`}
+    >
+      <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada transaksi.</p>
+      <p className="mt-1 text-[12px] font-medium text-muted">Mulai dari chat.</p>
+      <button
+        type="button"
+        onClick={() => onNavigate?.('chat')}
+        className="mt-4 rounded-full bg-emerald-500 px-4 py-2.5 font-jakarta text-[12px] font-bold text-white transition-colors hover:bg-emerald-600"
+      >
+        Buka Chat
+      </button>
+    </div>
+  )
+}
+
+function NoHistoryResult({ onReset, desktop = false }) {
+  return (
+    <div
+      className={`rounded-[20px] border border-dashed border-midnight/15 bg-white text-center ${
+        desktop ? 'px-6 py-12' : 'px-5 py-10'
+      }`}
+    >
+      <p className="font-jakarta text-[13px] font-bold text-midnight">Tidak ditemukan.</p>
+      <button
+        type="button"
+        onClick={onReset}
+        className="mt-4 rounded-full border border-midnight/10 bg-white px-4 py-2.5 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+      >
+        Tampilkan semua
+      </button>
+    </div>
+  )
+}
+
+function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
   const isIncome = transaction.type === 'income'
 
   return (
     <div className="group relative flex items-center gap-3 border-b border-midnight/8 px-3.5 py-3.5 last:border-b-0 sm:px-5">
-      {transaction.canDelete && (
+      {transaction.canDelete ? (
         <button
           onClick={() => onDeleteTransaction(transaction.id)}
           className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-muted/40 opacity-100 transition-all hover:bg-red-50 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100"
@@ -154,9 +411,13 @@ function TransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
         >
           <X size={14} strokeWidth={2.5} />
         </button>
-      )}
+      ) : null}
 
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+      <div
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+          isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+        }`}
+      >
         {transaction.wallet ? (
           <WalletIcon walletName={transaction.wallet} size={24} />
         ) : (
@@ -169,7 +430,11 @@ function TransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
           {transaction.title || transaction.desc}
         </h3>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+              isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+            }`}
+          >
             {isIncome ? 'Pemasukan' : 'Pengeluaran'}
           </span>
           <span className="text-[12px] font-medium text-muted">
@@ -179,11 +444,108 @@ function TransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
       </div>
 
       <div className="shrink-0 pr-3 text-right sm:pr-5">
-        <p className={`max-w-[108px] truncate font-jakarta text-[15px] font-bold tracking-tight sm:max-w-none sm:text-[16px] ${isIncome ? 'text-emerald-600' : 'text-red-500'}`}>
-          {isIncome ? '+' : '-'}{formatRupiah(transaction.amount)}
+        <p
+          className={`max-w-[108px] truncate font-jakarta text-[15px] font-bold tracking-tight sm:max-w-none sm:text-[16px] ${
+            isIncome ? 'text-emerald-600' : 'text-red-500'
+          }`}
+        >
+          {isIncome ? '+' : '-'}
+          {formatRupiah(transaction.amount)}
         </p>
       </div>
-      <ChevronRight size={23} className="hidden shrink-0 text-muted sm:block" />
+    </div>
+  )
+}
+
+function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
+  const isIncome = transaction.type === 'income'
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_52px] items-center gap-3 border-t border-midnight/[0.08] px-4 py-3 first:border-t-0">
+      <div className="flex min-w-0 items-center gap-3">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+            isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+          }`}
+        >
+          {transaction.wallet ? (
+            <WalletIcon walletName={transaction.wallet} size={21} />
+          ) : (
+            <TransactionIcon iconKey={transaction.iconKey} category={transaction.category} size={20} />
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <p className="truncate font-jakarta text-[14px] font-extrabold tracking-tight text-midnight">
+            {transaction.title || transaction.desc}
+          </p>
+          <p className="mt-1 truncate text-[12px] font-medium text-muted">
+            {[transaction.subtitle, transaction.time].filter(Boolean).join('  •  ')}
+          </p>
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <p className="truncate font-jakarta text-[13px] font-bold text-midnight">{transaction.wallet}</p>
+        <p className="mt-1 truncate text-[12px] font-medium text-muted">{transaction.category}</p>
+      </div>
+
+      <div className="flex flex-col items-center gap-1 text-center">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+            isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+          }`}
+        >
+          {isIncome ? 'Masuk' : 'Keluar'}
+        </span>
+        <span className="text-[11px] font-semibold text-muted">{transaction.time}</span>
+      </div>
+
+      <div className="text-right">
+        <p
+          className={`font-jakarta text-[15px] font-extrabold tracking-tight ${
+            isIncome ? 'text-emerald-600' : 'text-red-500'
+          }`}
+        >
+          {isIncome ? '+' : '-'}
+          {formatRupiah(transaction.amount)}
+        </p>
+      </div>
+
+      <div className="flex justify-end">
+        {transaction.canDelete ? (
+          <button
+            type="button"
+            onClick={() => onDeleteTransaction(transaction.id)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+            aria-label={`Hapus ${transaction.title || transaction.desc}`}
+            title="Hapus"
+          >
+            <Trash2 size={15} strokeWidth={2.1} />
+          </button>
+        ) : (
+          <span className="h-9 w-9" aria-hidden="true" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DesktopHistoryStatCard({ label, value, helper, tone = 'slate' }) {
+  const toneClass = {
+    amber: 'border-amber-100 bg-amber-50 text-amber-700',
+    emerald: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    rose: 'border-rose-100 bg-rose-50 text-rose-700',
+    slate: 'border-slate-200 bg-slate-50 text-slate-700',
+  }[tone] || 'border-slate-200 bg-slate-50 text-slate-700'
+
+  return (
+    <div className={`rounded-[18px] border p-4 ${toneClass}`}>
+      <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] opacity-75">
+        {label}
+      </p>
+      <p className="mt-3 font-jakarta text-[24px] font-extrabold tracking-tight">{value}</p>
+      <p className="mt-1 text-[12px] font-semibold opacity-80">{helper}</p>
     </div>
   )
 }

@@ -1,7 +1,33 @@
 import { createElement, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
-import { BarChart3, ClipboardList, PieChart, Plus } from 'lucide-react'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  ClipboardList,
+  Lightbulb,
+  MessageSquarePlus,
+  Repeat2,
+  RotateCcw,
+  Sparkles,
+  Wallet,
+} from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
+
+const ACTION_ICON_MAP = {
+  advice: Lightbulb,
+  balance: Wallet,
+  cleanup: Sparkles,
+  compose: MessageSquarePlus,
+  expense: ArrowDownRight,
+  help: Sparkles,
+  income: ArrowUpRight,
+  restore: RotateCcw,
+  sparkles: Sparkles,
+  summary: ClipboardList,
+  transfer: Repeat2,
+  wallet: Wallet,
+}
 
 export default function ChatView({
   messages,
@@ -9,6 +35,7 @@ export default function ChatView({
   onSend,
   onNotify,
   formatRupiah,
+  quickActions = [],
   hasMore = false,
   loadingMore = false,
   onLoadMore,
@@ -75,6 +102,22 @@ export default function ChatView({
     }
   }, [loadingMore])
 
+  const handleQuickAction = useCallback((item) => {
+    if (item.action === 'scroll') {
+      scrollToBottom()
+      return
+    }
+
+    if (item.navigateTo) {
+      onNavigate?.(item.navigateTo)
+      return
+    }
+
+    if (item.prompt) {
+      onSend(item.prompt)
+    }
+  }, [onNavigate, onSend, scrollToBottom])
+
   return (
     <div className="absolute inset-0 h-full w-full">
       <div className="pointer-events-none absolute bottom-[70px] left-0 z-30 h-[145px] w-full bg-gradient-to-t from-white via-white/96 to-transparent md:bottom-0" />
@@ -83,23 +126,18 @@ export default function ChatView({
         ref={containerRef}
         className="no-scrollbar absolute inset-0 z-20 mx-auto flex w-full max-w-5xl flex-col overflow-y-auto scroll-smooth px-4 pb-[200px] pt-1 sm:px-6 md:pb-[150px] lg:px-8"
       >
-        <HeroCard />
-        <div className="mb-5 grid grid-cols-3 gap-2 sm:mb-6 sm:gap-3">
-          <QuickAction
-            icon={Plus}
-            label="Catat transaksi"
-            onClick={() => scrollToBottom()}
-          />
-          <QuickAction
-            icon={PieChart}
-            label="Buat budget"
-            onClick={() => onNavigate?.('analytics')}
-          />
-          <QuickAction
-            icon={ClipboardList}
-            label="Lihat ringkasan"
-            onClick={() => onNavigate?.('analytics')}
-          />
+        <HeroCard onNavigate={onNavigate} />
+        <div className="mb-5 grid grid-cols-2 gap-2 sm:mb-6 sm:grid-cols-4 sm:gap-3">
+          {quickActions.map((item) => (
+            <QuickAction
+              key={item.id}
+              iconKey={item.icon}
+              label={item.label}
+              helper={item.helper}
+              disabled={isTyping}
+              onClick={() => handleQuickAction(item)}
+            />
+          ))}
         </div>
 
         {hasMore && (
@@ -142,17 +180,43 @@ export default function ChatView({
   )
 }
 
-function HeroCard() {
+function HeroCard({ onNavigate }) {
   return (
-    <section className="mb-5 hidden overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.025)] sm:block">
-      <div className="grid items-center gap-6 sm:grid-cols-[1fr_240px]">
+    <section className="mb-5 hidden overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.025)] sm:block">
+      <div className="grid items-center gap-5 sm:grid-cols-[minmax(0,1fr)_220px]">
         <div>
-          <h2 className="font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
-            Halo, saya Kurogi
-          </h2>
-          <p className="mt-3 max-w-md text-[14px] font-medium leading-relaxed text-muted sm:text-[16px]">
-            Asisten keuangan yang bantu catat, analisa, dan rapikan transaksi.
+          <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+            Command center
           </p>
+          <h2 className="mt-2 font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[28px]">
+            Catat, koreksi, dan baca arus kas
+          </h2>
+          <p className="mt-2 max-w-xl text-[13px] font-medium text-muted">
+            Jalur tercepat untuk input harian, cek saldo, dan evaluasi keputusan uang tanpa pindah terlalu jauh.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onNavigate?.('history')}
+              className="rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+            >
+              Histori
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.('wallets')}
+              className="rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+            >
+              Dompet
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.('analytics')}
+              className="rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+            >
+              Analitik
+            </button>
+          </div>
         </div>
         <FinanceIllustration />
       </div>
@@ -160,18 +224,23 @@ function HeroCard() {
   )
 }
 
-function QuickAction({ icon: IconComponent, label, onClick }) {
+function QuickAction({ iconKey, label, helper, disabled = false, onClick }) {
+  const IconComponent = ACTION_ICON_MAP[iconKey] || Wallet
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-[14px] border border-midnight/[0.08] bg-white px-2 py-2.5 text-center font-jakarta text-[11px] font-bold leading-tight text-midnight shadow-[0_5px_16px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 sm:min-h-[58px] sm:flex-row sm:gap-2.5 sm:px-3.5 sm:py-3 sm:text-[13px]"
+      disabled={disabled}
+      className="flex min-h-[72px] items-center gap-2.5 rounded-[14px] border border-midnight/[0.08] bg-white px-3 py-3 text-left font-jakarta leading-tight text-midnight shadow-[0_5px_16px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 disabled:opacity-60 sm:min-h-[76px]"
     >
       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-9 sm:w-9">
         {createElement(IconComponent, { size: 20, strokeWidth: 2.2 })}
       </span>
-      <span>{label}</span>
+      <span className="min-w-0">
+        <span className="block text-[12px] font-extrabold sm:text-[13px]">{label}</span>
+        <span className="mt-0.5 block truncate text-[11px] font-semibold text-muted">{helper}</span>
+      </span>
     </button>
   )
 }

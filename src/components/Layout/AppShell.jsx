@@ -21,6 +21,17 @@ import { useNameConflicts } from '../../hooks/useNameConflicts'
 import { buildAdviceReply, buildAnalyticsReply, resolveAnalyticsTimeframe } from '../../lib/analyticsChat'
 import { resolveCategoryForMessage } from '../../lib/chatLearning'
 import {
+  buildWalletDeletionNotice,
+  buildWalletDeletionPrompt,
+  buildWalletDeletionSuccess,
+  buildWalletRestoreNotice,
+  buildWalletRestorePrompt,
+  buildWalletRestoreSuccess,
+  getGoalDeletionDialogCopy,
+  getWalletDeletionDialogCopy,
+  mapDomainError,
+} from '../../lib/domainMessages'
+import {
   buildGoalOptions,
   buildWalletOptions,
   formatCandidateNames,
@@ -29,6 +40,7 @@ import {
   parseMoneyMatch,
   resolveOptionReference,
 } from '../../lib/chatEntities'
+import { buildChatQuickActions } from '../../lib/chatSuggestions'
 
 const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
 const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
@@ -61,120 +73,18 @@ function getCurrentTimeLabel() {
 
 function ViewLoadingFallback() {
   return (
-    <div className="flex h-full min-h-[280px] items-center justify-center">
-      <div className="flex items-center gap-3 rounded-full border border-midnight/[0.08] bg-white px-4 py-3">
-        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
-        <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
-          Memuat
-        </span>
+    <div className="h-full w-full p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-5xl animate-pulse space-y-4 md:max-w-none">
+        <div className="h-8 w-44 rounded-lg bg-midnight/8" />
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="h-28 rounded-[18px] bg-midnight/[0.06]" />
+          <div className="h-28 rounded-[18px] bg-midnight/[0.06]" />
+          <div className="h-28 rounded-[18px] bg-midnight/[0.06]" />
+        </div>
+        <div className="h-[340px] rounded-[22px] bg-midnight/[0.05]" />
       </div>
     </div>
   )
-}
-
-function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = {}) {
-  const balance = Number(wallet?.current_balance || 0)
-  const walletName = wallet?.name || 'dompet ini'
-  const highlightedName = markdown ? `**${walletName}**` : `"${walletName}"`
-
-  if (balance !== 0) {
-    const highlightedBalance = markdown ? `**${formatRupiah(balance)}**` : formatRupiah(balance)
-
-    return [
-      `Hapus dompet ${highlightedName}?`,
-      `Saldo yang masih tersisa: ${highlightedBalance}.`,
-      'Kalau lanjut, dompet dan riwayat transaksinya akan dihapus.',
-      markdown
-        ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
-        : 'Lanjutkan penghapusan?',
-    ].join('\n\n')
-  }
-
-  return [
-    `Hapus dompet ${highlightedName}?`,
-    'Dompet dan riwayat transaksinya akan dihapus.',
-    markdown
-      ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
-      : 'Lanjutkan penghapusan?',
-  ].join('\n\n')
-}
-
-function buildWalletDeletionSuccess(walletName) {
-  return `Dompet **${walletName}** berhasil dihapus.`
-}
-
-function buildWalletRestorePrompt(wallet, { markdown = false } = {}) {
-  const walletName = wallet?.name || 'dompet ini'
-  const highlightedName = markdown ? `**${walletName}**` : `"${walletName}"`
-
-  return [
-    `Pulihkan dompet ${highlightedName} ke daftar aktif?`,
-    'Dompet ini akan kembali muncul di daftar aktif dan bisa dipakai lagi untuk transaksi serta chat.',
-    markdown
-      ? 'Ketik "Ya" untuk konfirmasi atau "Batal" untuk membatalkan.'
-      : 'Lanjutkan pemulihan?',
-  ].join('\n\n')
-}
-
-function buildWalletRestoreSuccess(walletName) {
-  return `Dompet **${walletName}** berhasil dipulihkan ke daftar aktif.`
-}
-
-function buildWalletDeletionNotice(walletName) {
-  return `Dompet ${walletName} berhasil dihapus.`
-}
-
-function buildWalletRestoreNotice(walletName) {
-  return `Dompet ${walletName} berhasil dipulihkan ke daftar aktif.`
-}
-
-function getWalletDeletionDialogCopy(wallet, formatRupiah) {
-  const balance = Number(wallet?.current_balance || 0)
-  const walletName = wallet?.name || 'dompet ini'
-
-  if (balance !== 0) {
-    return {
-      title: `Hapus dompet "${walletName}"?`,
-      paragraphs: [
-        `Saldo yang masih tersisa: ${formatRupiah(balance)}.`,
-        'Kalau lanjut, dompet dan riwayat transaksinya akan dihapus.',
-      ],
-      confirmLabel: 'Hapus Dompet',
-      tone: 'danger',
-    }
-  }
-
-  return {
-    title: `Hapus dompet "${walletName}"?`,
-    paragraphs: [
-      'Dompet dan riwayat transaksinya akan dihapus.',
-    ],
-    confirmLabel: 'Hapus Dompet',
-    tone: 'danger',
-  }
-}
-
-function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, formatRupiah) {
-  if (refundAmount > 0) {
-    return {
-      title: `Hapus target "${goal?.name || 'target ini'}"?`,
-      paragraphs: [
-        `Dana sebesar ${formatRupiah(refundAmount)} akan dikembalikan ke dompet ${refundTargetName}.`,
-        'Saldo dan histori tetap sinkron.',
-      ],
-      confirmLabel: 'Hapus Target',
-      tone: 'danger',
-    }
-  }
-
-  return {
-    title: `Hapus target "${goal?.name || 'target ini'}"?`,
-    paragraphs: [
-      'Target ini akan dihapus.',
-    ],
-    confirmLabel: 'Hapus Target',
-    tone: 'danger',
-  }
 }
 
 function withWalletAttached(intent, wallet) {
@@ -342,81 +252,6 @@ function collectCategoryLearningKeywords(analysis, categoryResolution) {
   return [...hints].slice(0, 6)
 }
 
-function mapDomainError(error) {
-  const rawMessage = String(error?.message || error || '').trim()
-  const message = rawMessage.toLowerCase()
-
-  if (!rawMessage) {
-    return 'Terjadi kesalahan saat memproses permintaan.'
-  }
-
-  if (message.includes('insufficient wallet balance')) {
-    return 'Saldo dompet tidak cukup untuk menjalankan aksi ini.'
-  }
-
-  if (message.includes('goal balance is insufficient')) {
-    return 'Saldo target tabungan tidak cukup untuk pencairan itu.'
-  }
-
-  if (message.includes('wallet not found') || message.includes('source wallet not found') || message.includes('destination wallet not found')) {
-    return 'Dompet yang dimaksud tidak ditemukan atau sudah tidak aktif.'
-  }
-
-  if (message.includes('goal not found')) {
-    return 'Target tabungan yang dimaksud tidak ditemukan.'
-  }
-
-  if (message.includes('wallet name is already in use')) {
-    return 'Nama dompet itu sudah dipakai. Gunakan nama lain atau rename dompet yang bentrok.'
-  }
-
-  if (message.includes('wallet is already active')) {
-    return 'Dompet itu sudah aktif, jadi tidak perlu dipulihkan lagi.'
-  }
-
-  if (message.includes('goal name is already in use')) {
-    return 'Nama target itu sudah dipakai. Gunakan nama lain atau rename target yang bentrok.'
-  }
-
-  if (message.includes('category not found')) {
-    return 'Kategori yang dipilih tidak ditemukan. Transaksi belum disimpan.'
-  }
-
-  if (message.includes('amount must be greater than zero')) {
-    return 'Nominal harus lebih besar dari nol.'
-  }
-
-  if (message.includes('initial balance must not be negative') || message.includes('initial amount must not be negative')) {
-    return 'Saldo awal tidak boleh negatif.'
-  }
-
-  if (message.includes('wallet is required')) {
-    return 'Aksi ini butuh dompet sumber atau tujuan yang jelas.'
-  }
-
-  if (message.includes('unauthorized') || message.includes('jwt')) {
-    return 'Sesi Anda untuk memanggil analisis AI sudah tidak valid. Muat ulang lalu login lagi.'
-  }
-
-  if (message.includes('goal name is required')) {
-    return 'Nama target wajib diisi.'
-  }
-
-  if (message.includes('wallet name is required')) {
-    return 'Nama dompet wajib diisi.'
-  }
-
-  if (
-    message.includes('server live masih memakai aturan hapus wallet lama') ||
-    message.includes('wallet masih memiliki saldo dan tidak bisa dihapus permanen') ||
-    message.includes('wallet dengan riwayat ledger tidak bisa dihapus permanen')
-  ) {
-    return 'Server live Anda masih memakai aturan hapus wallet lama. Jalankan migration Supabase terbaru agar dompet bersaldo bisa dihapus permanen.'
-  }
-
-  return rawMessage
-}
-
 export default function AppShell() {
   const {
     wallets,
@@ -489,6 +324,16 @@ export default function AppShell() {
   const walletOptions = useMemo(() => buildWalletOptions(wallets), [wallets])
   const archivedWalletOptions = useMemo(() => buildWalletOptions(archivedWallets), [archivedWallets])
   const goalOptions = useMemo(() => buildGoalOptions(goals), [goals])
+  const chatQuickActions = useMemo(
+    () =>
+      buildChatQuickActions({
+        wallets,
+        archivedWallets,
+        transactions,
+        analytics,
+      }),
+    [analytics, archivedWallets, transactions, wallets]
+  )
 
   const formatRupiah = useCallback((number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -1787,6 +1632,7 @@ export default function AppShell() {
                 onSend={handleSend}
                 onNotify={showNotice}
                 formatRupiah={formatRupiah}
+                quickActions={chatQuickActions}
                 hasMore={hasMoreMessages}
                 loadingMore={loadingMoreMessages}
                 onLoadMore={loadMoreMessages}
@@ -1802,6 +1648,7 @@ export default function AppShell() {
                     transactions={transactions}
                     formatRupiah={formatRupiah}
                     onDeleteTransaction={handleDeleteTransaction}
+                    onNavigate={setActiveTab}
                     hasMore={hasMoreTransactions}
                     loadingMore={loadingMoreTransactions}
                     onLoadMore={loadMoreTransactions}

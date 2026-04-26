@@ -1,0 +1,131 @@
+function buildPrompt(label, walletName) {
+  if (!walletName) {
+    return label
+  }
+
+  return `${label} ${walletName}`.trim()
+}
+
+function countLooseCategories(transactions = []) {
+  return transactions.filter((transaction) => String(transaction.category || '').toLowerCase() === 'lainnya').length
+}
+
+export function buildChatQuickActions({
+  wallets = [],
+  archivedWallets = [],
+  transactions = [],
+  analytics = {},
+} = {}) {
+  const primaryWallet = wallets[0] || null
+  const secondaryWallet = wallets[1] || null
+  const looseCategoryCount = countLooseCategories(transactions)
+  const netCashflow = Number(analytics?.netCashflow || 0)
+
+  if (!primaryWallet) {
+    return [
+      {
+        id: 'add-wallet',
+        icon: 'wallet',
+        label: 'Tambah dompet',
+        helper: 'Mulai setup',
+        navigateTo: 'wallets',
+      },
+      {
+        id: 'help',
+        icon: 'sparkles',
+        label: 'Contoh perintah',
+        helper: 'Lihat bantuan',
+        prompt: 'kamu bisa bantu apa aja?',
+      },
+      {
+        id: 'overview',
+        icon: 'summary',
+        label: 'Ringkasan',
+        helper: 'Kondisi awal',
+        prompt: 'ringkas keuangan saya',
+      },
+      {
+        id: 'compose',
+        icon: 'compose',
+        label: 'Tulis pesan',
+        helper: 'Mulai dari chat',
+        action: 'scroll',
+      },
+    ]
+  }
+
+  const actions = [
+    {
+      id: 'expense',
+      icon: 'expense',
+      label: 'Catat keluar',
+      helper: primaryWallet.name,
+      prompt: buildPrompt('beli makan 25rb dari', primaryWallet.name),
+    },
+  ]
+
+  if (transactions.length === 0) {
+    actions.push({
+      id: 'income',
+      icon: 'income',
+      label: 'Catat masuk',
+      helper: primaryWallet.name,
+      prompt: buildPrompt('gaji 5jt ke', primaryWallet.name),
+    })
+  } else if (secondaryWallet) {
+    actions.push({
+      id: 'transfer',
+      icon: 'transfer',
+      label: 'Transfer',
+      helper: `${primaryWallet.name} ke ${secondaryWallet.name}`,
+      prompt: `transfer 100rb dari ${primaryWallet.name} ke ${secondaryWallet.name}`,
+    })
+  } else {
+    actions.push({
+      id: 'income',
+      icon: 'income',
+      label: 'Catat masuk',
+      helper: primaryWallet.name,
+      prompt: buildPrompt('pemasukan 500rb ke', primaryWallet.name),
+    })
+  }
+
+  if (archivedWallets.length > 0) {
+    actions.push({
+      id: 'restore-wallet',
+      icon: 'restore',
+      label: 'Pulihkan',
+      helper: archivedWallets[0].name,
+      prompt: `pulihkan dompet ${archivedWallets[0].name}`,
+    })
+  } else if (looseCategoryCount >= 3) {
+    actions.push({
+      id: 'cleanup-category',
+      icon: 'sparkles',
+      label: 'Rapikan kategori',
+      helper: `${looseCategoryCount} lainnya`,
+      prompt: 'review transaksi kategori lainnya saya dan sarankan perbaikan kategori yang lebih rapi',
+    })
+  } else {
+    actions.push({
+      id: 'balance',
+      icon: 'wallet',
+      label: 'Cek saldo',
+      helper: `${wallets.length} dompet`,
+      prompt: 'cek saldo saya',
+    })
+  }
+
+  actions.push({
+    id: netCashflow < 0 ? 'advice' : 'summary',
+    icon: netCashflow < 0 ? 'advice' : 'summary',
+    label: netCashflow < 0 ? 'Saran hemat' : 'Ringkasan',
+    helper: 'Bulan ini',
+    prompt:
+      netCashflow < 0
+        ? 'berdasarkan data saya, strategi terbaik untuk menahan pengeluaran bulan ini apa?'
+        : 'ringkas keuangan bulan ini',
+  })
+
+  return actions.slice(0, 4)
+}
