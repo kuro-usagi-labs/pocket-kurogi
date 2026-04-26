@@ -439,7 +439,7 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
         <span className={`absolute left-0 top-4 h-[calc(100%-2rem)] w-1 rounded-r-full ${meta.accentClass}`} />
       ) : null}
 
-      <div className="grid min-h-[102px] grid-cols-[58px_minmax(0,1fr)_minmax(96px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[112px] sm:grid-cols-[70px_minmax(0,1fr)_minmax(130px,auto)] sm:gap-4 sm:px-4">
+      <div className="grid min-h-[102px] grid-cols-[58px_minmax(0,1fr)_minmax(112px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[112px] sm:grid-cols-[70px_minmax(0,1fr)_minmax(150px,auto)] sm:gap-4 sm:px-4">
         <div className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[70px] sm:w-[70px] sm:rounded-[20px]`}>
           <WalletIcon walletName={wallet.name} size={34} strokeWidth={2.2} />
         </div>
@@ -459,7 +459,7 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
         </div>
 
         <div className="flex min-w-0 flex-col items-end gap-2 text-right">
-          <p className="max-w-[96px] truncate font-jakarta text-[16px] font-extrabold tracking-tight text-midnight sm:max-w-[174px] sm:text-[20px]">
+          <p className="max-w-[124px] truncate font-jakarta text-[16px] font-extrabold tracking-tight text-midnight sm:max-w-[174px] sm:text-[20px]">
             {formatRupiah(balance)}
           </p>
           {manageMode ? (

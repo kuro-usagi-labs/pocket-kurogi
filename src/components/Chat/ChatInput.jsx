@@ -218,7 +218,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   }[voiceState] || 'Tulis pesan atau perintah...'
 
   return (
-    <div className="pointer-events-none absolute bottom-[88px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-8 md:bottom-6">
+    <div className="pointer-events-none absolute bottom-[82px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-8 md:bottom-6">
       <div className="flex w-full max-w-4xl flex-col gap-2.5">
         {selectedImage && (
           <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[18px] border border-midnight/10 bg-white shadow-lg">
@@ -244,7 +244,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         ) : null}
 
-        <div className={`pointer-events-auto flex w-full items-center gap-2 rounded-[24px] border bg-white p-2 shadow-[0_16px_42px_rgba(15,23,42,0.10)] transition-colors ${
+        <div className={`pointer-events-auto flex w-full items-center gap-1.5 rounded-[22px] border bg-white p-1.5 shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition-colors ${
           isVoiceBusy ? 'border-emerald-200' : 'border-midnight/10'
         }`}>
           <input
@@ -258,14 +258,14 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-midnight/8 bg-white text-midnight transition-all hover:bg-champagne"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-midnight/8 bg-white text-midnight transition-all hover:bg-champagne sm:h-11 sm:w-11"
           >
-            <Paperclip size={23} strokeWidth={2.1} />
+            <Paperclip size={21} strokeWidth={2.1} />
           </button>
           <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2">
             <input
               type="text"
-              className="h-12 w-full rounded-[16px] border border-midnight/8 bg-white px-4 font-inter text-[16px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:ring-0"
+              className="h-10 w-full rounded-[14px] border border-midnight/8 bg-white px-3.5 font-inter text-[15px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:ring-0 sm:h-11"
               placeholder={voicePlaceholder}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -277,7 +277,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
               disabled={voiceState === 'transcribing' || isTyping}
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] transition-all ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] transition-all sm:h-11 sm:w-11 ${
                 voiceState === 'listening' || voiceState === 'recording'
                   ? 'animate-pulse bg-red-50 text-red-500'
                   : voiceState === 'transcribing'
@@ -285,19 +285,19 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
                     : 'text-midnight hover:bg-champagne'
               }`}
             >
-              <Mic size={24} strokeWidth={isVoiceBusy ? 2.8 : 2.2} />
+              <Mic size={22} strokeWidth={isVoiceBusy ? 2.8 : 2.2} />
             </button>
             <button
               type="submit"
               aria-label="Kirim"
               disabled={(!inputValue.trim() && !selectedImage) || isTyping}
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] transition-all sm:h-14 sm:w-14 ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] transition-all sm:h-11 sm:w-11 ${
                 (inputValue.trim() || selectedImage) && !isTyping
                   ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}
             >
-              <Send size={23} strokeWidth={2.5} />
+              <Send size={21} strokeWidth={2.5} />
             </button>
           </form>
         </div>

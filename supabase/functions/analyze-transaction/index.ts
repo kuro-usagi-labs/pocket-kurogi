@@ -375,8 +375,13 @@ function normalizeAnalyzerResult(result: unknown) {
     normalized.transactionType =
       payload.transactionType === 'income' ? 'income' : 'expense'
 
-    if (typeof payload.amount === 'number' && Number.isFinite(payload.amount)) {
+    if (typeof payload.amount === 'number' && Number.isFinite(payload.amount) && payload.amount > 0) {
       normalized.amount = payload.amount
+    } else {
+      return {
+        type: 'unknown',
+        reply: 'Nominal transaksinya belum jelas. Tulis seperti "beli kopi 25rb dari BCA".',
+      }
     }
 
     const category = sanitizeCategoryLabel(payload.category)
@@ -398,6 +403,48 @@ function normalizeAnalyzerResult(result: unknown) {
   if (type === 'advice') {
     normalized.period = normalizePeriod(payload.period)
     normalized.focus = normalizeAdviceFocus(payload.focus)
+  }
+
+  if (type === 'transfer') {
+    if (typeof payload.amount !== 'number' || !Number.isFinite(payload.amount) || payload.amount <= 0) {
+      return {
+        type: 'unknown',
+        reply: 'Nominal transfer belum jelas. Format aman: "transfer 100rb dari BCA ke DANA".',
+      }
+    }
+
+    normalized.amount = payload.amount
+  }
+
+  if (type === 'goal_contribution' || type === 'goal_withdrawal') {
+    if (typeof payload.amount !== 'number' || !Number.isFinite(payload.amount) || payload.amount <= 0) {
+      return {
+        type: 'unknown',
+        reply: 'Nominal target tabungannya belum jelas.',
+      }
+    }
+
+    normalized.amount = payload.amount
+  }
+
+  if (type === 'goal_creation_pending') {
+    const name = sanitizeEntityLabel(payload.name, 100)
+    if (!name) {
+      return {
+        type: 'unknown',
+        reply: 'Nama target tabungannya belum jelas. Contoh: "buat target Liburan Jepang 5jt".',
+      }
+    }
+
+    normalized.name = name
+    normalized.amount =
+      typeof payload.amount === 'number' && Number.isFinite(payload.amount) && payload.amount > 0
+        ? payload.amount
+        : 0
+
+    if (typeof payload.targetAmount === 'number' && Number.isFinite(payload.targetAmount) && payload.targetAmount > 0) {
+      normalized.targetAmount = payload.targetAmount
+    }
   }
 
   if (type === 'delete_wallet' || type === 'rename_wallet') {
@@ -426,6 +473,17 @@ function normalizeAnalyzerResult(result: unknown) {
     const nextName = sanitizeEntityLabel(payload.nextName, 100)
     if (nextName) {
       normalized.nextName = nextName
+    }
+  }
+
+  if (type === 'check_balance') {
+    const target = sanitizeEntityLabel(payload.target, 80)
+    if (target) {
+      normalized.target = target
+    }
+
+    if (typeof payload.targetWalletId === 'string' && payload.targetWalletId.length <= 100) {
+      normalized.targetWalletId = payload.targetWalletId
     }
   }
 
@@ -536,6 +594,7 @@ function buildPrompt({
   text: string
   financialContext: string
   walletOptions: EntityOption[]
+  archivedWalletOptions: EntityOption[]
   goalOptions: EntityOption[]
   categoryOptions: EntityOption[]
   walletNames: string[]
@@ -563,22 +622,24 @@ ${goalList || 'Belum ada target tabungan aktif'}
 KATEGORI USER YANG TERSEDIA:
 ${categoryList || 'Belum ada kategori custom selain default'}
 
-PANDUAN:
-1. Jika user meminta tips, motivasi, analisa, atau saham: gunakan data keuangan di atas untuk memberikan jawaban yang SANGAT SINGKAT, tajam, dan edukatif.
-2. Transaksi: "tambah", "masuk", "topup" = INCOME. "beli", "bayar", "keluar" = EXPENSE.
-3. Jika transaksi: ekstrak data seperti biasa, dan isi "category" dengan kategori user yang paling cocok bila ada.
-4. Gunakan bahasa Indonesia yang profesional namun modern.
-5. Hindari daftar contoh perintah.
-6. Jangan mengarang wallet atau goal yang tidak ada dalam daftar. Jika tidak yakin, kembalikan "unknown" atau reply klarifikasi yang sangat singkat.
-7. Untuk "category", gunakan nama kategori user yang sudah ada jika semantik paling dekat. Jika belum ada yang cocok, gunakan label kategori BARU yang singkat, bersih, dan 1-3 kata. Hindari "Lainnya" kecuali memang benar-benar tidak tahu.
-8. Untuk transaksi, isi "learningHints" dengan 1-4 keyword atau frasa pendek yang relevan untuk pembelajaran lokal user. Contoh bentuk yang baik: "golda", "kopi golda", "token pln", "paket telkomsel". Hindari kata kerja umum, nominal, dan kata generik seperti "pengeluaran".
+PANDUAN CERDAS:
+1. Utamakan akurasi dan keamanan. Kalau nominal, dompet, target, atau maksud aksi belum jelas, kembalikan "unknown" dengan reply klarifikasi singkat; jangan menebak.
+2. Jawaban harus bahasa Indonesia natural, ringkas, dan tidak kaku. Maksimal 2-4 kalimat untuk "reply".
+3. Jangan mengarang wallet, dompet arsip, goal, kategori user, saldo, atau histori yang tidak ada pada daftar/konteks.
+4. Jika user hanya bertanya kemampuan/cara pakai, kembalikan "unknown" dengan reply bantuan singkat, bukan transaksi.
+5. Jika user curhat/bertanya kondisi uang seperti "uangku aman?", "keuangan sehat?", "gimana strategi?", gunakan "advice".
+6. Jika user bertanya angka/rekap seperti "pengeluaran berapa?", "cashflow?", "kategori paling boros?", gunakan "analytics_query".
+7. Transaksi hanya boleh "transaction" jika ada nominal valid dan arah uang jelas. "tambah", "masuk", "topup", "gaji", "bonus" = income. "beli", "bayar", "keluar", "jajan" = expense.
+8. Untuk transaksi, isi "category" dengan kategori user paling cocok bila ada. Jika belum ada yang cocok, gunakan label kategori baru yang singkat, bersih, dan 1-3 kata. Hindari "Lainnya" kecuali benar-benar tidak tahu.
+9. Untuk transaksi, isi "learningHints" dengan 1-4 keyword/frasa pendek yang relevan untuk pembelajaran lokal user. Contoh baik: "golda", "kopi golda", "token pln", "paket telkomsel". Hindari kata kerja umum, nominal, dan kata generik seperti "pengeluaran".
+10. Jangan pernah memasukkan instruksi internal, markdown, atau teks di luar JSON.
 
 Kembalikan HANYA JSON tanpa markdown. Tipe:
 - "transaction": { transactionType, amount, desc, category, walletId, wallet, learningHints, reply }
 - "advice": { period, focus, reply }
 - "analytics_query": { metric, period, reply }
 - "goal_contribution": { goalId, goal, amount, sourceWalletId, sourceWallet, reply }
-- "goal_creation_pending": { name, amount, sourceWalletId, sourceWallet, reply }
+- "goal_creation_pending": { name, amount, targetAmount, sourceWalletId, sourceWallet, reply }
 - "goal_withdrawal": { goalId, goal, amount, destinationWalletId, wallet, reply }
 - "transfer": { amount, fromWalletId, from, toWalletId, to, reply }
 - "delete_wallet": { walletId, wallet }
@@ -594,12 +655,16 @@ INSTRUKSI KHUSUS MANAJEMEN DOMPET:
 4. Untuk "rename_wallet", ambil walletId + wallet dari daftar dompet, lalu isi "nextName" dengan nama baru yang singkat dan bersih.
 5. Jika user ingin memulihkan dompet arsip, gunakan "restore_wallet" dengan walletId dan wallet yang cocok dari daftar dompet arsip.
 6. Untuk transaksi, transfer, saldo, goal, delete, dan rename, gunakan hanya dompet dari daftar dompet aktif. Dompet arsip hanya boleh dipakai untuk intent "restore_wallet".
+7. Jika user berkata "buat dompet" tanpa nama yang jelas, kembalikan "unknown" dan tanyakan nama dompet. Jangan membuat "Dompet Baru" otomatis.
 
 INSTRUKSI KHUSUS TABUNGAN (GOALS):
 1. Jika user ingin menabung/menyisihkan uang ke target tertentu, cocokkan nama target terhadap daftar target aktif di bawah.
 2. Jika nama target ADA di daftar: kembalikan "goal_contribution" dengan goalId yang sesuai.
 3. Jika user juga menyebut dompet sumber, isi sourceWalletId dan sourceWallet dari daftar dompet.
-4. Jika nama target TIDAK ADA: kembalikan "goal_creation_pending", simpan "name" dan "amount", lalu berikan "reply" yang menanyakan berapa target nominal tabungan tersebut.
+4. Jika user ingin membuat target baru, kembalikan "goal_creation_pending".
+5. Untuk "goal_creation_pending", "targetAmount" adalah nominal target total. "amount" adalah setoran awal, isi 0 jika tidak disebut.
+6. Jika nama target ada tapi nominal setoran tidak ada, kembalikan "unknown" dan minta nominal setoran.
+7. Jika nama target TIDAK ADA saat user ingin menabung ke target, kembalikan "goal_creation_pending", simpan "name" dan "amount" sebagai setoran awal, lalu tanyakan target total bila belum disebut.
 
 INSTRUKSI KHUSUS PENCAIRAN TABUNGAN:
 1. Jika user ingin menarik, mencairkan, memindahkan, atau transfer dana DARI target tabungan ke dompet tertentu, gunakan "goal_withdrawal".

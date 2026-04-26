@@ -43,49 +43,49 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-5 pb-8 pt-3 sm:px-8 lg:px-10">
+    <div className="mx-auto max-w-5xl space-y-4 px-4 pb-7 pt-2 sm:px-6 lg:px-8">
       <div>
-        <h2 className="font-jakarta text-[34px] font-extrabold tracking-tight text-midnight sm:text-[42px]">Analitik</h2>
-        <p className="mt-2 text-[17px] font-medium text-muted">Ringkasan uang bulan ini.</p>
+        <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">Analitik</h2>
+        <p className="mt-1.5 text-[14px] font-semibold text-muted">Ringkasan uang bulan ini.</p>
       </div>
 
-      <section className="rounded-[22px] border border-midnight/10 bg-white p-5 shadow-[0_14px_38px_rgba(15,23,42,0.05)] sm:p-7">
-        <p className="font-jakarta text-[16px] font-medium text-muted">
+      <section className="rounded-[20px] border border-midnight/10 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.045)] sm:p-5">
+        <p className="font-jakarta text-[14px] font-semibold text-muted">
           Arus kas
         </p>
-        <div className="mt-2.5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
             <p
-              className={`break-words font-jakarta text-[38px] font-extrabold leading-tight tracking-tight md:text-[48px] ${
+              className={`break-words font-jakarta text-[30px] font-extrabold leading-tight tracking-tight sm:text-[36px] ${
                 netCashflowPositive ? 'text-midnight' : 'text-rose-600'
               }`}
             >
               {netCashflowPositive ? '+' : '-'}
               {formatRupiah(Math.abs(netCashflow))}
             </p>
-            <p className="mt-2 text-[16px] font-medium text-muted">
+            <p className="mt-1.5 text-[14px] font-semibold text-muted">
               {netCashflowPositive ? 'Masih positif.' : 'Perlu ditahan.'}
             </p>
           </div>
-          <div className="rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 font-jakarta text-[13px] font-bold text-emerald-700">
+          <div className="rounded-full border border-emerald-100 bg-emerald-50 px-3.5 py-2 font-jakarta text-[12px] font-bold text-emerald-700">
             {activeBudgetCount} budget aktif
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {summaryCards.map((item) => {
           const Icon = item.Icon
 
           return (
-            <div key={item.label} className="rounded-[18px] border border-midnight/10 bg-white p-4 shadow-sm">
-              <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-full ${item.tone}`}>
-                <Icon size={22} strokeWidth={2.2} />
+            <div key={item.label} className="rounded-[16px] border border-midnight/10 bg-white p-3.5 shadow-sm">
+              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
+                <Icon size={20} strokeWidth={2.2} />
               </div>
-              <p className="font-jakarta text-[14px] font-medium text-muted">
+              <p className="font-jakarta text-[13px] font-semibold text-muted">
                 {item.label}
               </p>
-              <p className="mt-1.5 break-words font-jakarta text-[16px] font-extrabold leading-tight tracking-tight text-midnight md:text-[17px]">
+              <p className="mt-1.5 break-words font-jakarta text-[14px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[15px]">
                 {item.value}
               </p>
             </div>
@@ -93,7 +93,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
         })}
       </div>
 
-      <section className="rounded-[22px] border border-midnight/10 bg-white p-4 shadow-[0_14px_38px_rgba(15,23,42,0.05)] sm:p-5">
+      <section className="rounded-[20px] border border-midnight/10 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.045)] sm:p-5">
         <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <SmallSummary
             label="Kategori utama"
@@ -126,12 +126,12 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
               return (
                 <div key={cat} className="py-4 first:pt-0 last:pb-0">
                   <div className="flex items-start gap-3.5">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                      <CategoryIcon category={cat} size={20} />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                      <CategoryIcon category={cat} size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate font-jakarta text-[17px] font-extrabold capitalize text-midnight">
+                        <p className="truncate font-jakarta text-[15px] font-extrabold capitalize text-midnight sm:text-[16px]">
                           {cat}
                         </p>
                         {overflow && (
@@ -141,23 +141,23 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                         )}
                       </div>
                       <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                        <p className="font-jakarta text-[15px] font-extrabold text-midnight">
+                        <p className="font-jakarta text-[14px] font-extrabold text-midnight">
                           {formatRupiah(amount)}
                         </p>
                         {limit > 0 && (
-                          <p className="text-[13px] font-medium text-muted">
+                          <p className="text-[12px] font-medium text-muted">
                             dari {formatRupiah(limit)}
                           </p>
                         )}
                       </div>
                     </div>
-                    <span className="shrink-0 pt-0.5 font-jakarta text-[15px] font-extrabold text-midnight">
+                    <span className="shrink-0 pt-0.5 font-jakarta text-[14px] font-extrabold text-midnight">
                       {limit > 0 ? `${Math.round(usagePercent)}%` : `${displayPercent}%`}
                     </span>
                   </div>
 
-                  <div className="mt-3 pl-[3.625rem]">
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-midnight/10">
+                  <div className="mt-3 pl-[3.25rem]">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${
                           overflow ? 'bg-red-500' : usagePercent >= 80 ? 'bg-amber-500' : idx === 0 ? 'bg-emerald-500' : 'bg-midnight/70'
@@ -183,14 +183,14 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
 
 function SmallSummary({ label, value, helper }) {
   return (
-    <div className="rounded-[16px] border border-midnight/8 bg-champagne px-4 py-3.5">
-      <p className="font-jakarta text-[13px] font-medium text-muted">
+    <div className="rounded-[14px] border border-midnight/8 bg-champagne px-3.5 py-3">
+      <p className="font-jakarta text-[12px] font-semibold text-muted">
         {label}
       </p>
-      <p className="mt-2 truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight">
+      <p className="mt-1.5 truncate font-jakarta text-[15px] font-extrabold tracking-tight text-midnight">
         {value}
       </p>
-      <p className="mt-1 truncate text-[13px] font-medium text-muted">{helper}</p>
+      <p className="mt-1 truncate text-[12px] font-medium text-muted">{helper}</p>
     </div>
   )
 }

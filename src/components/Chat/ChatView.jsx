@@ -77,14 +77,14 @@ export default function ChatView({
 
   return (
     <div className="absolute inset-0 h-full w-full">
-      <div className="pointer-events-none absolute bottom-[74px] left-0 z-30 h-[160px] w-full bg-gradient-to-t from-white via-white/96 to-transparent md:bottom-0" />
+      <div className="pointer-events-none absolute bottom-[70px] left-0 z-30 h-[145px] w-full bg-gradient-to-t from-white via-white/96 to-transparent md:bottom-0" />
 
       <div
         ref={containerRef}
-        className="no-scrollbar absolute inset-0 z-20 mx-auto flex w-full max-w-5xl flex-col overflow-y-auto scroll-smooth px-5 pb-[220px] pt-1 sm:px-8 md:pb-[160px] lg:px-10"
+        className="no-scrollbar absolute inset-0 z-20 mx-auto flex w-full max-w-5xl flex-col overflow-y-auto scroll-smooth px-4 pb-[200px] pt-1 sm:px-6 md:pb-[150px] lg:px-8"
       >
         <HeroCard />
-        <div className="mb-6 grid grid-cols-3 gap-2.5 sm:mb-7 sm:gap-3">
+        <div className="mb-5 grid grid-cols-3 gap-2 sm:mb-6 sm:gap-3">
           <QuickAction
             icon={Plus}
             label="Catat transaksi"
@@ -144,13 +144,13 @@ export default function ChatView({
 
 function HeroCard() {
   return (
-    <section className="mb-5 hidden overflow-hidden rounded-[28px] border border-midnight/10 bg-white p-8 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:block">
-      <div className="grid items-center gap-7 sm:grid-cols-[1fr_280px]">
+    <section className="mb-5 hidden overflow-hidden rounded-[24px] border border-midnight/10 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.04)] sm:block">
+      <div className="grid items-center gap-6 sm:grid-cols-[1fr_240px]">
         <div>
-          <h2 className="font-jakarta text-[24px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[38px]">
+          <h2 className="font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
             Halo, saya Kurogi
           </h2>
-          <p className="mt-3 max-w-md text-[15px] font-medium leading-relaxed text-muted sm:mt-5 sm:text-[20px]">
+          <p className="mt-3 max-w-md text-[14px] font-medium leading-relaxed text-muted sm:text-[16px]">
             Asisten keuangan yang bantu catat, analisa, dan rapikan transaksi.
           </p>
         </div>
@@ -166,10 +166,10 @@ function QuickAction({ icon: IconComponent, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[76px] flex-col items-center justify-center gap-2 rounded-[18px] border border-midnight/10 bg-white px-2.5 py-3 text-center font-jakarta text-[12px] font-bold leading-tight text-midnight shadow-[0_10px_28px_rgba(15,23,42,0.04)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 sm:min-h-[70px] sm:flex-row sm:gap-3 sm:px-4 sm:py-4 sm:text-[16px]"
+      className="flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-[16px] border border-midnight/10 bg-white px-2 py-2.5 text-center font-jakarta text-[11px] font-bold leading-tight text-midnight shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 sm:min-h-[60px] sm:flex-row sm:gap-2.5 sm:px-3.5 sm:py-3 sm:text-[14px]"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-emerald-600 text-emerald-600">
-        {createElement(IconComponent, { size: 23, strokeWidth: 2.2 })}
+      <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-600 text-emerald-600">
+        {createElement(IconComponent, { size: 20, strokeWidth: 2.2 })}
       </span>
       <span>{label}</span>
     </button>
@@ -178,8 +178,8 @@ function QuickAction({ icon: IconComponent, label, onClick }) {
 
 function FinanceIllustration() {
   return (
-    <div className="relative mx-auto hidden h-[210px] w-full max-w-[290px] sm:block">
-      <div className="absolute inset-x-2 bottom-0 h-[172px] rounded-[45%] bg-emerald-50" />
+    <div className="relative mx-auto hidden h-[172px] w-full max-w-[240px] sm:block">
+      <div className="absolute inset-x-2 bottom-0 h-[140px] rounded-[45%] bg-emerald-50" />
       <div className="absolute left-7 top-10 h-28 w-24 rounded-xl border-2 border-slate-300 bg-white shadow-sm">
         <div className="absolute -top-3 left-7 h-5 w-12 rounded-md bg-midnight" />
         <div className="ml-5 mt-6 h-9 w-9 rounded-full bg-emerald-500" />

@@ -160,4 +160,51 @@ describe('analyzeWithRegex', () => {
     })
     expect(result.reply).toContain('analisis keuangan')
   })
+
+  it('answers capability questions without trying to create a ledger action', () => {
+    const result = analyzeWithRegex('kamu bisa bantu apa aja?', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'unknown',
+    })
+    expect(result.reply).toContain('catat transaksi')
+  })
+
+  it('detects health-check style finance questions as advice', () => {
+    const result = analyzeWithRegex('uang saya masih aman tidak bulan ini?', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'advice',
+      period: 'this_month',
+      focus: 'overall',
+    })
+  })
+
+  it('detects undo requests for the latest transaction', () => {
+    const result = analyzeWithRegex('batalkan transaksi terakhir', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'undo_transaction',
+    })
+  })
+
+  it('does not create a generic wallet when the wallet name is missing', () => {
+    const result = analyzeWithRegex('buat dompet', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'unknown',
+    })
+    expect(result.reply).toContain('Nama dompet')
+  })
+
+  it('parses new goal creation with target amount', () => {
+    const result = analyzeWithRegex('buat target liburan korea 5jt', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({
+      type: 'goal_creation_pending',
+      name: 'Liburan Korea',
+      targetAmount: 5000000,
+      amount: 0,
+    })
+  })
 })

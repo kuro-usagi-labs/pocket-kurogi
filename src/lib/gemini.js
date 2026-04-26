@@ -27,7 +27,12 @@ const LEDGER_AMOUNT_REQUIRED_REPLY =
   'Saya perlu nominal yang jelas. Contoh: "Beli kopi 50k tunai".'
 const GENERIC_UNKNOWN_REPLY =
   'Saya belum bisa memetakan permintaan itu ke aksi yang aman. Coba minta analisis keuangan, cek ringkasan, atau tulis transaksi dengan nominal yang jelas.'
+const HELP_REPLY = [
+  'Saya bisa bantu catat transaksi, transfer antar dompet, cek saldo, baca arus kas, analisa pengeluaran, dan kelola target tabungan.',
+  'Tulis natural saja, misalnya: "beli kopi 25rb dari BCA", "transfer 100rb dari BCA ke DANA", atau "analisa pengeluaran bulan ini".',
+].join('\n')
 const TRANSFER_INTENT_PATTERN = /\b(transfer|trf|tf|trasfer|tranfer|pindah|pindahin|geser|kirim|kirimkan|oper|mutasi|move)\b/i
+const ASSISTANT_HELP_PATTERN = /\b(bisa apa|bantu apa|fitur|cara pakai|cara gunakan|contoh perintah|command|help|panduan|instruksi)\b/i
 
 /**
  * Analyze user text for transaction/advice intents.
@@ -134,11 +139,21 @@ async function callAnalyzerFunction(
 
 export function analyzeWithRegex(text, walletOptions, goalOptions = [], archivedWalletOptions = []) {
   let normalizedText = normalizeIntentText(normalizeNumericText(text.toLowerCase().trim()))
+  const helpQuery = detectAssistantHelpQuery(normalizedText)
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
 
+  if (helpQuery) {
+    return helpQuery
+  }
+
   if (adviceQuery) {
     return adviceQuery
+  }
+
+  const undoIntent = detectUndoIntent(normalizedText)
+  if (undoIntent) {
+    return undoIntent
   }
 
   const goalWithdrawal = detectGoalWithdrawalIntent(normalizedText, walletOptions, goalOptions)
@@ -154,6 +169,11 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = [], archived
   const walletTransfer = detectWalletTransferIntent(normalizedText, walletOptions)
   if (walletTransfer) {
     return walletTransfer
+  }
+
+  const goalCreation = detectGoalCreationIntent(normalizedText, walletOptions)
+  if (goalCreation) {
+    return goalCreation
   }
 
   if (!analyticsQuery && /(tabungan|milestone|target)/i.test(normalizedText)) {
@@ -344,11 +364,18 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = [], archived
       /(?:dompet|rekening|wallet)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:isi|saldo|dengan|sebesar)\s*|\s*$|\s+(?:rp\s*)?(?:\d+))/i
     )
 
-    let name = 'Dompet Baru'
+    let name = ''
     if (nameMatch?.[1]) {
       name = nameMatch[1].replace(/^(isi|saldo|sebesar|rp|dengan)\s+/i, '').trim()
       name = name.replace(/\s+\d.*/, '').trim()
       name = name.charAt(0).toUpperCase() + name.slice(1)
+    }
+
+    if (!name || /^(baru|new)$/i.test(name)) {
+      return {
+        type: 'unknown',
+        reply: 'Nama dompet barunya apa? Contoh: "buat dompet BCA saldo 500rb".',
+      }
     }
 
     return {
@@ -423,6 +450,87 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = [], archived
     category,
     wallet: wallet?.name || null,
     walletId: wallet?.id || null,
+  }
+}
+
+function detectAssistantHelpQuery(normalizedText) {
+  if (!normalizedText || !ASSISTANT_HELP_PATTERN.test(normalizedText)) {
+    return null
+  }
+
+  return {
+    type: 'unknown',
+    reply: HELP_REPLY,
+  }
+}
+
+function detectUndoIntent(normalizedText) {
+  if (!/(undo|batalkan|batalin|hapus|revert|kembalikan)/i.test(normalizedText)) {
+    return null
+  }
+
+  if (!/(transaksi terakhir|catatan terakhir|input terakhir|yang terakhir|terakhir)/i.test(normalizedText)) {
+    return null
+  }
+
+  if (/(semua|massal|riwayat)/i.test(normalizedText)) {
+    return null
+  }
+
+  return {
+    type: 'undo_transaction',
+    reply: 'Saya akan membatalkan transaksi manual terakhir yang masih bisa dibatalkan.',
+  }
+}
+
+function detectGoalCreationIntent(normalizedText, walletOptions = []) {
+  if (!/^(buat|bikin|tambah|create)\s+(target|goal|tabungan|milestone)\b/i.test(normalizedText)) {
+    return null
+  }
+
+  const amountMatch = matchMoney(normalizedText)
+  const targetAmount = amountMatch ? parseMoneyMatch(amountMatch) : 0
+  const cleanedName = cleanEntityText(
+    normalizedText
+      .replace(/^(buat|bikin|tambah|create)\s+(target|goal|tabungan|milestone)\s*/i, '')
+      .replace(amountMatch?.[0] || '', '')
+      .replace(/\b(target|sebesar|senilai|dengan|nominal|total|awal|setoran|dari|pakai|via)\b.*$/i, '')
+  )
+
+  if (!cleanedName) {
+    return createNeedsConfirmation({
+      reason: 'missing_goal_name',
+      prompt: 'Nama target tabungannya apa? Contoh: "buat target Liburan Jepang 5jt".',
+      intent: {
+        type: 'goal_creation_pending',
+        amount: 0,
+      },
+    })
+  }
+
+  if (!targetAmount) {
+    return {
+      type: 'goal_creation_pending',
+      name: toTitleCase(cleanedName),
+      amount: 0,
+      reply: `Target tabungan **${toTitleCase(cleanedName)}** mau dibuat. Berapa nominal target totalnya? Contoh: 5jt atau 1000000.`,
+    }
+  }
+
+  const sourceResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: walletOptions,
+    keywords: ['dari', 'pakai', 'pake', 'via'],
+  })
+
+  return {
+    type: 'goal_creation_pending',
+    name: toTitleCase(cleanedName),
+    amount: 0,
+    targetAmount,
+    sourceWalletId: sourceResolution.match?.id || null,
+    sourceWallet: sourceResolution.match?.name || null,
+    reply: `Target tabungan **${toTitleCase(cleanedName)}** mau dibuat dengan target **${targetAmount.toLocaleString('id-ID')}**. Mau pakai setoran awal juga atau mulai dari nol?`,
   }
 }
 
@@ -1097,6 +1205,14 @@ function cleanEntityText(value = '') {
     .replace(/\s+/g, ' ')
 }
 
+function toTitleCase(value = '') {
+  return cleanEntityText(value)
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 function detectAnalyticsQuery(normalizedText) {
   if (!normalizedText) {
     return null
@@ -1124,7 +1240,7 @@ export function detectAdviceQuery(normalizedText) {
     return null
   }
 
-  if (!/(tips|tip|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|bantu saya atur|langkah terbaik|apa yang harus saya lakukan)/i.test(normalizedText)) {
+  if (!/(tips|tip|saran|strategi|rekomendasi|optimalkan|hemat|improve|perbaiki|solusi|evaluasi|review|audit|sehat|aman|atur keuangan|budgeting|rencana|prioritas|bantu saya atur|langkah terbaik|apa yang harus saya lakukan)/i.test(normalizedText)) {
     return null
   }
 
@@ -1148,7 +1264,7 @@ export function detectAdviceFocus(normalizedText) {
     return 'savings'
   }
 
-  if (/(budget|anggaran|limit)/i.test(normalizedText)) {
+  if (/(budget|anggaran|limit|budgeting)/i.test(normalizedText)) {
     return 'budget'
   }
 

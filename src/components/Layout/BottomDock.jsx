@@ -23,7 +23,7 @@ export default function BottomDock({ activeTab, onTabChange }) {
               onClick={() => onTabChange(item.id)}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`group/nav relative z-10 flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-xl outline-none transition-[color,transform] duration-200 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+              className={`group/nav relative z-10 flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-xl outline-none transition-[color,transform] duration-200 active:scale-[0.98] focus-visible:ring-1 focus-visible:ring-emerald-200 focus-visible:ring-offset-0 ${
                 isActive
                   ? 'text-emerald-600'
                   : 'text-muted hover:bg-champagne hover:text-midnight'

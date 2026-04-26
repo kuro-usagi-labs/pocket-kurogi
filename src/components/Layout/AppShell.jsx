@@ -953,6 +953,54 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'goal_creation_pending') {
+        if (Number(analysis.targetAmount || 0) > 0) {
+          const initialAmount = Number(analysis.amount || 0)
+          const sourceWallet =
+            initialAmount > 0
+              ? walletCatalog.find((wallet) => wallet.id === analysis.sourceWalletId) ||
+                (walletCatalog.length === 1 ? walletCatalog[0] : null)
+              : null
+
+          if (initialAmount > 0 && !sourceWallet) {
+            setPendingAction({
+              type: 'create_goal_source_wallet',
+              name: analysis.name,
+              targetAmount: Number(analysis.targetAmount),
+              initialAmount,
+            })
+
+            return {
+              text: `Target **${analysis.name}** akan dibuat. Setoran awal **${formatRupiah(initialAmount)}** mau diambil dari dompet mana? Pilihan aktif Anda: ${formatCandidateNames(walletOptions)}.`,
+              intentStatus: 'needs_confirmation',
+            }
+          }
+
+          const createGoalResult = await createGoalWithContribution({
+            name: analysis.name,
+            targetAmount: Number(analysis.targetAmount),
+            initialAmount,
+            walletId: sourceWallet?.id || null,
+          })
+
+          if (createGoalResult.error) {
+            throw createGoalResult.error
+          }
+
+          await syncFinancialViews({
+            wallets: createGoalResult.walletHandled,
+            transactions: createGoalResult.walletHandled,
+            analytics: true,
+            names: true,
+          })
+
+          return {
+            text:
+              initialAmount > 0
+                ? `Target **${analysis.name}** berhasil dibuat dengan target **${formatRupiah(analysis.targetAmount)}** dan setoran awal **${formatRupiah(initialAmount)}**.`
+                : `Target **${analysis.name}** berhasil dibuat dengan target **${formatRupiah(analysis.targetAmount)}**.`,
+          }
+        }
+
         setPendingAction({
           type: 'create_goal_target',
           name: analysis.name,
@@ -1105,6 +1153,7 @@ export default function AppShell() {
       analytics,
       budgets,
       contributeToGoal,
+      createGoalWithContribution,
       formatRupiah,
       getSnapshot,
       goals,
@@ -1117,6 +1166,7 @@ export default function AppShell() {
       transactions,
       transferBetweenWallets,
       archivedWallets,
+      walletOptions,
       wallets,
       withdrawFromGoal,
     ]
