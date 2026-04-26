@@ -107,7 +107,7 @@ export default function ChatView({
             <button
               type="button"
               onClick={handleLoadMore}
-              className="rounded-lg border border-midnight/10 bg-white px-3 py-2 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted shadow-sm transition-colors hover:text-midnight"
+            className="rounded-lg border border-midnight/[0.08] bg-white px-3 py-2 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted transition-colors hover:text-midnight"
             >
               {loadingMore ? 'Memuat...' : 'Muat lagi'}
             </button>
@@ -115,7 +115,7 @@ export default function ChatView({
         )}
 
         <div className="mb-5 flex justify-center">
-          <span className="rounded-full border border-midnight/8 bg-white px-4 py-2 font-jakarta text-[12px] font-semibold text-muted shadow-sm">
+          <span className="rounded-full border border-midnight/[0.06] bg-white px-4 py-2 font-jakarta text-[12px] font-semibold text-muted">
             Hari ini
           </span>
         </div>
@@ -144,7 +144,7 @@ export default function ChatView({
 
 function HeroCard() {
   return (
-    <section className="mb-5 hidden overflow-hidden rounded-[24px] border border-midnight/10 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.04)] sm:block">
+    <section className="mb-5 hidden overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.025)] sm:block">
       <div className="grid items-center gap-6 sm:grid-cols-[1fr_240px]">
         <div>
           <h2 className="font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
@@ -166,9 +166,9 @@ function QuickAction({ icon: IconComponent, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-[16px] border border-midnight/10 bg-white px-2 py-2.5 text-center font-jakarta text-[11px] font-bold leading-tight text-midnight shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 sm:min-h-[60px] sm:flex-row sm:gap-2.5 sm:px-3.5 sm:py-3 sm:text-[14px]"
+      className="flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-[14px] border border-midnight/[0.08] bg-white px-2 py-2.5 text-center font-jakarta text-[11px] font-bold leading-tight text-midnight shadow-[0_5px_16px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 sm:min-h-[58px] sm:flex-row sm:gap-2.5 sm:px-3.5 sm:py-3 sm:text-[13px]"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-600 text-emerald-600">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-9 sm:w-9">
         {createElement(IconComponent, { size: 20, strokeWidth: 2.2 })}
       </span>
       <span>{label}</span>

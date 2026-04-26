@@ -207,7 +207,7 @@ export default function WalletsView({
         </div>
       ) : null}
 
-      <section className="mb-6 rounded-[22px] border border-midnight/10 bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.045)] sm:p-5 lg:p-6">
+      <section className="mb-6 rounded-[20px] border border-midnight/[0.08] bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.025)] sm:p-5 lg:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-jakarta text-[26px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
@@ -255,7 +255,7 @@ export default function WalletsView({
                 onClick={() => setActiveWalletFilter(filter.id)}
                 className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
                   isActive
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.10)]'
+                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
                     : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
                 }`}
               >
@@ -288,8 +288,8 @@ export default function WalletsView({
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-3 rounded-[16px] border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-muted">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm">
+        <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-emerald-100/80 bg-emerald-50/55 px-4 py-3 text-muted">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-emerald-600">
             <Info size={20} strokeWidth={2.2} />
           </span>
           <p className="min-w-0 text-[13px] font-medium leading-relaxed sm:text-[14px]">
@@ -434,32 +434,32 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
   const meta = getWalletMeta(wallet)
 
   return (
-    <div className="group relative overflow-visible rounded-[18px] border border-midnight/10 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.04)] transition-all hover:border-emerald-200 hover:shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
+    <div className="group relative overflow-visible rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200">
       {featured ? (
         <span className={`absolute left-0 top-4 h-[calc(100%-2rem)] w-1 rounded-r-full ${meta.accentClass}`} />
       ) : null}
 
-      <div className="grid min-h-[102px] grid-cols-[58px_minmax(0,1fr)_minmax(112px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[112px] sm:grid-cols-[70px_minmax(0,1fr)_minmax(150px,auto)] sm:gap-4 sm:px-4">
-        <div className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[70px] sm:w-[70px] sm:rounded-[20px]`}>
-          <WalletIcon walletName={wallet.name} size={34} strokeWidth={2.2} />
+      <div className="grid min-h-[96px] grid-cols-[54px_minmax(0,1fr)_minmax(108px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[104px] sm:grid-cols-[64px_minmax(0,1fr)_minmax(146px,auto)] sm:gap-4 sm:px-4">
+        <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[64px] sm:w-[64px] sm:rounded-[18px]`}>
+          <WalletIcon walletName={wallet.name} size={31} strokeWidth={2.15} />
         </div>
 
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <h3 className="min-w-0 flex-1 truncate font-jakarta text-[17px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[20px]">
+            <h3 className="min-w-0 flex-1 truncate font-jakarta text-[16px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[18px]">
               {wallet.name}
             </h3>
             <span className={`shrink-0 rounded-full px-2.5 py-1 font-jakarta text-[10px] font-extrabold leading-none ${meta.badgeClass} sm:text-[11px]`}>
               {meta.label}
             </span>
           </div>
-          <p className="mt-2 truncate text-[13px] font-medium text-muted sm:text-[15px]">
+          <p className="mt-1.5 truncate text-[12px] font-medium text-muted sm:text-[14px]">
             {getWalletDescription(wallet, meta)}
           </p>
         </div>
 
         <div className="flex min-w-0 flex-col items-end gap-2 text-right">
-          <p className="max-w-[124px] truncate font-jakarta text-[16px] font-extrabold tracking-tight text-midnight sm:max-w-[174px] sm:text-[20px]">
+          <p className="max-w-[116px] truncate font-jakarta text-[15px] font-extrabold tracking-tight text-midnight sm:max-w-[166px] sm:text-[18px]">
             {formatRupiah(balance)}
           </p>
           {manageMode ? (
@@ -539,7 +539,7 @@ function WalletActionMenu({ walletName, onRename, onDelete }) {
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-midnight/8 bg-slate-50 text-midnight shadow-sm transition-all hover:border-emerald-200 hover:bg-white hover:text-emerald-700 sm:h-10 sm:w-10"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-midnight transition-all hover:bg-emerald-50 hover:text-emerald-700 sm:h-10 sm:w-10"
         aria-label={`Aksi untuk ${walletName}`}
         aria-expanded={menuOpen}
       >
@@ -547,7 +547,7 @@ function WalletActionMenu({ walletName, onRename, onDelete }) {
       </button>
 
       {menuOpen ? (
-        <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[16px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
+        <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[14px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_12px_26px_rgba(15,23,42,0.10)]">
           <button
             type="button"
             onClick={handleRenameClick}

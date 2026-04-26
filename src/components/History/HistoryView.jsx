@@ -54,7 +54,7 @@ export default function HistoryView({
         <p className="text-[14px] font-semibold text-muted">{transactions.length} transaksi</p>
       </div>
 
-      <div className="relative mb-3 flex min-h-[54px] items-center rounded-[16px] border border-midnight/10 bg-white p-1.5 shadow-sm">
+      <div className="relative mb-3 flex min-h-[52px] items-center rounded-[14px] border border-midnight/[0.08] bg-white p-1.5">
         <div className="px-3 text-midnight/70">
           <Search size={22} strokeWidth={2} />
         </div>
@@ -75,12 +75,12 @@ export default function HistoryView({
 
       <div className="space-y-6">
         {transactions.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-midnight/15 bg-white px-5 py-10 text-center shadow-sm">
+            <div className="rounded-[20px] border border-dashed border-midnight/15 bg-white px-5 py-10 text-center">
             <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada transaksi.</p>
             <p className="mt-1 text-[12px] font-medium text-muted">Mulai dari chat.</p>
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-midnight/15 bg-white px-5 py-10 text-center shadow-sm">
+          <div className="rounded-[20px] border border-dashed border-midnight/15 bg-white px-5 py-10 text-center">
             <p className="font-jakarta text-[13px] font-bold text-midnight">Tidak ditemukan.</p>
           </div>
         ) : (
@@ -88,7 +88,7 @@ export default function HistoryView({
             {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
               <section key={dateLabel}>
                 <h3 className="mb-2.5 font-jakarta text-[16px] font-bold text-muted">{dateLabel}</h3>
-                <div className="overflow-hidden rounded-[18px] border border-midnight/10 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.04)]">
+                <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
                   {items.map((transaction) => (
                     <TransactionRow
                       key={transaction.id}
@@ -106,7 +106,7 @@ export default function HistoryView({
                 <button
                   type="button"
                   onClick={onLoadMore}
-                  className="rounded-[16px] border border-midnight/10 bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted shadow-sm transition-colors hover:text-midnight"
+                  className="rounded-[14px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
                 >
                   {loadingMore ? 'Memuat...' : 'Muat lagi'}
                 </button>
@@ -124,9 +124,9 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-[14px] border px-4 font-jakarta text-[13px] font-bold transition-all ${
+      className={`inline-flex min-h-[42px] shrink-0 items-center justify-center gap-2 rounded-[13px] border px-4 font-jakarta text-[13px] font-bold transition-all ${
         active
-          ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+          ? 'border-emerald-500 bg-emerald-500 text-white'
           : 'border-midnight/10 bg-white text-midnight hover:border-emerald-200'
       }`}
     >

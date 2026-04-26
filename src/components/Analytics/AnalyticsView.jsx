@@ -49,7 +49,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
         <p className="mt-1.5 text-[14px] font-semibold text-muted">Ringkasan uang bulan ini.</p>
       </div>
 
-      <section className="rounded-[20px] border border-midnight/10 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.045)] sm:p-5">
+      <section className="rounded-[18px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
         <p className="font-jakarta text-[14px] font-semibold text-muted">
           Arus kas
         </p>
@@ -67,7 +67,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
               {netCashflowPositive ? 'Masih positif.' : 'Perlu ditahan.'}
             </p>
           </div>
-          <div className="rounded-full border border-emerald-100 bg-emerald-50 px-3.5 py-2 font-jakarta text-[12px] font-bold text-emerald-700">
+          <div className="rounded-full bg-emerald-50 px-3.5 py-2 font-jakarta text-[12px] font-bold text-emerald-700">
             {activeBudgetCount} budget aktif
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
           const Icon = item.Icon
 
           return (
-            <div key={item.label} className="rounded-[16px] border border-midnight/10 bg-white p-3.5 shadow-sm">
+            <div key={item.label} className="rounded-[14px] border border-midnight/[0.08] bg-white p-3.5">
               <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
                 <Icon size={20} strokeWidth={2.2} />
               </div>
@@ -93,7 +93,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
         })}
       </div>
 
-      <section className="rounded-[20px] border border-midnight/10 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.045)] sm:p-5">
+      <section className="rounded-[18px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
         <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <SmallSummary
             label="Kategori utama"

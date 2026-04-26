@@ -244,7 +244,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         ) : null}
 
-        <div className={`pointer-events-auto flex w-full items-center gap-1.5 rounded-[22px] border bg-white p-1.5 shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition-colors ${
+        <div className={`pointer-events-auto flex w-full items-center gap-1.5 rounded-[20px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-colors ${
           isVoiceBusy ? 'border-emerald-200' : 'border-midnight/10'
         }`}>
           <input
@@ -293,7 +293,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               disabled={(!inputValue.trim() && !selectedImage) || isTyping}
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] transition-all sm:h-11 sm:w-11 ${
                 (inputValue.trim() || selectedImage) && !isTyping
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 active:scale-95'
+                  ? 'bg-emerald-500 text-white shadow-sm active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}
             >

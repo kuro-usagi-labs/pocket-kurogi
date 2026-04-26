@@ -13,7 +13,7 @@ export default function MessageBubble({ msg, formatRupiah }) {
           className={`relative text-[14px] leading-relaxed transition-all sm:text-[15px] ${
             isUser
               ? 'rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-midnight shadow-sm'
-              : 'rounded-[20px] border border-midnight/10 bg-white px-4 py-3.5 text-midnight shadow-[0_10px_28px_rgba(15,23,42,0.05)]'
+              : 'rounded-[20px] border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight shadow-[0_6px_18px_rgba(15,23,42,0.035)]'
           }`}
         >
           {msg.image && (
