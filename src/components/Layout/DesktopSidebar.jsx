@@ -13,10 +13,10 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
   ]
 
   return (
-    <aside className="hidden h-full w-[248px] shrink-0 flex-col border-r border-midnight/8 bg-white px-4 py-5 font-jakarta tracking-tight md:flex">
-      <div className="mb-7 rounded-[22px] border border-emerald-100 bg-emerald-50/60 px-4 py-4">
-        <KurogiLogo size={58} className="shadow-sm" />
-        <h1 className="mt-4 text-[20px] font-extrabold tracking-tight text-midnight">Pocket Kurogi</h1>
+    <aside className="hidden h-full w-[232px] shrink-0 flex-col border-r border-midnight/[0.08] bg-white px-3.5 py-4 font-jakarta tracking-tight md:flex">
+      <div className="mb-5 rounded-[16px] border border-emerald-100/80 bg-emerald-50/45 px-3.5 py-3.5">
+        <KurogiLogo size={48} className="shadow-sm" />
+        <h1 className="mt-3 text-[17px] font-extrabold tracking-tight text-midnight">Pocket Kurogi</h1>
         <p className="mt-1 text-[12px] font-semibold text-muted">Asisten keuangan</p>
       </div>
 
@@ -28,9 +28,9 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex w-full items-center gap-3 rounded-[16px] px-3.5 py-3 text-left text-[14px] transition-all ${
+              className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[13px] transition-all ${
                 isActive
-                  ? 'bg-emerald-500 text-white shadow-[0_12px_26px_rgba(16,185,129,0.22)]'
+                  ? 'bg-emerald-500 text-white'
                   : 'text-muted hover:bg-champagne hover:text-midnight'
               }`}
             >
@@ -41,10 +41,10 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
         })}
       </nav>
 
-      <div className="mt-auto border-t border-midnight/8 pt-4">
+      <div className="mt-auto border-t border-midnight/[0.08] pt-3">
         <button
           onClick={signOut}
-          className="flex w-full items-center gap-3 rounded-[16px] px-3.5 py-3 text-[14px] font-bold text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+          className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13px] font-bold text-muted transition-colors hover:bg-red-50 hover:text-red-600"
         >
           <LogOut size={18} />
           <span>Keluar</span>

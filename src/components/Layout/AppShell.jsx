@@ -9,9 +9,11 @@ import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
 import DesktopHeader from './DesktopHeader'
 import DesktopSidebar from './DesktopSidebar'
+import DesktopRightPanel from './DesktopRightPanel'
 import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
 import StatusToast from '../shared/StatusToast'
+import ChatView from '../Chat/ChatView'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
@@ -28,13 +30,14 @@ import {
   resolveOptionReference,
 } from '../../lib/chatEntities'
 
-const ChatView = lazy(() => import('../Chat/ChatView'))
-const HistoryView = lazy(() => import('../History/HistoryView'))
-const WalletsView = lazy(() => import('../Wallets/WalletsView'))
-const AnalyticsView = lazy(() => import('../Analytics/AnalyticsView'))
-
 const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
 const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
+const loadHistoryView = () => import('../History/HistoryView')
+const loadWalletsView = () => import('../Wallets/WalletsView')
+const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
+const HistoryView = lazy(loadHistoryView)
+const WalletsView = lazy(loadWalletsView)
+const AnalyticsView = lazy(loadAnalyticsView)
 const WELCOME_MESSAGE = {
   id: 'welcome',
   sender: 'bot',
@@ -54,6 +57,19 @@ function getCurrentTimeLabel() {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function ViewLoadingFallback() {
+  return (
+    <div className="flex h-full min-h-[280px] items-center justify-center">
+      <div className="flex items-center gap-3 rounded-full border border-midnight/[0.08] bg-white px-4 py-3">
+        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+        <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
+          Memuat
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function buildWalletDeletionPrompt(wallet, formatRupiah, { markdown = false } = {}) {
@@ -159,19 +175,6 @@ function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, formatR
     confirmLabel: 'Hapus Target',
     tone: 'danger',
   }
-}
-
-function ViewLoadingFallback() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center bg-white">
-      <div className="flex items-center gap-3 rounded-full border border-midnight/8 bg-white px-4 py-3 shadow-sm">
-        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
-        <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
-          Memuat
-        </span>
-      </div>
-    </div>
-  )
 }
 
 function withWalletAttached(intent, wallet) {
@@ -538,6 +541,12 @@ export default function AppShell() {
 
     return () => window.clearTimeout(timeoutId)
   }, [notice])
+
+  useEffect(() => {
+    loadHistoryView()
+    loadWalletsView()
+    loadAnalyticsView()
+  }, [])
 
   const persistBotResponse = useCallback(async (response) => {
     if (!response?.text) {
@@ -1571,6 +1580,11 @@ export default function AppShell() {
     ]
   )
 
+  const handleExecuteStrategy = useCallback((prompt) => {
+    setActiveTab('chat')
+    handleSend(prompt)
+  }, [handleSend])
+
   const handleAddGoal = useCallback(async (goalData) => {
     const result = await addGoal(goalData)
 
@@ -1748,9 +1762,16 @@ export default function AppShell() {
           formatRupiah={formatRupiah}
         />
 
-        <div className="relative flex-1 overflow-hidden md:m-5 md:mt-0 md:rounded-[28px] md:border md:border-midnight/8 md:bg-white md:shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
-          <Suspense fallback={<ViewLoadingFallback />}>
-            <div className={`absolute inset-0 h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
+        <div className="flex min-h-0 flex-1 overflow-hidden md:gap-5 md:p-5 md:pt-0">
+          <section
+            className={`relative min-w-0 flex-1 overflow-hidden bg-white ${
+              activeTab === 'chat'
+                ? 'md:rounded-[20px] md:border md:border-midnight/[0.08] md:shadow-[0_8px_24px_rgba(15,23,42,0.035)]'
+                : 'md:bg-transparent'
+            }`}
+          >
+            {activeTab === 'chat' ? (
+              <div className="absolute inset-0 h-full w-full">
               <ChatView
                 messages={
                   messages.length > 0
@@ -1771,54 +1792,61 @@ export default function AppShell() {
                 onLoadMore={loadMoreMessages}
                 onNavigate={setActiveTab}
               />
-            </div>
+              </div>
+            ) : null}
 
-            <div
-              className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
-                activeTab === 'history' ? 'block' : 'hidden'
-              }`}
-            >
-              <HistoryView
-                transactions={transactions}
-                formatRupiah={formatRupiah}
-                onDeleteTransaction={handleDeleteTransaction}
-                hasMore={hasMoreTransactions}
-                loadingMore={loadingMoreTransactions}
-                onLoadMore={loadMoreTransactions}
-              />
-            </div>
+            {activeTab === 'history' ? (
+              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0">
+                <Suspense fallback={<ViewLoadingFallback />}>
+                  <HistoryView
+                    transactions={transactions}
+                    formatRupiah={formatRupiah}
+                    onDeleteTransaction={handleDeleteTransaction}
+                    hasMore={hasMoreTransactions}
+                    loadingMore={loadingMoreTransactions}
+                    onLoadMore={loadMoreTransactions}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
 
-            <div
-              className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
-                activeTab === 'wallets' ? 'block' : 'hidden'
-              }`}
-            >
-              <WalletsView
-                wallets={wallets}
-                goals={goals}
-                conflicts={conflicts}
-                onAddWallet={handleAddWallet}
-                onDeleteWallet={handleDeleteWallet}
-                onRenameWallet={handleRenameWallet}
-                onAddGoal={handleAddGoal}
-                onDeleteGoal={handleDeleteGoal}
-                onRenameGoal={handleRenameGoal}
-                formatRupiah={formatRupiah}
-              />
-            </div>
+            {activeTab === 'wallets' ? (
+              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0">
+                <Suspense fallback={<ViewLoadingFallback />}>
+                  <WalletsView
+                    wallets={wallets}
+                    goals={goals}
+                    conflicts={conflicts}
+                    onAddWallet={handleAddWallet}
+                    onDeleteWallet={handleDeleteWallet}
+                    onRenameWallet={handleRenameWallet}
+                    onAddGoal={handleAddGoal}
+                    onDeleteGoal={handleDeleteGoal}
+                    onRenameGoal={handleRenameGoal}
+                    formatRupiah={formatRupiah}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
 
-            <div
-              className={`absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0 ${
-                activeTab === 'analytics' ? 'block' : 'hidden'
-              }`}
-            >
-              <AnalyticsView
-                analytics={analytics}
-                budgets={budgets}
-                formatRupiah={formatRupiah}
-              />
-            </div>
-          </Suspense>
+            {activeTab === 'analytics' ? (
+              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0">
+                <Suspense fallback={<ViewLoadingFallback />}>
+                  <AnalyticsView
+                    analytics={analytics}
+                    budgets={budgets}
+                    formatRupiah={formatRupiah}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+          </section>
+
+          <DesktopRightPanel
+            analytics={analytics}
+            transactions={transactions}
+            onExecuteStrategy={handleExecuteStrategy}
+          />
         </div>
 
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />

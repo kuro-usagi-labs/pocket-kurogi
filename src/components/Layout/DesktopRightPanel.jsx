@@ -26,18 +26,18 @@ export default function DesktopRightPanel({ analytics, transactions = [], onExec
   const topCategory = topExpenseCategories[0]
 
   return (
-    <aside className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto overflow-x-hidden border-l border-midnight/8 bg-white p-5 xl:flex">
+    <aside className="hidden h-full w-[292px] shrink-0 flex-col overflow-y-auto overflow-x-hidden rounded-[20px] border border-midnight/[0.08] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] xl:flex">
       <div className="mb-4">
         <h3 className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.16em] text-muted">Insight</h3>
       </div>
 
       <div className="space-y-2.5">
-        <section className="rounded-lg border border-midnight/8 bg-champagne p-4">
+        <section className="rounded-lg border border-midnight/[0.08] bg-champagne p-4">
           <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
             Skor tabung
           </p>
           <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="font-jakarta text-[42px] font-extrabold leading-none tracking-tight text-midnight">
+            <span className="font-jakarta text-[36px] font-extrabold leading-none tracking-tight text-midnight">
               {healthScore}
             </span>
             <span className={`font-jakarta text-[12px] font-extrabold ${liquidityRatio >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -49,7 +49,7 @@ export default function DesktopRightPanel({ analytics, transactions = [], onExec
           </p>
         </section>
 
-        <section className="rounded-lg border border-midnight/8 bg-white p-4 shadow-sm">
+        <section className="rounded-lg border border-midnight/[0.08] bg-white p-4">
           <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
             Pengeluaran
           </p>
@@ -75,7 +75,7 @@ export default function DesktopRightPanel({ analytics, transactions = [], onExec
           </div>
         </section>
 
-        <section className="rounded-lg border border-midnight/8 bg-midnight p-4 text-white shadow-sm">
+        <section className="rounded-lg bg-midnight p-4 text-white">
           <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
             <Sparkles size={17} />
           </div>
@@ -100,7 +100,7 @@ export default function DesktopRightPanel({ analytics, transactions = [], onExec
         </h4>
         <div className="space-y-2">
           {transactions.slice(0, 4).map((tx) => (
-            <div key={tx.id} className="flex items-center gap-3 rounded-lg border border-midnight/8 bg-white p-3 shadow-sm">
+            <div key={tx.id} className="flex items-center gap-3 rounded-lg border border-midnight/[0.08] bg-white p-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-champagne text-muted">
                 <ReceiptText size={18} />
               </div>
