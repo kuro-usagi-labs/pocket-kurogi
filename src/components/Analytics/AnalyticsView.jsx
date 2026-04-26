@@ -123,159 +123,87 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
       </div>
 
       <div className="hidden md:block">
-        <div className="mb-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-          <section className="overflow-hidden rounded-[24px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
-            <div className="border-b border-midnight/[0.08] bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(255,255,255,0.94))] px-6 py-6">
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
-                Ringkasan bulan ini
-              </p>
-              <div className="mt-3 flex items-end justify-between gap-5">
-                <div className="min-w-0">
-                  <h2 className="font-jakarta text-[32px] font-extrabold tracking-tight text-midnight">
-                    Arus kas
-                  </h2>
-                  <p
-                    className={`mt-3 break-words font-jakarta text-[42px] font-extrabold leading-none tracking-tight ${
-                      netCashflowPositive ? 'text-midnight' : 'text-rose-600'
-                    }`}
-                  >
-                    {netCashflowPositive ? '+' : '-'}
-                    {formatRupiah(Math.abs(netCashflow))}
-                  </p>
-                  <p className="mt-3 text-[15px] font-medium text-muted">
-                    {netCashflowPositive ? 'Masih sehat untuk bulan ini.' : 'Butuh pengetatan pengeluaran.'}
-                  </p>
-                </div>
-
-                <div className="grid w-full max-w-[360px] grid-cols-2 gap-3">
-                  {summaryCards.map((item) => {
-                    const Icon = item.Icon
-
-                    return (
-                      <div key={item.label} className="rounded-[18px] border border-white/90 bg-white/80 p-4 backdrop-blur-sm">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
-                          <Icon size={20} strokeWidth={2.2} />
-                        </div>
-                        <p className="mt-3 font-jakarta text-[12px] font-semibold text-muted">{item.label}</p>
-                        <p className="mt-1 font-jakarta text-[16px] font-extrabold tracking-tight text-midnight">
-                          {item.value}
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 px-6 py-5 lg:grid-cols-3">
-              <DesktopInsightTile
-                label="Budget aktif"
-                value={`${activeBudgetCount}`}
-                helper={activeBudgetCount > 0 ? 'kategori dipantau' : 'belum ada limit'}
-              />
-              <DesktopInsightTile
-                label="Rasio tabung"
-                value={`${Math.round(savingsRate)}%`}
-                helper="dari total pemasukan"
-              />
-              <DesktopInsightTile
-                label="Rasio belanja"
-                value={`${Math.round(expenseRatio)}%`}
-                helper="dibanding pemasukan"
-              />
-            </div>
-          </section>
-
-          <aside className="space-y-4">
-            <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
-                Fokus utama
-              </p>
-              <h3 className="mt-3 font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">
-                {dominantExpense ? dominantExpense.name : 'Belum ada data'}
-              </h3>
-              <p className="mt-2 text-[14px] font-medium leading-relaxed text-muted">
-                {dominantExpense
-                  ? `${formatRupiah(Number(dominantExpense.amount || 0))} mendominasi pengeluaran yang tercatat.`
-                  : 'Mulai catat transaksi supaya pola pengeluaran bisa dibaca.'}
-              </p>
-            </section>
-
-            <section className="rounded-[22px] border border-emerald-100 bg-emerald-50/75 p-5">
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700/80">
-                Kualitas cashflow
-              </p>
-              <p className="mt-3 font-jakarta text-[28px] font-extrabold tracking-tight text-emerald-800">
-                {netCashflowPositive ? 'Positif' : 'Tertekan'}
-              </p>
-              <p className="mt-2 text-[14px] font-medium leading-relaxed text-emerald-900/70">
-                {netCashflowPositive
-                  ? 'Pemasukan masih menutup pengeluaran. Jaga ritme dan tingkatkan porsi tabungan.'
-                  : 'Pengeluaran sudah melampaui ritme sehat. Cek kategori tertinggi dan budget aktif.'}
-              </p>
-            </section>
-          </aside>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
-          <section className="rounded-[24px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
-            <div className="mb-4 flex items-end justify-between gap-4">
-              <div>
+        <section className="overflow-hidden rounded-[24px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
+          <div className="border-b border-midnight/[0.08] bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(255,255,255,0.94))] px-6 py-6">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div className="min-w-0">
                 <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
-                  Pengeluaran teratas
+                  Ringkasan bulan ini
                 </p>
-                <h3 className="mt-2 font-jakarta text-[26px] font-extrabold tracking-tight text-midnight">
-                  Kategori dominan
-                </h3>
+                <h2 className="mt-3 font-jakarta text-[32px] font-extrabold tracking-tight text-midnight">
+                  Arus kas
+                </h2>
+                <p
+                  className={`mt-3 break-words font-jakarta text-[42px] font-extrabold leading-none tracking-tight ${
+                    netCashflowPositive ? 'text-midnight' : 'text-rose-600'
+                  }`}
+                >
+                  {netCashflowPositive ? '+' : '-'}
+                  {formatRupiah(Math.abs(netCashflow))}
+                </p>
               </div>
-              <p className="text-[13px] font-semibold text-muted">
-                {topExpenseCategories.length} kategori tercatat
-              </p>
+
+              <div className="grid w-full max-w-[520px] grid-cols-2 gap-3 xl:grid-cols-4">
+                {summaryCards.map((item) => {
+                  const Icon = item.Icon
+
+                  return (
+                    <div key={item.label} className="rounded-[18px] border border-white/90 bg-white/80 p-4 backdrop-blur-sm">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
+                        <Icon size={20} strokeWidth={2.2} />
+                      </div>
+                      <p className="mt-3 font-jakarta text-[12px] font-semibold text-muted">{item.label}</p>
+                      <p className="mt-1 font-jakarta text-[15px] font-extrabold tracking-tight text-midnight">
+                        {item.value}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
+          </div>
 
-            <ExpenseCategoryList
-              topExpenseCategories={topExpenseCategories}
-              budgets={budgets}
-              formatRupiah={formatRupiah}
-              desktop
+          <div className="grid gap-4 px-6 py-5 lg:grid-cols-3">
+            <DesktopInsightTile
+              label="Budget aktif"
+              value={`${activeBudgetCount}`}
+              helper={activeBudgetCount > 0 ? 'aktif' : 'kosong'}
             />
-          </section>
+            <DesktopInsightTile
+              label="Rasio tabung"
+              value={`${Math.round(savingsRate)}%`}
+              helper="pemasukan"
+            />
+            <DesktopInsightTile
+              label="Rasio belanja"
+              value={`${Math.round(expenseRatio)}%`}
+              helper="pemasukan"
+            />
+          </div>
+        </section>
 
-          <aside className="space-y-4">
-            <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="mt-5 rounded-[24px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
               <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
-                Snapshot
+                Pengeluaran
               </p>
-              <div className="mt-4 space-y-3">
-                <SmallSummary
-                  label="Budget"
-                  value={`${activeBudgetCount} aktif`}
-                  helper={activeBudgetCount > 0 ? 'masih dipantau' : 'belum dibuat'}
-                />
-                <SmallSummary
-                  label="Transfer"
-                  value={formatRupiah(transferVolume)}
-                  helper="volume perpindahan dana"
-                />
-                <SmallSummary
-                  label="Tabungan"
-                  value={formatRupiah(totalSavings)}
-                  helper="akumulasi tersimpan"
-                />
-              </div>
-            </section>
+              <h3 className="mt-2 font-jakarta text-[26px] font-extrabold tracking-tight text-midnight">
+                Kategori dominan
+              </h3>
+            </div>
+            <p className="text-[13px] font-semibold text-muted">
+              {topExpenseCategories.length} kategori
+            </p>
+          </div>
 
-            <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
-                Catatan desktop
-              </p>
-              <div className="mt-4 space-y-3 text-[14px] font-medium leading-relaxed text-muted">
-                <p>Desktop menampilkan ringkasan lebih lebar agar perbandingan angka terasa cepat dibaca.</p>
-                <p>Panel kategori diprioritaskan untuk keputusan, bukan hanya daftar angka mentah.</p>
-              </div>
-            </section>
-          </aside>
-        </div>
+          <ExpenseCategoryList
+            topExpenseCategories={topExpenseCategories}
+            budgets={budgets}
+            formatRupiah={formatRupiah}
+            desktop
+          />
+        </section>
       </div>
     </div>
   )

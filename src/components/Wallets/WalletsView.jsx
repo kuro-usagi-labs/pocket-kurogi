@@ -385,9 +385,6 @@ export default function WalletsView({
                 <h2 className="mt-2 font-jakarta text-[28px] font-extrabold tracking-tight text-midnight">
                   Dompet aktif
                 </h2>
-                <p className="mt-1 text-[14px] font-medium text-muted">
-                  Atur saldo, kelompok dompet, dan akses cepat ke aksi penting.
-                </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
@@ -473,9 +470,6 @@ export default function WalletsView({
                   <h3 className="mt-2 font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">
                     Target
                   </h3>
-                  <p className="mt-1 text-[14px] font-medium text-muted">
-                    Pantau progres tabungan dari sisi desktop.
-                  </p>
                 </div>
                 <button
                   onClick={() => setShowAddGoal(true)}
@@ -512,21 +506,6 @@ export default function WalletsView({
               </div>
             </section>
 
-            <section className="rounded-[22px] border border-emerald-100 bg-emerald-50/70 p-5">
-              <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600">
-                  <Info size={20} strokeWidth={2.2} />
-                </span>
-                <div className="min-w-0">
-                  <h4 className="font-jakarta text-[16px] font-extrabold text-emerald-800">
-                    Penghapusan dompet
-                  </h4>
-                  <p className="mt-1 text-[13px] font-medium leading-relaxed text-emerald-900/75">
-                    Saat dompet dihapus, riwayat terkait ikut dibersihkan agar saldo dan laporan tetap sinkron.
-                  </p>
-                </div>
-              </div>
-            </section>
           </aside>
         </div>
       </div>

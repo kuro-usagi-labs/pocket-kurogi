@@ -1842,11 +1842,13 @@ export default function AppShell() {
             ) : null}
           </section>
 
-          <DesktopRightPanel
-            analytics={analytics}
-            transactions={transactions}
-            onExecuteStrategy={handleExecuteStrategy}
-          />
+          {activeTab === 'chat' ? (
+            <DesktopRightPanel
+              analytics={analytics}
+              transactions={transactions}
+              onExecuteStrategy={handleExecuteStrategy}
+            />
+          ) : null}
         </div>
 
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
