@@ -1,23 +1,57 @@
 import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, Search, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Pencil, Search, Trash2, Undo2, X } from 'lucide-react'
 import { TransactionIcon, WalletIcon } from '../shared/CategoryIcon'
+import EditTransactionModal from './EditTransactionModal'
+
+const DATE_FILTERS = [
+  { id: 'all', label: 'Semua waktu' },
+  { id: 'today', label: 'Hari ini' },
+  { id: 'week', label: '7 hari' },
+  { id: 'month', label: '30 hari' },
+]
 
 export default function HistoryView({
   transactions,
+  wallets = [],
+  categories = [],
   formatRupiah,
   onDeleteTransaction,
+  onUpdateTransaction,
+  onUndoLastTransaction,
   onNavigate,
   hasMore = false,
   loadingMore = false,
   onLoadMore,
 }) {
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [walletFilter, setWalletFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [editorTransaction, setEditorTransaction] = useState(null)
+
+  const lastUndoableTransaction = useMemo(
+    () => transactions.find((transaction) => transaction.canDelete) || null,
+    [transactions]
+  )
 
   const filteredTransactions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
+
     return transactions.filter((transaction) => {
-      if (filter !== 'all' && transaction.type !== filter) {
+      if (typeFilter !== 'all' && transaction.type !== typeFilter) {
+        return false
+      }
+
+      if (walletFilter !== 'all' && transaction.walletId !== walletFilter) {
+        return false
+      }
+
+      if (categoryFilter !== 'all' && transaction.categoryId !== categoryFilter) {
+        return false
+      }
+
+      if (!matchesDateFilter(transaction.occurredAt, dateFilter)) {
         return false
       }
 
@@ -39,7 +73,7 @@ export default function HistoryView({
 
       return haystack.includes(normalizedQuery)
     })
-  }, [filter, query, transactions])
+  }, [categoryFilter, dateFilter, query, transactions, typeFilter, walletFilter])
 
   const groupedTransactions = useMemo(() => {
     return filteredTransactions.reduce((groups, transaction) => {
@@ -81,79 +115,105 @@ export default function HistoryView({
     )
   }, [transactions])
 
-  const showResetButton = query.trim() || filter !== 'all'
+  const showResetButton =
+    query.trim() ||
+    typeFilter !== 'all' ||
+    walletFilter !== 'all' ||
+    categoryFilter !== 'all' ||
+    dateFilter !== 'all'
+
+  const canLoadMore =
+    hasMore &&
+    !query.trim() &&
+    typeFilter === 'all' &&
+    walletFilter === 'all' &&
+    categoryFilter === 'all' &&
+    dateFilter === 'all'
 
   const resetFilters = () => {
     setQuery('')
-    setFilter('all')
+    setTypeFilter('all')
+    setWalletFilter('all')
+    setCategoryFilter('all')
+    setDateFilter('all')
   }
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
       <div className="md:hidden">
-        <div className="mb-4 flex flex-col gap-1.5">
-          <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">
-            Histori
-          </h2>
-          <p className="text-[14px] font-semibold text-muted">{transactions.length} transaksi</p>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">
+              Histori
+            </h2>
+            <p className="text-[14px] font-semibold text-muted">{transactions.length} transaksi</p>
+          </div>
+          {lastUndoableTransaction ? (
+            <button
+              type="button"
+              onClick={onUndoLastTransaction}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-3.5 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+            >
+              <Undo2 size={15} strokeWidth={2.2} />
+              Undo
+            </button>
+          ) : null}
         </div>
 
         <SearchField query={query} onChange={setQuery} />
 
-        <div className="mb-5 flex gap-2 overflow-x-auto no-scrollbar">
-          <FilterButton active={filter === 'all'} label="Semua" onClick={() => setFilter('all')} />
+        <div className="mb-3 flex gap-2 overflow-x-auto no-scrollbar">
+          <FilterButton active={typeFilter === 'all'} label="Semua" onClick={() => setTypeFilter('all')} />
           <FilterButton
-            active={filter === 'income'}
+            active={typeFilter === 'income'}
             label="Masuk"
             icon={ArrowDown}
-            onClick={() => setFilter('income')}
+            onClick={() => setTypeFilter('income')}
           />
           <FilterButton
-            active={filter === 'expense'}
+            active={typeFilter === 'expense'}
             label="Keluar"
             icon={ArrowUp}
             danger
-            onClick={() => setFilter('expense')}
+            onClick={() => setTypeFilter('expense')}
           />
         </div>
 
-        <div className="space-y-6">
-          {transactions.length === 0 ? (
-            <EmptyHistoryState onNavigate={onNavigate} />
-          ) : filteredTransactions.length === 0 ? (
-            <NoHistoryResult onReset={resetFilters} />
-          ) : (
-            <>
-              {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-                <section key={dateLabel}>
-                  <h3 className="mb-2.5 font-jakarta text-[16px] font-bold text-muted">{dateLabel}</h3>
-                  <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
-                    {items.map((transaction) => (
-                      <MobileTransactionRow
-                        key={transaction.id}
-                        transaction={transaction}
-                        formatRupiah={formatRupiah}
-                        onDeleteTransaction={onDeleteTransaction}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-
-              {hasMore && !query.trim() ? (
-                <div className="flex justify-center pt-2">
-                  <button
-                    type="button"
-                    onClick={onLoadMore}
-                    className="rounded-[14px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
-                  >
-                    {loadingMore ? 'Memuat...' : 'Muat lagi'}
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
+        <div className="mb-5 grid gap-2 sm:grid-cols-3">
+          <FilterSelect
+            label="Dompet"
+            value={walletFilter}
+            onChange={setWalletFilter}
+            options={[{ value: 'all', label: 'Semua dompet' }, ...wallets.map((wallet) => ({ value: wallet.id, label: wallet.name }))]}
+          />
+          <FilterSelect
+            label="Kategori"
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            options={[{ value: 'all', label: 'Semua kategori' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}
+          />
+          <FilterSelect
+            label="Waktu"
+            value={dateFilter}
+            onChange={setDateFilter}
+            options={DATE_FILTERS.map((option) => ({ value: option.id, label: option.label }))}
+          />
         </div>
+
+        <HistoryBody
+          transactions={transactions}
+          filteredTransactions={filteredTransactions}
+          groupedTransactions={groupedTransactions}
+          formatRupiah={formatRupiah}
+          onDeleteTransaction={onDeleteTransaction}
+          onEditTransaction={setEditorTransaction}
+          onNavigate={onNavigate}
+          onReset={resetFilters}
+          canLoadMore={canLoadMore}
+          loadingMore={loadingMore}
+          onLoadMore={onLoadMore}
+          mobile
+        />
       </div>
 
       <div className="hidden md:block">
@@ -173,18 +233,25 @@ export default function HistoryView({
               </p>
             </div>
 
-            <div className="w-full max-w-[360px]">
-              <SearchField query={query} onChange={setQuery} desktop />
+            <div className="flex w-full max-w-[520px] items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <SearchField query={query} onChange={setQuery} desktop />
+              </div>
+              {lastUndoableTransaction ? (
+                <button
+                  type="button"
+                  onClick={onUndoLastTransaction}
+                  className="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+                >
+                  <Undo2 size={16} strokeWidth={2.2} />
+                  Undo terakhir
+                </button>
+              ) : null}
             </div>
           </div>
 
           <div className="mt-5 grid gap-3 xl:grid-cols-4">
-            <DesktopHistoryStatCard
-              label="Total"
-              value={`${transactions.length}`}
-              helper="transaksi"
-              tone="slate"
-            />
+            <DesktopHistoryStatCard label="Total" value={`${transactions.length}`} helper="transaksi" tone="slate" />
             <DesktopHistoryStatCard
               label="Masuk"
               value={formatRupiah(summary.totalIncome)}
@@ -206,28 +273,51 @@ export default function HistoryView({
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <FilterButton active={filter === 'all'} label="Semua" onClick={() => setFilter('all')} desktop />
+            <FilterButton active={typeFilter === 'all'} label="Semua" onClick={() => setTypeFilter('all')} desktop />
             <FilterButton
-              active={filter === 'income'}
+              active={typeFilter === 'income'}
               label="Masuk"
               icon={ArrowDown}
-              onClick={() => setFilter('income')}
+              onClick={() => setTypeFilter('income')}
               desktop
             />
             <FilterButton
-              active={filter === 'expense'}
+              active={typeFilter === 'expense'}
               label="Keluar"
               icon={ArrowUp}
               danger
-              onClick={() => setFilter('expense')}
+              onClick={() => setTypeFilter('expense')}
               desktop
             />
+          </div>
 
+          <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px_auto]">
+            <FilterSelect
+              label="Dompet"
+              value={walletFilter}
+              onChange={setWalletFilter}
+              options={[{ value: 'all', label: 'Semua dompet' }, ...wallets.map((wallet) => ({ value: wallet.id, label: wallet.name }))]}
+              desktop
+            />
+            <FilterSelect
+              label="Kategori"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={[{ value: 'all', label: 'Semua kategori' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}
+              desktop
+            />
+            <FilterSelect
+              label="Waktu"
+              value={dateFilter}
+              onChange={setDateFilter}
+              options={DATE_FILTERS.map((option) => ({ value: option.id, label: option.label }))}
+              desktop
+            />
             {showResetButton ? (
               <button
                 type="button"
                 onClick={resetFilters}
-                className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
+                className="self-end inline-flex h-[46px] items-center justify-center gap-2 rounded-[14px] border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
               >
                 <X size={15} strokeWidth={2.2} />
                 Reset
@@ -237,73 +327,161 @@ export default function HistoryView({
         </section>
 
         <section className="mt-5 rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
-          {transactions.length === 0 ? (
-            <div className="px-6 py-10">
-              <EmptyHistoryState onNavigate={onNavigate} desktop />
-            </div>
-          ) : filteredTransactions.length === 0 ? (
-            <div className="px-6 py-10">
-              <NoHistoryResult onReset={resetFilters} desktop />
-            </div>
-          ) : (
-            <div className="divide-y divide-midnight/[0.06]">
-              {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-                <section key={dateLabel} className="px-5 py-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="font-jakarta text-[15px] font-extrabold tracking-tight text-midnight">
-                      {dateLabel}
-                    </h3>
-                    <span className="rounded-full bg-champagne px-3 py-1 text-[11px] font-bold text-muted">
-                      {items.length} transaksi
-                    </span>
-                  </div>
-
-                  <div className="overflow-hidden rounded-[18px] border border-midnight/[0.08]">
-                    <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_52px] gap-3 bg-champagne/70 px-4 py-3">
-                      <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
-                        Transaksi
-                      </span>
-                      <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
-                        Dompet
-                      </span>
-                      <span className="text-center font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
-                        Jenis
-                      </span>
-                      <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
-                        Nominal
-                      </span>
-                      <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
-                        Aksi
-                      </span>
-                    </div>
-
-                    {items.map((transaction) => (
-                      <DesktopTransactionRow
-                        key={transaction.id}
-                        transaction={transaction}
-                        formatRupiah={formatRupiah}
-                        onDeleteTransaction={onDeleteTransaction}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-
-              {hasMore && !query.trim() ? (
-                <div className="flex justify-center px-5 py-5">
-                  <button
-                    type="button"
-                    onClick={onLoadMore}
-                    className="rounded-full border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
-                  >
-                    {loadingMore ? 'Memuat...' : 'Muat lagi'}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
+          <HistoryBody
+            transactions={transactions}
+            filteredTransactions={filteredTransactions}
+            groupedTransactions={groupedTransactions}
+            formatRupiah={formatRupiah}
+            onDeleteTransaction={onDeleteTransaction}
+            onEditTransaction={setEditorTransaction}
+            onNavigate={onNavigate}
+            onReset={resetFilters}
+            canLoadMore={canLoadMore}
+            loadingMore={loadingMore}
+            onLoadMore={onLoadMore}
+          />
         </section>
       </div>
+
+      {editorTransaction ? (
+        <EditTransactionModal
+          transaction={editorTransaction}
+          wallets={wallets}
+          categories={categories}
+          formatRupiah={formatRupiah}
+          onClose={() => setEditorTransaction(null)}
+          onSubmit={onUpdateTransaction}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function HistoryBody({
+  transactions,
+  filteredTransactions,
+  groupedTransactions,
+  formatRupiah,
+  onDeleteTransaction,
+  onEditTransaction,
+  onNavigate,
+  onReset,
+  canLoadMore,
+  loadingMore,
+  onLoadMore,
+  mobile = false,
+}) {
+  if (transactions.length === 0) {
+    return mobile ? (
+      <EmptyHistoryState onNavigate={onNavigate} />
+    ) : (
+      <div className="px-6 py-10">
+        <EmptyHistoryState onNavigate={onNavigate} desktop />
+      </div>
+    )
+  }
+
+  if (filteredTransactions.length === 0) {
+    return mobile ? (
+      <NoHistoryResult onReset={onReset} />
+    ) : (
+      <div className="px-6 py-10">
+        <NoHistoryResult onReset={onReset} desktop />
+      </div>
+    )
+  }
+
+  if (mobile) {
+    return (
+      <div className="space-y-6">
+        {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+          <section key={dateLabel}>
+            <h3 className="mb-2.5 font-jakarta text-[16px] font-bold text-muted">{dateLabel}</h3>
+            <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
+              {items.map((transaction) => (
+                <MobileTransactionRow
+                  key={transaction.id}
+                  transaction={transaction}
+                  formatRupiah={formatRupiah}
+                  onDeleteTransaction={onDeleteTransaction}
+                  onEditTransaction={onEditTransaction}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {canLoadMore ? (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="rounded-[14px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
+            >
+              {loadingMore ? 'Memuat...' : 'Muat lagi'}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="divide-y divide-midnight/[0.06]">
+      {Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+        <section key={dateLabel} className="px-5 py-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="font-jakarta text-[15px] font-extrabold tracking-tight text-midnight">
+              {dateLabel}
+            </h3>
+            <span className="rounded-full bg-champagne px-3 py-1 text-[11px] font-bold text-muted">
+              {items.length} transaksi
+            </span>
+          </div>
+
+          <div className="overflow-hidden rounded-[18px] border border-midnight/[0.08]">
+            <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_88px] gap-3 bg-champagne/70 px-4 py-3">
+              <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                Transaksi
+              </span>
+              <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                Dompet
+              </span>
+              <span className="text-center font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                Jenis
+              </span>
+              <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                Nominal
+              </span>
+              <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                Aksi
+              </span>
+            </div>
+
+            {items.map((transaction) => (
+              <DesktopTransactionRow
+                key={transaction.id}
+                transaction={transaction}
+                formatRupiah={formatRupiah}
+                onDeleteTransaction={onDeleteTransaction}
+                onEditTransaction={onEditTransaction}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+
+      {canLoadMore ? (
+        <div className="flex justify-center px-5 py-5">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            className="rounded-full border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
+          >
+            {loadingMore ? 'Memuat...' : 'Muat lagi'}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -358,6 +536,29 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick, desk
   )
 }
 
+function FilterSelect({ label, value, onChange, options, desktop = false }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className={`font-jakarta text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted ${desktop ? 'ml-1' : ''}`}>
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={`min-w-0 rounded-[14px] border border-midnight/[0.08] bg-white px-3 py-3 font-jakarta text-[13px] font-semibold text-midnight outline-none transition-all focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 ${
+          desktop ? 'h-[46px]' : ''
+        }`}
+      >
+        {options.map((option) => (
+          <option key={`${label}-${option.value}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function EmptyHistoryState({ onNavigate, desktop = false }) {
   return (
     <div
@@ -397,22 +598,11 @@ function NoHistoryResult({ onReset, desktop = false }) {
   )
 }
 
-function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
+function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction, onEditTransaction }) {
   const isIncome = transaction.type === 'income'
 
   return (
     <div className="group relative flex items-center gap-3 border-b border-midnight/8 px-3.5 py-3.5 last:border-b-0 sm:px-5">
-      {transaction.canDelete ? (
-        <button
-          onClick={() => onDeleteTransaction(transaction.id)}
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-muted/40 opacity-100 transition-all hover:bg-red-50 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100"
-          title="Hapus transaksi"
-          aria-label="Hapus transaksi"
-        >
-          <X size={14} strokeWidth={2.5} />
-        </button>
-      ) : null}
-
       <div
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
           isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
@@ -443,25 +633,51 @@ function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction }
         </div>
       </div>
 
-      <div className="shrink-0 pr-3 text-right sm:pr-5">
+      <div className="flex shrink-0 flex-col items-end gap-2">
         <p
-          className={`max-w-[108px] truncate font-jakarta text-[15px] font-bold tracking-tight sm:max-w-none sm:text-[16px] ${
+          className={`max-w-[112px] truncate text-right font-jakarta text-[15px] font-bold tracking-tight sm:max-w-none sm:text-[16px] ${
             isIncome ? 'text-emerald-600' : 'text-red-500'
           }`}
         >
           {isIncome ? '+' : '-'}
           {formatRupiah(transaction.amount)}
         </p>
+
+        <div className="flex items-center gap-1">
+          {transaction.canEdit ? (
+            <button
+              type="button"
+              onClick={() => onEditTransaction(transaction)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-midnight/10 bg-white text-muted transition-colors hover:text-midnight"
+              title="Koreksi"
+              aria-label={`Koreksi ${transaction.title || transaction.desc}`}
+            >
+              <Pencil size={13} strokeWidth={2.2} />
+            </button>
+          ) : null}
+
+          {transaction.canDelete ? (
+            <button
+              type="button"
+              onClick={() => onDeleteTransaction(transaction.id)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+              title="Hapus transaksi"
+              aria-label={`Hapus ${transaction.title || transaction.desc}`}
+            >
+              <Trash2 size={13} strokeWidth={2.2} />
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   )
 }
 
-function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction }) {
+function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction, onEditTransaction }) {
   const isIncome = transaction.type === 'income'
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_52px] items-center gap-3 border-t border-midnight/[0.08] px-4 py-3 first:border-t-0">
+    <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_88px] items-center gap-3 border-t border-midnight/[0.08] px-4 py-3 first:border-t-0">
       <div className="flex min-w-0 items-center gap-3">
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
@@ -512,7 +728,19 @@ function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction 
         </p>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1.5">
+        {transaction.canEdit ? (
+          <button
+            type="button"
+            onClick={() => onEditTransaction(transaction)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-midnight/10 bg-white text-muted transition-colors hover:text-midnight"
+            aria-label={`Koreksi ${transaction.title || transaction.desc}`}
+            title="Koreksi"
+          >
+            <Pencil size={15} strokeWidth={2.1} />
+          </button>
+        ) : null}
+
         {transaction.canDelete ? (
           <button
             type="button"
@@ -523,9 +751,9 @@ function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction 
           >
             <Trash2 size={15} strokeWidth={2.1} />
           </button>
-        ) : (
-          <span className="h-9 w-9" aria-hidden="true" />
-        )}
+        ) : null}
+
+        {!transaction.canEdit && !transaction.canDelete ? <span className="h-9 w-9" aria-hidden="true" /> : null}
       </div>
     </div>
   )
@@ -548,4 +776,33 @@ function DesktopHistoryStatCard({ label, value, helper, tone = 'slate' }) {
       <p className="mt-1 text-[12px] font-semibold opacity-80">{helper}</p>
     </div>
   )
+}
+
+function matchesDateFilter(value, filterId) {
+  if (filterId === 'all') {
+    return true
+  }
+
+  const occurredAt = new Date(value)
+  if (Number.isNaN(occurredAt.getTime())) {
+    return true
+  }
+
+  const now = new Date()
+  const diffMs = now.getTime() - occurredAt.getTime()
+  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+
+  if (filterId === 'today') {
+    return occurredAt.toDateString() === now.toDateString()
+  }
+
+  if (filterId === 'week') {
+    return diffDays <= 7
+  }
+
+  if (filterId === 'month') {
+    return diffDays <= 30
+  }
+
+  return true
 }

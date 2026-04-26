@@ -188,6 +188,14 @@ function attachResolvedWallet(intent, wallet) {
     }
   }
 
+  if (intent.type === 'correct_last_transaction') {
+    return {
+      ...intent,
+      walletId: wallet.id,
+      wallet: wallet.name,
+    }
+  }
+
   return withWalletAttached(intent, wallet)
 }
 
@@ -267,6 +275,7 @@ export default function AppShell() {
   const {
     transactions,
     addTransaction,
+    replaceTransaction,
     deleteTransaction,
     transferBetweenWallets,
     hasMore: hasMoreTransactions,
@@ -431,6 +440,64 @@ export default function AppShell() {
     showNotice('Transaksi berhasil dihapus dan saldo terkait sudah diperbarui.', 'success')
     return result
   }, [deleteTransaction, showNotice, syncFinancialViews])
+
+  const undoLatestManualTransaction = useCallback(async () => {
+    const lastDeletableTransaction = transactions.find((transaction) => transaction.canDelete)
+
+    if (!lastDeletableTransaction) {
+      return {
+        data: null,
+        error: new Error('Tidak ada transaksi manual yang bisa dibatalkan.'),
+      }
+    }
+
+    const deleteResult = await deleteTransaction(lastDeletableTransaction.id)
+    if (deleteResult.error) {
+      return {
+        data: null,
+        error: deleteResult.error,
+      }
+    }
+
+    await syncFinancialViews({
+      wallets: deleteResult.balanceUpdated,
+      analytics: true,
+    })
+
+    return {
+      data: lastDeletableTransaction,
+      error: null,
+    }
+  }, [deleteTransaction, syncFinancialViews, transactions])
+
+  const handleUndoLastTransaction = useCallback(async () => {
+    const result = await undoLatestManualTransaction()
+
+    if (result.error) {
+      showNotice(mapDomainError(result.error), 'error')
+      return result
+    }
+
+    showNotice(`Transaksi terakhir (${result.data?.desc || 'manual'}) dibatalkan.`, 'success')
+    return result
+  }, [showNotice, undoLatestManualTransaction])
+
+  const handleUpdateTransaction = useCallback(async (payload) => {
+    const result = await replaceTransaction(payload)
+
+    if (result.error) {
+      showNotice(mapDomainError(result.error), 'error')
+      return result
+    }
+
+    await syncFinancialViews({
+      wallets: result.balanceUpdated,
+      analytics: true,
+    })
+
+    showNotice('Transaksi berhasil dikoreksi.', 'success')
+    return result
+  }, [replaceTransaction, showNotice, syncFinancialViews])
 
   const resolveTransactionCategory = useCallback(
     async ({ analysis, rawText }) => {
@@ -629,21 +696,93 @@ export default function AppShell() {
       }
 
       if (analysis.type === 'undo_transaction') {
-        const lastDeletableTransaction = transactions.find((transaction) => transaction.canDelete)
+        const undoResult = await undoLatestManualTransaction()
 
-        if (!lastDeletableTransaction) {
-          throw new Error('Tidak ada transaksi manual yang bisa dibatalkan.')
-        }
-
-        const lastTransaction = lastDeletableTransaction
-        const deleteResult = await handleDeleteTransaction(lastTransaction.id)
-
-        if (deleteResult.error) {
-          throw deleteResult.error
+        if (undoResult.error) {
+          throw undoResult.error
         }
 
         return {
-          text: `Transaksi terakhir (${lastTransaction.desc}) telah dibatalkan.`,
+          text: `Transaksi terakhir (${undoResult.data?.desc || 'manual'}) telah dibatalkan.`,
+        }
+      }
+
+      if (analysis.type === 'correct_last_transaction') {
+        const lastEditableTransaction = transactions.find((transaction) => transaction.canEdit)
+
+        if (!lastEditableTransaction) {
+          throw new Error('Tidak ada transaksi manual yang bisa dikoreksi.')
+        }
+
+        const nextWalletId = analysis.walletId || lastEditableTransaction.walletId
+        const nextWallet = walletCatalog.find((wallet) => wallet.id === nextWalletId)
+
+        if (!nextWalletId || !nextWallet) {
+          return {
+            text: 'Dompet untuk koreksi transaksi ini belum jelas. Sebutkan dompetnya secara spesifik.',
+            intentStatus: 'needs_confirmation',
+          }
+        }
+
+        const nextType = analysis.transactionType || lastEditableTransaction.type || 'expense'
+        let nextCategoryId = lastEditableTransaction.categoryId || null
+        let nextCategoryName = lastEditableTransaction.category || 'Lainnya'
+
+        if (analysis.category) {
+          const nextCategoryResolution = resolveCategory(analysis.category, {
+            transactionType: nextType,
+          })
+
+          if (nextCategoryResolution.category?.id) {
+            nextCategoryId = nextCategoryResolution.category.id
+            nextCategoryName = nextCategoryResolution.category.name
+          }
+        }
+
+        const previousDescription = String(
+          lastEditableTransaction.merchant ||
+          lastEditableTransaction.notes ||
+          lastEditableTransaction.desc ||
+          ''
+        ).trim()
+        const shouldRefreshDescription =
+          !previousDescription ||
+          normalizeEntityName(previousDescription) === normalizeEntityName(lastEditableTransaction.category)
+
+        const nextDescription =
+          analysis.desc ||
+          (analysis.category && shouldRefreshDescription ? nextCategoryName : previousDescription) ||
+          nextCategoryName
+
+        const nextAmount = Number(analysis.amount || lastEditableTransaction.amount || 0)
+        const updateResult = await handleUpdateTransaction({
+          transactionId: lastEditableTransaction.id,
+          walletId: nextWalletId,
+          categoryId: nextCategoryId,
+          type: nextType,
+          amount: nextAmount,
+          desc: nextDescription,
+          notes: lastEditableTransaction.notes || null,
+          occurredAt: lastEditableTransaction.occurredAt,
+        })
+
+        if (updateResult.error) {
+          throw updateResult.error
+        }
+
+        const updatedTransaction = updateResult.data || {
+          ...lastEditableTransaction,
+          amount: nextAmount,
+          wallet: nextWallet.name,
+          type: nextType,
+          desc: nextDescription,
+          category: nextCategoryName,
+        }
+        const directionLabel = nextType === 'income' ? 'ke' : 'dari'
+        const sign = nextType === 'income' ? '+' : '-'
+
+        return {
+          text: `Terkoreksi: ${updatedTransaction.desc || nextDescription} ${sign}${formatRupiah(nextAmount)} ${directionLabel} **${nextWallet.name}**.`,
         }
       }
 
@@ -1011,14 +1150,16 @@ export default function AppShell() {
       formatRupiah,
       getSnapshot,
       goals,
-      handleDeleteTransaction,
+      handleUpdateTransaction,
       learnFromInput,
       renameWallet,
+      resolveCategory,
       resolveTransactionCategory,
       syncFinancialViews,
       totalBalance,
       transactions,
       transferBetweenWallets,
+      undoLatestManualTransaction,
       archivedWallets,
       walletOptions,
       wallets,
@@ -1646,8 +1787,12 @@ export default function AppShell() {
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <HistoryView
                     transactions={transactions}
+                    wallets={wallets}
+                    categories={categories}
                     formatRupiah={formatRupiah}
                     onDeleteTransaction={handleDeleteTransaction}
+                    onUpdateTransaction={handleUpdateTransaction}
+                    onUndoLastTransaction={handleUndoLastTransaction}
                     onNavigate={setActiveTab}
                     hasMore={hasMoreTransactions}
                     loadingMore={loadingMoreTransactions}

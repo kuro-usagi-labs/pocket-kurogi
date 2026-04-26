@@ -69,6 +69,10 @@ export function useTransactions() {
         source: normalizedSource,
         analyticsBucket,
       }),
+      canEdit: canDeleteLedgerEntry({
+        source: normalizedSource,
+        analyticsBucket,
+      }),
     }
   }, [])
 
@@ -163,6 +167,7 @@ export function useTransactions() {
     walletId,
     categoryId,
     source = 'chat',
+    occurredAt = null,
   }) => {
     if (!user) return { data: null, error: 'Not authenticated' }
 
@@ -182,6 +187,7 @@ export function useTransactions() {
       p_merchant: desc,
       p_notes: notes || null,
       p_source: normalizedSource,
+      p_occurred_at: occurredAt,
     })
 
     if (!rpcResult.error && rpcResult.data?.transaction_id) {
@@ -217,6 +223,10 @@ export function useTransactions() {
             source: normalizedSource,
             analyticsBucket,
             canDelete: canDeleteLedgerEntry({
+              source: normalizedSource,
+              analyticsBucket,
+            }),
+            canEdit: canDeleteLedgerEntry({
               source: normalizedSource,
               analyticsBucket,
             }),
@@ -265,6 +275,75 @@ export function useTransactions() {
       balanceUpdated: false,
     }
   }, [fetchTransactionById, transactions, user])
+
+  const replaceTransaction = useCallback(async ({
+    transactionId,
+    walletId,
+    categoryId = null,
+    type,
+    amount,
+    desc,
+    notes = null,
+    occurredAt = null,
+  }) => {
+    if (!user) return { data: null, error: 'Not authenticated', balanceUpdated: false }
+
+    const localTransaction =
+      transactions.find((transaction) => transaction.id === transactionId) ??
+      (await fetchTransactionById(transactionId)).data
+
+    if (localTransaction && !localTransaction.canEdit) {
+      return {
+        data: null,
+        error: new Error('Transaksi ini tidak bisa dikoreksi langsung.'),
+        balanceUpdated: false,
+      }
+    }
+
+    const normalizedType = String(type || '').toLowerCase()
+    const normalizedAmount = Number(amount)
+
+    const rpcResult = await supabase.rpc('replace_transaction_entry', {
+      p_transaction_id: transactionId,
+      p_wallet_id: walletId,
+      p_category_id: categoryId || null,
+      p_transaction_type: normalizedType,
+      p_amount: normalizedAmount,
+      p_merchant: desc,
+      p_notes: notes || null,
+      p_occurred_at: occurredAt,
+    })
+
+    if (rpcResult.error) {
+      return {
+        data: null,
+        error: rpcResult.error ?? new Error('Transaksi tidak bisa diperbarui saat ini.'),
+        balanceUpdated: false,
+      }
+    }
+
+    const refreshedResult = await fetchTransactionById(transactionId)
+    if (refreshedResult.error || !refreshedResult.data) {
+      await fetchTransactions()
+      return {
+        data: null,
+        error: refreshedResult.error ?? null,
+        balanceUpdated: true,
+      }
+    }
+
+    setTransactions((prev) =>
+      prev.map((transaction) =>
+        transaction.id === transactionId ? refreshedResult.data : transaction
+      )
+    )
+
+    return {
+      data: refreshedResult.data,
+      error: null,
+      balanceUpdated: true,
+    }
+  }, [fetchTransactionById, fetchTransactions, transactions, user])
 
   const clearTransactionsInRange = useCallback(async (startDate, endDate) => {
     if (!user) return { error: 'Not authenticated' }
@@ -320,6 +399,7 @@ export function useTransactions() {
     totalIncome,
     totalExpense,
     addTransaction,
+    replaceTransaction,
     deleteTransaction,
     clearTransactionsInRange,
     clearAllTransactions,

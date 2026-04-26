@@ -63,7 +63,13 @@ export async function analyzeTransaction(
     )
   }
 
-  const regexResult = analyzeWithRegex(text || '', walletOptions, goalOptions, archivedWalletOptions)
+  const regexResult = analyzeWithRegex(
+    text || '',
+    walletOptions,
+    goalOptions,
+    archivedWalletOptions,
+    categoryOptions
+  )
   if (regexResult.type !== 'unknown') {
     if (shouldEscalateTransactionCategory(regexResult, text, learningContext)) {
       try {
@@ -137,7 +143,13 @@ async function callAnalyzerFunction(
   return normalizeAnalysisResult(data, walletOptions, archivedWalletOptions, goalOptions, text)
 }
 
-export function analyzeWithRegex(text, walletOptions, goalOptions = [], archivedWalletOptions = []) {
+export function analyzeWithRegex(
+  text,
+  walletOptions,
+  goalOptions = [],
+  archivedWalletOptions = [],
+  categoryOptions = []
+) {
   let normalizedText = normalizeIntentText(normalizeNumericText(text.toLowerCase().trim()))
   const helpQuery = detectAssistantHelpQuery(normalizedText)
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
@@ -154,6 +166,11 @@ export function analyzeWithRegex(text, walletOptions, goalOptions = [], archived
   const undoIntent = detectUndoIntent(normalizedText)
   if (undoIntent) {
     return undoIntent
+  }
+
+  const correctionIntent = detectLastTransactionCorrection(normalizedText, walletOptions, categoryOptions)
+  if (correctionIntent) {
+    return correctionIntent
   }
 
   const goalWithdrawal = detectGoalWithdrawalIntent(normalizedText, walletOptions, goalOptions)
@@ -480,6 +497,91 @@ function detectUndoIntent(normalizedText) {
   return {
     type: 'undo_transaction',
     reply: 'Saya akan membatalkan transaksi manual terakhir yang masih bisa dibatalkan.',
+  }
+}
+
+function detectLastTransactionCorrection(normalizedText, walletOptions = [], categoryOptions = []) {
+  if (!normalizedText) {
+    return null
+  }
+
+  if (!/(yang tadi|yang terakhir|transaksi terakhir|catatan terakhir|input terakhir|barusan|tadi)/i.test(normalizedText)) {
+    return null
+  }
+
+  if (!/(harusnya|seharusnya|koreksi|revisi|ubah|ganti|jadi|pindah)/i.test(normalizedText)) {
+    return null
+  }
+
+  const amountMatch = matchMoney(normalizedText)
+  const nextAmount = amountMatch ? parseMoneyMatch(amountMatch) : null
+  const keywordWalletResolution = findOptionAfterKeyword({
+    text: normalizedText,
+    options: walletOptions,
+    keywords: ['dari', 'ke', 'pakai', 'pake', 'dompet', 'rekening', 'wallet'],
+  })
+  const broadWalletResolution = resolveOptionReference({
+    input: normalizedText,
+    options: walletOptions,
+  })
+  const walletResolution =
+    keywordWalletResolution.match || keywordWalletResolution.candidates.length > 0
+      ? keywordWalletResolution
+      : ['exact', 'phrase', 'longest'].includes(broadWalletResolution.reason)
+        ? broadWalletResolution
+        : { match: null, candidates: [], reason: 'missing' }
+
+  const broadCategoryResolution = resolveOptionReference({
+    input: normalizedText,
+    options: categoryOptions,
+  })
+
+  const explicitIncome =
+    /\b(harusnya|seharusnya|jadi|ubah(?:kan)?|ganti)\s+(?:sebagai\s+)?pemasukan\b/i.test(normalizedText)
+  const explicitExpense =
+    /\b(harusnya|seharusnya|jadi|ubah(?:kan)?|ganti)\s+(?:sebagai\s+)?pengeluaran\b/i.test(normalizedText)
+
+  let nextCategoryName =
+    ['exact', 'phrase', 'longest'].includes(broadCategoryResolution.reason)
+      ? broadCategoryResolution.match?.name || null
+      : null
+  if (!nextCategoryName) {
+    const inferredCategory = inferCategoryFromText({
+      text: normalizedText,
+      transactionType: explicitIncome ? 'income' : 'expense',
+    })
+
+    if (inferredCategory?.categoryName && normalizeCategoryLookup(inferredCategory.categoryName) !== 'lainnya') {
+      nextCategoryName = inferredCategory.categoryName
+    }
+  }
+
+  if (walletResolution.candidates.length > 0 && !walletResolution.match) {
+    return createNeedsConfirmation({
+      reason: 'ambiguous_wallet',
+      prompt: `Dompet koreksinya masih ambigu. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`,
+      candidates: walletResolution.candidates,
+      intent: {
+        type: 'correct_last_transaction',
+        amount: nextAmount,
+        category: nextCategoryName,
+        transactionType: explicitIncome ? 'income' : explicitExpense ? 'expense' : null,
+      },
+    })
+  }
+
+  if (!nextAmount && !walletResolution.match && !nextCategoryName && !explicitIncome && !explicitExpense) {
+    return null
+  }
+
+  return {
+    type: 'correct_last_transaction',
+    amount: nextAmount,
+    walletId: walletResolution.match?.id || null,
+    wallet: walletResolution.match?.name || null,
+    category: nextCategoryName,
+    transactionType: explicitIncome ? 'income' : explicitExpense ? 'expense' : null,
+    reply: 'Siap, saya koreksi transaksi terakhir.',
   }
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildGoalOptions, buildWalletOptions } from './chatEntities'
+import { buildCategoryOptions } from './categoryCatalog'
 import { analyzeWithRegex } from './gemini'
 
 const walletOptions = buildWalletOptions([
@@ -11,6 +12,13 @@ const walletOptions = buildWalletOptions([
 const goalOptions = buildGoalOptions([
   { id: 'goal-bibit', name: 'Tabungan Bibit', current_amount: 500000, target_amount: 1000000 },
   { id: 'goal-liburan', name: 'Liburan Jepang', current_amount: 250000, target_amount: 5000000 },
+])
+
+const categoryOptions = buildCategoryOptions([
+  { id: 'cat-makan', name: 'Makan', category_type: 'expense' },
+  { id: 'cat-kopi', name: 'Kopi', category_type: 'expense' },
+  { id: 'cat-gaji', name: 'Gaji', category_type: 'income' },
+  { id: 'cat-lainnya', name: 'Lainnya', category_type: 'both' },
 ])
 
 describe('analyzeWithRegex', () => {
@@ -185,6 +193,36 @@ describe('analyzeWithRegex', () => {
 
     expect(result).toMatchObject({
       type: 'undo_transaction',
+    })
+  })
+
+  it('detects amount corrections for the latest transaction', () => {
+    const result = analyzeWithRegex(
+      'yang tadi harusnya 80rb',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'correct_last_transaction',
+      amount: 80000,
+    })
+  })
+
+  it('detects category corrections for the latest transaction', () => {
+    const result = analyzeWithRegex(
+      'yang terakhir ganti ke makan',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'correct_last_transaction',
+      category: 'Makan',
     })
   })
 
