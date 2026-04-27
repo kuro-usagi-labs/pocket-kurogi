@@ -5,6 +5,14 @@ import { useAuth } from '../contexts/AuthContext'
 const CHAT_BUCKET = 'chat-attachments'
 const PAGE_SIZE = 40
 
+function generateAttachmentToken() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return Math.random().toString(36).slice(2, 12)
+}
+
 export function useChat() {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
@@ -144,7 +152,7 @@ export function useChat() {
     }
 
     const extension = file.name?.includes('.') ? file.name.split('.').pop() : 'jpg'
-    const objectName = `${Date.now()}-${crypto.randomUUID()}.${extension}`
+    const objectName = `${Date.now()}-${generateAttachmentToken()}.${extension}`
     const objectPath = `${user.id}/${objectName}`
 
     const { error: uploadError } = await supabase.storage

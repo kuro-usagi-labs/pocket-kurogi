@@ -29,6 +29,14 @@ const ACTION_ICON_MAP = {
   wallet: Wallet,
 }
 
+function getLastMessageId(messages = []) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return null
+  }
+
+  return messages[messages.length - 1]?.id || null
+}
+
 export default function ChatView({
   messages,
   isTyping,
@@ -45,7 +53,7 @@ export default function ChatView({
   const messagesEndRef = useRef(null)
   const isLoadingOlderRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
-  const previousLastMessageIdRef = useRef(messages.at(-1)?.id || null)
+  const previousLastMessageIdRef = useRef(getLastMessageId(messages))
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior })
@@ -68,7 +76,7 @@ export default function ChatView({
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) {
-      previousLastMessageIdRef.current = messages.at(-1)?.id || null
+      previousLastMessageIdRef.current = getLastMessageId(messages)
       return
     }
 
@@ -77,11 +85,11 @@ export default function ChatView({
       const heightDelta = nextScrollHeight - previousScrollHeightRef.current
       container.scrollTop += Math.max(heightDelta, 0)
       isLoadingOlderRef.current = false
-      previousLastMessageIdRef.current = messages.at(-1)?.id || null
+      previousLastMessageIdRef.current = getLastMessageId(messages)
       return
     }
 
-    const lastMessageId = messages.at(-1)?.id || null
+    const lastMessageId = getLastMessageId(messages)
     if (lastMessageId && lastMessageId !== previousLastMessageIdRef.current) {
       scrollToBottom()
     }
