@@ -1,19 +1,34 @@
 import { CategoryIcon } from '../shared/CategoryIcon'
 import KurogiLogo from '../shared/KurogiLogo'
 
-export default function MessageBubble({ msg, formatRupiah }) {
+export default function MessageBubble({
+  msg,
+  formatRupiah,
+  onReply,
+  disabled = false,
+  isFirstInGroup = true,
+  isLastInGroup = true,
+}) {
   const isUser = msg.sender === 'user'
   const displayText = isUser ? msg.text : stripSimpleFormatting(msg.text)
+  const groupSpacing = isLastInGroup ? 'mb-5' : 'mb-1.5'
+  const bubbleShape = getBubbleShape({ isUser, isFirstInGroup, isLastInGroup })
 
   return (
-    <div className={`mb-5 flex w-full animate-fade-in ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
-      {!isUser ? <KurogiLogo size={46} className="mt-1 hidden sm:inline-flex" /> : null}
-      <div className={`flex max-w-[88%] flex-col ${isUser ? 'items-end' : 'items-start'} md:max-w-[72%]`}>
+    <div className={`${groupSpacing} flex w-full animate-fade-in ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
+      {!isUser ? (
+        isLastInGroup ? (
+          <KurogiLogo size={46} className="mt-auto hidden sm:inline-flex" />
+        ) : (
+          <span className="hidden h-[46px] w-[46px] shrink-0 sm:block" aria-hidden="true" />
+        )
+      ) : null}
+      <div className={`flex max-w-[86%] flex-col ${isUser ? 'items-end' : 'items-start'} md:max-w-[72%]`}>
         <div
-          className={`relative text-[14px] leading-relaxed transition-all sm:text-[15px] ${
+          className={`relative text-[14px] leading-relaxed transition-all sm:text-[15px] ${bubbleShape} ${
             isUser
-              ? 'rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-midnight shadow-sm'
-              : 'rounded-[20px] border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight shadow-[0_6px_18px_rgba(15,23,42,0.035)]'
+              ? 'border border-emerald-200 bg-emerald-50 px-4 py-3 text-midnight shadow-sm'
+              : 'border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight shadow-[0_6px_18px_rgba(15,23,42,0.035)]'
           }`}
         >
           {msg.image && (
@@ -26,19 +41,41 @@ export default function MessageBubble({ msg, formatRupiah }) {
           {!isUser && Array.isArray(msg.metadata?.candidates) && msg.metadata.candidates.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {msg.metadata.candidates.slice(0, 5).map((candidate) => (
-                <span
+                <button
                   key={candidate.id || candidate.name}
-                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 font-jakarta text-[12px] font-extrabold text-emerald-700"
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onReply?.(candidate.name)}
+                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 font-jakarta text-[12px] font-extrabold text-emerald-700 transition hover:border-emerald-200 hover:bg-emerald-100 disabled:opacity-50"
                 >
                   {candidate.name}
-                </span>
+                </button>
               ))}
             </div>
           ) : null}
 
           {!isUser && msg.metadata?.intentStatus === 'needs_confirmation' ? (
-            <div className="mt-3 rounded-[14px] border border-amber-100 bg-amber-50 px-3.5 py-2.5 font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
-              Balas dengan nama pilihan, "Ya", atau "Batal".
+            <div className="mt-3 rounded-[14px] border border-amber-100 bg-amber-50 px-3.5 py-2.5">
+              <p className="font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
+                Balas dengan nama pilihan, "Ya", atau "Batal".
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {['Ya', 'Batal'].map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onReply?.(label)}
+                    className={`rounded-full px-3 py-1.5 font-jakarta text-[11px] font-extrabold transition disabled:opacity-50 ${
+                      label === 'Ya'
+                        ? 'bg-midnight text-white hover:bg-midnight/90'
+                        : 'border border-amber-200 bg-white text-amber-800 hover:bg-amber-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 
@@ -72,13 +109,47 @@ export default function MessageBubble({ msg, formatRupiah }) {
             </div>
           )}
         </div>
-        <span className="mx-3 mt-1.5 font-jakarta text-[11px] font-medium text-muted">
-          {msg.time}
-          {isUser ? '  ✓✓' : ''}
-        </span>
+        {isLastInGroup ? (
+          <span className="mx-3 mt-1.5 font-jakarta text-[11px] font-medium text-muted">
+            {msg.time}
+            {isUser ? '  Terkirim' : ''}
+          </span>
+        ) : null}
       </div>
     </div>
   )
+}
+
+function getBubbleShape({ isUser, isFirstInGroup, isLastInGroup }) {
+  if (isUser) {
+    if (isFirstInGroup && isLastInGroup) {
+      return 'rounded-[20px] rounded-br-[7px]'
+    }
+
+    if (isFirstInGroup) {
+      return 'rounded-[20px] rounded-br-[12px]'
+    }
+
+    if (isLastInGroup) {
+      return 'rounded-[20px] rounded-tr-[12px] rounded-br-[7px]'
+    }
+
+    return 'rounded-[20px] rounded-r-[12px]'
+  }
+
+  if (isFirstInGroup && isLastInGroup) {
+    return 'rounded-[20px] rounded-bl-[7px]'
+  }
+
+  if (isFirstInGroup) {
+    return 'rounded-[20px] rounded-bl-[12px]'
+  }
+
+  if (isLastInGroup) {
+    return 'rounded-[20px] rounded-tl-[12px] rounded-bl-[7px]'
+  }
+
+  return 'rounded-[20px] rounded-l-[12px]'
 }
 
 function stripSimpleFormatting(text = '') {

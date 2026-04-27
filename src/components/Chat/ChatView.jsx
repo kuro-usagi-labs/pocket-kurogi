@@ -1,8 +1,9 @@
-import { createElement, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { createElement, useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react'
 import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
+  ChevronDown,
   ClipboardList,
   Lightbulb,
   MessageSquarePlus,
@@ -54,10 +55,36 @@ export default function ChatView({
   const isLoadingOlderRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
   const previousLastMessageIdRef = useRef(getLastMessageId(messages))
+  const showJumpToLatestRef = useRef(false)
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior })
   }, [])
+
+  const setJumpToLatestVisible = useCallback((nextValue) => {
+    if (showJumpToLatestRef.current === nextValue) {
+      return
+    }
+
+    showJumpToLatestRef.current = nextValue
+    setShowJumpToLatest(nextValue)
+  }, [])
+
+  const handleJumpToLatest = useCallback(() => {
+    setJumpToLatestVisible(false)
+    scrollToBottom()
+  }, [scrollToBottom, setJumpToLatestVisible])
+
+  const updateJumpVisibility = useCallback(() => {
+    const container = containerRef.current
+    if (!container || isLoadingOlderRef.current) {
+      return
+    }
+
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    setJumpToLatestVisible(distanceFromBottom > 360)
+  }, [setJumpToLatestVisible])
 
   const handleLoadMore = useCallback(() => {
     if (!onLoadMore || loadingMore) {
@@ -72,6 +99,10 @@ export default function ChatView({
 
     onLoadMore()
   }, [loadingMore, onLoadMore])
+
+  const handleScroll = useCallback(() => {
+    updateJumpVisibility()
+  }, [updateJumpVisibility])
 
   useLayoutEffect(() => {
     const container = containerRef.current
@@ -112,7 +143,7 @@ export default function ChatView({
 
   const handleQuickAction = useCallback((item) => {
     if (item.action === 'scroll') {
-      scrollToBottom()
+      handleJumpToLatest()
       return
     }
 
@@ -124,7 +155,7 @@ export default function ChatView({
     if (item.prompt) {
       onSend(item.prompt)
     }
-  }, [onNavigate, onSend, scrollToBottom])
+  }, [handleJumpToLatest, onNavigate, onSend])
 
   return (
     <div className="absolute inset-0 h-full w-full">
@@ -132,6 +163,7 @@ export default function ChatView({
 
       <div
         ref={containerRef}
+        onScroll={handleScroll}
         className="no-scrollbar absolute inset-0 z-20 mx-auto flex w-full max-w-5xl flex-col overflow-y-auto scroll-smooth px-4 pb-[200px] pt-1 sm:px-6 md:pb-[150px] lg:px-8"
       >
         <HeroCard onNavigate={onNavigate} />
@@ -153,7 +185,7 @@ export default function ChatView({
             <button
               type="button"
               onClick={handleLoadMore}
-            className="rounded-lg border border-midnight/[0.08] bg-white px-3 py-2 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted transition-colors hover:text-midnight"
+              className="rounded-lg border border-midnight/[0.08] bg-white px-3 py-2 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted transition-colors hover:text-midnight"
             >
               {loadingMore ? 'Memuat...' : 'Muat lagi'}
             </button>
@@ -166,24 +198,95 @@ export default function ChatView({
           </span>
         </div>
 
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} formatRupiah={formatRupiah} />
-        ))}
+        {messages.map((msg, index) => {
+          const previousMessage = messages[index - 1]
+          const nextMessage = messages[index + 1]
+          const isFirstInGroup = previousMessage?.sender !== msg.sender
+          const isLastInGroup = nextMessage?.sender !== msg.sender
 
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="mb-6 flex w-full animate-fade-in items-start">
-            <div className="flex h-[46px] items-center justify-center gap-1.5 rounded-[22px] border border-midnight/8 bg-white px-5 shadow-sm">
-              <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
-              <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
-              <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
-            </div>
-          </div>
-        )}
+          return (
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              formatRupiah={formatRupiah}
+              onReply={onSend}
+              disabled={isTyping}
+              isFirstInGroup={isFirstInGroup}
+              isLastInGroup={isLastInGroup}
+            />
+          )
+        })}
+
+        {isTyping && <TypingIndicator />}
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
+      {showJumpToLatest ? (
+        <button
+          type="button"
+          aria-label="Lompat ke pesan terbaru"
+          onClick={handleJumpToLatest}
+          className="absolute bottom-[198px] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-extrabold text-midnight shadow-[0_10px_28px_rgba(15,23,42,0.10)] transition-all hover:border-emerald-200 hover:text-emerald-700 md:bottom-[132px]"
+        >
+          <ChevronDown size={16} strokeWidth={2.5} />
+          Pesan terbaru
+        </button>
+      ) : null}
+
+      <PromptRail
+        actions={quickActions}
+        disabled={isTyping}
+        onAction={handleQuickAction}
+      />
       <ChatInput onSend={onSend} isTyping={isTyping} onNotify={onNotify} />
+    </div>
+  )
+}
+
+function PromptRail({ actions = [], disabled = false, onAction }) {
+  const visibleActions = actions.filter((item) => item.prompt || item.navigateTo || item.action).slice(0, 4)
+
+  if (visibleActions.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="pointer-events-none absolute bottom-[148px] left-0 z-40 w-full px-3 sm:px-8 md:bottom-[82px]">
+      <div className="mx-auto flex w-full max-w-4xl gap-2 overflow-x-auto no-scrollbar">
+        {visibleActions.map((item) => {
+          const IconComponent = ACTION_ICON_MAP[item.icon] || Sparkles
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onAction(item)}
+              className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-full border border-midnight/[0.08] bg-white/95 px-3 py-2 font-jakarta text-[12px] font-extrabold text-midnight shadow-[0_8px_22px_rgba(15,23,42,0.055)] backdrop-blur transition-all hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
+            >
+              {createElement(IconComponent, { size: 16, strokeWidth: 2.4 })}
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function TypingIndicator() {
+  return (
+    <div className="mb-6 flex w-full animate-fade-in items-start">
+      <div className="flex items-center gap-3 rounded-[22px] border border-midnight/8 bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
+          <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
+          <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
+        </div>
+        <span className="font-jakarta text-[12px] font-extrabold text-muted">
+          Menganalisis input
+        </span>
+      </div>
     </div>
   )
 }

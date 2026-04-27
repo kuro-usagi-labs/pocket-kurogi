@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Mic, Paperclip, Send, X } from 'lucide-react'
 import { transcribeVoiceNote } from '../../lib/voiceTranscription'
 
@@ -11,6 +11,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   const [voiceState, setVoiceState] = useState('idle')
   const [selectedImage, setSelectedImage] = useState(null)
   const fileInputRef = useRef(null)
+  const textareaRef = useRef(null)
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -33,9 +34,19 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     cleanupRecording()
   }, [cleanupRecording])
 
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      return
+    }
+
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+  }, [inputValue])
+
   const handleSubmit = (e) => {
     e?.preventDefault()
-    if ((!inputValue.trim() && !selectedImage) || isTyping) return
+    if ((!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy) return
     onSend({
       text: inputValue.trim(),
       imageFile: selectedImage?.file || null,
@@ -43,6 +54,15 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     })
     setInputValue('')
     setSelectedImage(null)
+  }
+
+  const handleComposerKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
+      return
+    }
+
+    event.preventDefault()
+    handleSubmit(event)
   }
 
   const handleImageUpload = (e) => {
@@ -244,7 +264,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         ) : null}
 
-        <div className={`pointer-events-auto flex w-full items-center gap-1.5 rounded-[20px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-colors ${
+        <div className={`pointer-events-auto flex w-full items-end gap-1.5 rounded-[22px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-colors ${
           isVoiceBusy ? 'border-emerald-200' : 'border-midnight/10'
         }`}>
           <input
@@ -258,26 +278,31 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-midnight/8 bg-white text-midnight transition-all hover:bg-champagne sm:h-11 sm:w-11"
+            disabled={isTyping || isVoiceBusy}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-midnight/8 bg-white text-midnight transition-all hover:bg-champagne disabled:opacity-45 sm:h-11 sm:w-11"
           >
             <Paperclip size={21} strokeWidth={2.1} />
           </button>
-          <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2">
-            <input
-              type="text"
-              className="h-10 w-full rounded-[14px] border border-midnight/8 bg-white px-3.5 font-inter text-[15px] font-medium text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:ring-0 sm:h-11"
+          <form onSubmit={handleSubmit} className="flex flex-1 items-end gap-2">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              aria-label="Tulis pesan"
+              className="max-h-[120px] min-h-10 w-full resize-none rounded-[16px] border border-midnight/8 bg-champagne/70 px-3.5 py-2.5 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:bg-white focus:ring-0 sm:min-h-11 sm:text-[15px]"
               placeholder={voicePlaceholder}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
               disabled={isVoiceBusy}
               autoComplete="off"
+              enterKeyHint="send"
             />
             <button
               type="button"
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
               disabled={voiceState === 'transcribing' || isTyping}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] transition-all sm:h-11 sm:w-11 ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] transition-all sm:h-11 sm:w-11 ${
                 voiceState === 'listening' || voiceState === 'recording'
                   ? 'animate-pulse bg-red-50 text-red-500'
                   : voiceState === 'transcribing'
@@ -290,9 +315,9 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             <button
               type="submit"
               aria-label="Kirim"
-              disabled={(!inputValue.trim() && !selectedImage) || isTyping}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] transition-all sm:h-11 sm:w-11 ${
-                (inputValue.trim() || selectedImage) && !isTyping
+              disabled={(!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] transition-all sm:h-11 sm:w-11 ${
+                (inputValue.trim() || selectedImage) && !isTyping && !isVoiceBusy
                   ? 'bg-emerald-500 text-white shadow-sm active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}
