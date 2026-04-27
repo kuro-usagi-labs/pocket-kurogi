@@ -10,21 +10,47 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession)
+    let isActive = true
+
+    const applySession = (currentSession) => {
+      if (!isActive) {
+        return
+      }
+
+      setSession(currentSession ?? null)
       setUser(currentSession?.user ?? null)
       setLoading(false)
-    })
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      console.warn('Auth bootstrap timed out. Continuing without cached session.')
+      applySession(null)
+    }, 2500)
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: currentSession } }) => {
+        window.clearTimeout(timeoutId)
+        applySession(currentSession)
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId)
+        console.warn('Auth bootstrap failed:', error)
+        applySession(null)
+      })
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      setSession(currentSession)
-      setUser(currentSession?.user ?? null)
-      setLoading(false)
+      window.clearTimeout(timeoutId)
+      applySession(currentSession)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isActive = false
+      window.clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email, password) => {
