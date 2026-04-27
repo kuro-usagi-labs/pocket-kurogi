@@ -5,7 +5,6 @@ import { useCategories } from '../../hooks/useCategories'
 import { useGoals } from '../../hooks/useGoals'
 import { useBudgets } from '../../hooks/useBudgets'
 import { useInputLearning } from '../../hooks/useInputLearning'
-import { analyzeTransaction } from '../../lib/gemini'
 import BottomDock from './BottomDock'
 import DesktopHeader from './DesktopHeader'
 import DesktopSidebar from './DesktopSidebar'
@@ -44,6 +43,7 @@ import { buildChatQuickActions } from '../../lib/chatSuggestions'
 
 const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
 const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
+const loadAnalyzer = () => import('../../lib/gemini')
 const loadHistoryView = () => import('../History/HistoryView')
 const loadWalletsView = () => import('../Wallets/WalletsView')
 const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
@@ -397,9 +397,23 @@ export default function AppShell() {
   }, [notice])
 
   useEffect(() => {
-    loadHistoryView()
-    loadWalletsView()
-    loadAnalyticsView()
+    if (typeof window === 'undefined' || !window.matchMedia('(min-width: 768px)').matches) {
+      return undefined
+    }
+
+    const preloadViews = () => {
+      loadHistoryView()
+      loadWalletsView()
+      loadAnalyticsView()
+    }
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(preloadViews, { timeout: 4000 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+
+    const timeoutId = window.setTimeout(preloadViews, 2500)
+    return () => window.clearTimeout(timeoutId)
   }, [])
 
   const persistBotResponse = useCallback(async (response) => {
@@ -1521,6 +1535,7 @@ export default function AppShell() {
         } else {
           const financialContext = getAIContextString()
 
+          const { analyzeTransaction } = await loadAnalyzer()
           const analysis = await analyzeTransaction(
             text,
             imagePreview,
@@ -1734,9 +1749,9 @@ export default function AppShell() {
   }, [renameGoal, showNotice, syncFinancialViews])
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-white font-inter text-midnight selection:bg-emerald-100 selection:text-midnight">
+    <div className="app-viewport flex overflow-hidden bg-white font-inter text-midnight selection:bg-emerald-100 selection:text-midnight">
       <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="mx-auto flex h-[100dvh] w-full max-w-6xl min-w-0 flex-col overflow-hidden bg-white md:max-w-none md:bg-champagne">
+      <main className="app-viewport mx-auto flex w-full max-w-6xl min-w-0 flex-col overflow-hidden bg-white md:max-w-none md:bg-champagne">
         <AppHeader
           balance={grandTotalBalance}
           formatRupiah={formatRupiah}

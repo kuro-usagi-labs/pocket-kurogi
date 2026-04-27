@@ -38,6 +38,7 @@
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
 
 body {
+  min-height: 100vh;
   min-height: 100dvh;
   background-color: #F5F7FB;
   font-family: 'Inter', sans-serif;
@@ -49,6 +50,16 @@ body {
 html,
 #root {
   min-height: 100%;
+}
+
+.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.app-min-viewport {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .glass-panel {

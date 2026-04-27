@@ -35,7 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] w-full items-center justify-center bg-white px-5 py-5 font-inter sm:py-8">
+    <div className="app-min-viewport flex w-full items-center justify-center bg-white px-5 py-5 font-inter sm:py-8">
       <div className="grid w-full max-w-5xl animate-fade-in gap-5 sm:gap-8 lg:grid-cols-[1fr_420px] lg:items-center">
         <div className="max-w-xl">
           <KurogiLogo size={74} className="mb-4 shadow-sm sm:h-[86px] sm:w-[86px]" />
