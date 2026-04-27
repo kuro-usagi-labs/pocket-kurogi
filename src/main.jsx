@@ -9,11 +9,15 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Register the service worker only for production builds.
+// This app does not need offline caching yet.
+// Clean up any existing service worker so mobile Safari does not get stuck on stale shells.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.warn('SW registration failed: ', err)
-    })
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .catch((err) => {
+        console.warn('SW cleanup failed: ', err)
+      })
   })
 }
