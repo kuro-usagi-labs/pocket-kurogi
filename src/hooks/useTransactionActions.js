@@ -93,6 +93,29 @@ export function useTransactionActions({
     return { error: null }
   }, [formatRupiah, setActionDialog, showNotice, transactions])
 
+  const handleUndoTransaction = useCallback(async (transactionId) => {
+    const targetTransaction = transactions.find((transaction) => transaction.id === transactionId)
+
+    if (!targetTransaction) {
+      showNotice('Transaksi tidak ditemukan. Muat ulang histori lalu coba lagi.', 'error')
+      return { error: new Error('Transaction not found') }
+    }
+
+    if (!targetTransaction.canDelete) {
+      showNotice('Transaksi ini tidak bisa dibatalkan langsung.', 'error')
+      return { error: new Error('Transaction cannot be undone') }
+    }
+
+    setActionDialog({
+      type: 'undo_transaction',
+      transactionId,
+      transactionTitle: targetTransaction.title || targetTransaction.desc || 'transaksi ini',
+      ...getTransactionDeletionDialogCopy(targetTransaction, formatRupiah, { mode: 'undo' }),
+    })
+
+    return { error: null }
+  }, [formatRupiah, setActionDialog, showNotice, transactions])
+
   const handleUpdateTransaction = useCallback(async (payload) => {
     const result = await replaceTransaction(payload)
 
@@ -119,7 +142,7 @@ export function useTransactionActions({
     }
 
     if (actionDialog.type === 'undo_transaction') {
-      showNotice(`Transaksi terakhir (${actionDialog.transactionTitle}) dibatalkan.`, 'success')
+      showNotice(`Transaksi ${actionDialog.transactionTitle} dibatalkan.`, 'success')
       return result
     }
 
@@ -130,6 +153,7 @@ export function useTransactionActions({
   return {
     handleDeleteTransaction,
     handleUndoLastTransaction,
+    handleUndoTransaction,
     handleUpdateTransaction,
     undoLatestManualTransaction,
     handleConfirmTransactionDialog,

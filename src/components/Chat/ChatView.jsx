@@ -49,6 +49,7 @@ export default function ChatView({
   loadingMore = false,
   onLoadMore,
   onNavigate,
+  onCardAction,
 }) {
   const containerRef = useRef(null)
   const messagesEndRef = useRef(null)
@@ -210,6 +211,7 @@ export default function ChatView({
               msg={msg}
               formatRupiah={formatRupiah}
               onReply={onSend}
+              onCardAction={onCardAction}
               disabled={isTyping}
               isFirstInGroup={isFirstInGroup}
               isLastInGroup={isLastInGroup}

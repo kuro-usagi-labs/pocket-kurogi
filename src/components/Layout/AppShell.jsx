@@ -46,9 +46,11 @@ const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
 const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
 const loadAnalyzer = () => import('../../lib/gemini')
 const loadHistoryView = () => import('../History/HistoryView')
+const loadEditTransactionModal = () => import('../History/EditTransactionModal')
 const loadWalletsView = () => import('../Wallets/WalletsView')
 const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
 const HistoryView = lazy(loadHistoryView)
+const EditTransactionModal = lazy(loadEditTransactionModal)
 const WalletsView = lazy(loadWalletsView)
 const AnalyticsView = lazy(loadAnalyticsView)
 const WELCOME_MESSAGE = {
@@ -328,6 +330,7 @@ export default function AppShell() {
   const [isTyping, setIsTyping] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [actionDialog, setActionDialog] = useState(null)
+  const [chatEditorTransaction, setChatEditorTransaction] = useState(null)
   const [dialogSubmitting, setDialogSubmitting] = useState(false)
   const [notice, setNotice] = useState(null)
 
@@ -404,6 +407,7 @@ export default function AppShell() {
 
     const preloadViews = () => {
       loadHistoryView()
+      loadEditTransactionModal()
       loadWalletsView()
       loadAnalyticsView()
     }
@@ -442,6 +446,7 @@ export default function AppShell() {
   const {
     handleDeleteTransaction,
     handleUndoLastTransaction,
+    handleUndoTransaction,
     handleUpdateTransaction,
     undoLatestManualTransaction,
     handleConfirmTransactionDialog,
@@ -580,11 +585,14 @@ export default function AppShell() {
               : `Pengeluaran sebesar **${formatRupiah(analysis.amount)}** dicatat dari dompet **${resolvedWallet.name}**.`) +
             note,
           card: {
+            transactionId: transactionResult.data?.id || null,
             type: analysis.transactionType,
             amount: analysis.amount,
             category: categoryName,
             wallet: resolvedWallet.name,
             desc: description,
+            canEdit: transactionResult.data?.canEdit !== false,
+            canDelete: transactionResult.data?.canDelete !== false,
           },
         }
       }
@@ -1528,6 +1536,35 @@ export default function AppShell() {
     handleSend(prompt)
   }, [handleSend])
 
+  const handleChatCardAction = useCallback((action, card = {}) => {
+    if (action === 'history') {
+      setActiveTab('history')
+      return
+    }
+
+    if (action === 'undo') {
+      if (card.transactionId) {
+        handleUndoTransaction(card.transactionId)
+        return
+      }
+
+      handleUndoLastTransaction()
+      return
+    }
+
+    if (action === 'edit') {
+      const targetTransaction = transactions.find((transaction) => transaction.id === card.transactionId)
+
+      if (targetTransaction?.canEdit) {
+        setChatEditorTransaction(targetTransaction)
+        return
+      }
+
+      setActiveTab('history')
+      showNotice('Transaksi ini bisa dikoreksi dari Histori.', 'info')
+    }
+  }, [handleUndoLastTransaction, handleUndoTransaction, showNotice, transactions])
+
   const handleAddGoal = useCallback(async (goalData) => {
     const result = await addGoal(goalData)
 
@@ -1743,6 +1780,7 @@ export default function AppShell() {
                 loadingMore={loadingMoreMessages}
                 onLoadMore={loadMoreMessages}
                 onNavigate={setActiveTab}
+                onCardAction={handleChatCardAction}
               />
               </div>
             ) : null}
@@ -1810,6 +1848,19 @@ export default function AppShell() {
 
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
       </main>
+
+      {chatEditorTransaction ? (
+        <Suspense fallback={null}>
+          <EditTransactionModal
+            transaction={chatEditorTransaction}
+            wallets={wallets}
+            categories={categories}
+            formatRupiah={formatRupiah}
+            onClose={() => setChatEditorTransaction(null)}
+            onSubmit={handleUpdateTransaction}
+          />
+        </Suspense>
+      ) : null}
 
       {actionDialog ? (
         <ActionConfirmModal

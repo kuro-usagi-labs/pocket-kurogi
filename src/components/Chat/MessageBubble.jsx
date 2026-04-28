@@ -1,3 +1,5 @@
+import { createElement } from 'react'
+import { History, Pencil, Undo2 } from 'lucide-react'
 import { CategoryIcon } from '../shared/CategoryIcon'
 import KurogiLogo from '../shared/KurogiLogo'
 
@@ -5,6 +7,7 @@ export default function MessageBubble({
   msg,
   formatRupiah,
   onReply,
+  onCardAction,
   disabled = false,
   isFirstInGroup = true,
   isLastInGroup = true,
@@ -79,35 +82,14 @@ export default function MessageBubble({
             </div>
           ) : null}
 
-          {msg.card && (
-            <div className="mt-3 rounded-[16px] border border-emerald-100 bg-emerald-50/50 p-3.5 text-midnight">
-              <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white">
-                  <CategoryIcon category={msg.card.category} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-bold text-muted">
-                    {msg.card.wallet}
-                  </p>
-                  <div className="mt-0.5 flex items-center justify-between gap-3">
-                    <span className="text-[13px] font-extrabold capitalize text-midnight">
-                      {msg.card.category}
-                    </span>
-                    <span
-                      className={`text-[13px] font-extrabold ${
-                        msg.card.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
-                      }`}
-                    >
-                      {msg.card.type === 'income' ? '+' : '-'}{formatRupiah(msg.card.amount)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-white">
-                <div className="h-full w-full rounded-full bg-emerald-500" />
-              </div>
-            </div>
-          )}
+          {msg.card ? (
+            <TransactionReceiptCard
+              card={msg.card}
+              disabled={disabled}
+              formatRupiah={formatRupiah}
+              onAction={onCardAction}
+            />
+          ) : null}
         </div>
         {isLastInGroup ? (
           <span className="mx-3 mt-1.5 font-jakarta text-[11px] font-medium text-muted">
@@ -117,6 +99,83 @@ export default function MessageBubble({
         ) : null}
       </div>
     </div>
+  )
+}
+
+function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction }) {
+  const isIncome = card.type === 'income'
+  const canUseTransactionAction = Boolean(card.transactionId)
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-[16px] border border-emerald-100 bg-emerald-50/50 text-midnight">
+      <div className="p-3.5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white">
+            <CategoryIcon category={card.category} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+              {card.wallet}
+            </p>
+            <div className="mt-0.5 flex items-center justify-between gap-3">
+              <span className="truncate text-[13px] font-extrabold capitalize text-midnight">
+                {card.category}
+              </span>
+              <span
+                className={`shrink-0 text-[13px] font-extrabold ${
+                  isIncome ? 'text-emerald-600' : 'text-rose-600'
+                }`}
+              >
+                {isIncome ? '+' : '-'}{formatRupiah(card.amount)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+          <div className={`h-full w-full rounded-full ${isIncome ? 'bg-emerald-500' : 'bg-rose-400'}`} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 border-t border-emerald-100 bg-white/72">
+        <ReceiptActionButton
+          icon={Pencil}
+          label="Koreksi"
+          disabled={disabled || !canUseTransactionAction || card.canEdit === false}
+          onClick={() => onAction?.('edit', card)}
+        />
+        <ReceiptActionButton
+          icon={Undo2}
+          label="Undo"
+          danger
+          disabled={disabled || !canUseTransactionAction || card.canDelete === false}
+          onClick={() => onAction?.('undo', card)}
+        />
+        <ReceiptActionButton
+          icon={History}
+          label="Histori"
+          disabled={disabled}
+          onClick={() => onAction?.('history', card)}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ReceiptActionButton({ icon, label, disabled = false, danger = false, onClick }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex min-h-[42px] items-center justify-center gap-1.5 border-r border-emerald-100 px-2 font-jakarta text-[11px] font-extrabold transition last:border-r-0 disabled:cursor-not-allowed disabled:opacity-45 ${
+        danger
+          ? 'text-rose-600 hover:bg-rose-50'
+          : 'text-midnight hover:bg-emerald-50'
+      }`}
+    >
+      {createElement(icon, { size: 14, strokeWidth: 2.3 })}
+      {label}
+    </button>
   )
 }
 
