@@ -103,6 +103,29 @@ export function getGoalDeletionDialogCopy(goal, refundAmount, refundTargetName, 
   }
 }
 
+export function getTransactionDeletionDialogCopy(transaction, formatRupiah, { mode = 'delete' } = {}) {
+  const amount = Number(transaction?.amount || 0)
+  const isIncome = transaction?.type === 'income'
+  const title = transaction?.title || transaction?.desc || 'transaksi ini'
+  const walletName = transaction?.wallet || 'dompet terkait'
+  const categoryName = transaction?.category || 'kategori terkait'
+  const directionLabel = isIncome ? 'Pemasukan' : 'Pengeluaran'
+  const balanceEffect = isIncome
+    ? `Saldo ${walletName} akan dikurangi ${formatRupiah(amount)}.`
+    : `Saldo ${walletName} akan dikembalikan ${formatRupiah(amount)}.`
+
+  return {
+    title: mode === 'undo' ? `Batalkan "${title}"?` : `Hapus "${title}"?`,
+    paragraphs: [
+      `${directionLabel}: ${formatRupiah(amount)} (${categoryName}).`,
+      balanceEffect,
+      'Analytics dan histori akan ikut disinkronkan.',
+    ],
+    confirmLabel: mode === 'undo' ? 'Batalkan' : 'Hapus',
+    tone: 'danger',
+  }
+}
+
 export function mapDomainError(error) {
   const rawMessage = String(error?.message || error || '').trim()
   const message = rawMessage.toLowerCase()

@@ -27,6 +27,7 @@ import {
   buildWalletRestorePrompt,
   buildWalletRestoreSuccess,
   getGoalDeletionDialogCopy,
+  getTransactionDeletionDialogCopy,
   getWalletDeletionDialogCopy,
   mapDomainError,
 } from '../../lib/domainMessages'
@@ -438,11 +439,10 @@ export default function AppShell() {
     await saveMessage('bot', response.text, extras)
   }, [saveMessage])
 
-  const handleDeleteTransaction = useCallback(async (transactionId) => {
+  const deleteTransactionAndSync = useCallback(async (transactionId) => {
     const result = await deleteTransaction(transactionId)
 
     if (result.error) {
-      showNotice(mapDomainError(result.error), 'error')
       return result
     }
 
@@ -451,9 +451,31 @@ export default function AppShell() {
       analytics: true,
     })
 
-    showNotice('Transaksi berhasil dihapus dan saldo terkait sudah diperbarui.', 'success')
     return result
-  }, [deleteTransaction, showNotice, syncFinancialViews])
+  }, [deleteTransaction, syncFinancialViews])
+
+  const handleDeleteTransaction = useCallback(async (transactionId) => {
+    const targetTransaction = transactions.find((transaction) => transaction.id === transactionId)
+
+    if (!targetTransaction) {
+      showNotice('Transaksi tidak ditemukan. Muat ulang histori lalu coba lagi.', 'error')
+      return { error: new Error('Transaction not found') }
+    }
+
+    if (!targetTransaction.canDelete) {
+      showNotice('Transaksi ini tidak bisa dihapus langsung dari histori.', 'error')
+      return { error: new Error('Transaction cannot be deleted') }
+    }
+
+    setActionDialog({
+      type: 'delete_transaction',
+      transactionId,
+      transactionTitle: targetTransaction.title || targetTransaction.desc || 'transaksi ini',
+      ...getTransactionDeletionDialogCopy(targetTransaction, formatRupiah),
+    })
+
+    return { error: null }
+  }, [formatRupiah, showNotice, transactions])
 
   const undoLatestManualTransaction = useCallback(async () => {
     const lastDeletableTransaction = transactions.find((transaction) => transaction.canDelete)
@@ -465,7 +487,7 @@ export default function AppShell() {
       }
     }
 
-    const deleteResult = await deleteTransaction(lastDeletableTransaction.id)
+    const deleteResult = await deleteTransactionAndSync(lastDeletableTransaction.id)
     if (deleteResult.error) {
       return {
         data: null,
@@ -473,28 +495,29 @@ export default function AppShell() {
       }
     }
 
-    await syncFinancialViews({
-      wallets: deleteResult.balanceUpdated,
-      analytics: true,
-    })
-
     return {
       data: lastDeletableTransaction,
       error: null,
     }
-  }, [deleteTransaction, syncFinancialViews, transactions])
+  }, [deleteTransactionAndSync, transactions])
 
   const handleUndoLastTransaction = useCallback(async () => {
-    const result = await undoLatestManualTransaction()
+    const lastDeletableTransaction = transactions.find((transaction) => transaction.canDelete)
 
-    if (result.error) {
-      showNotice(mapDomainError(result.error), 'error')
-      return result
+    if (!lastDeletableTransaction) {
+      showNotice('Tidak ada transaksi manual yang bisa dibatalkan.', 'error')
+      return { error: new Error('No undoable transaction') }
     }
 
-    showNotice(`Transaksi terakhir (${result.data?.desc || 'manual'}) dibatalkan.`, 'success')
-    return result
-  }, [showNotice, undoLatestManualTransaction])
+    setActionDialog({
+      type: 'undo_transaction',
+      transactionId: lastDeletableTransaction.id,
+      transactionTitle: lastDeletableTransaction.title || lastDeletableTransaction.desc || 'transaksi terakhir',
+      ...getTransactionDeletionDialogCopy(lastDeletableTransaction, formatRupiah, { mode: 'undo' }),
+    })
+
+    return { error: null }
+  }, [formatRupiah, showNotice, transactions])
 
   const handleUpdateTransaction = useCallback(async (payload) => {
     const result = await replaceTransaction(payload)
@@ -1663,6 +1686,28 @@ export default function AppShell() {
     setDialogSubmitting(true)
 
     try {
+      if (actionDialog.type === 'delete_transaction') {
+        const result = await deleteTransactionAndSync(actionDialog.transactionId)
+
+        if (result.error) {
+          showNotice(mapDomainError(result.error), 'error')
+          return
+        }
+
+        showNotice(`Transaksi ${actionDialog.transactionTitle} berhasil dihapus.`, 'success')
+      }
+
+      if (actionDialog.type === 'undo_transaction') {
+        const result = await deleteTransactionAndSync(actionDialog.transactionId)
+
+        if (result.error) {
+          showNotice(mapDomainError(result.error), 'error')
+          return
+        }
+
+        showNotice(`Transaksi terakhir (${actionDialog.transactionTitle}) dibatalkan.`, 'success')
+      }
+
       if (actionDialog.type === 'delete_goal') {
         const result = await deleteGoal({
           goalId: actionDialog.goalId,
@@ -1719,7 +1764,7 @@ export default function AppShell() {
     } finally {
       setDialogSubmitting(false)
     }
-  }, [actionDialog, deleteGoal, deleteWallet, dialogSubmitting, restoreWallet, showNotice, syncFinancialViews])
+  }, [actionDialog, deleteGoal, deleteTransactionAndSync, deleteWallet, dialogSubmitting, restoreWallet, showNotice, syncFinancialViews])
 
   const handleRenameWallet = useCallback(async (walletId, nextName) => {
     const result = await renameWallet(walletId, nextName)
