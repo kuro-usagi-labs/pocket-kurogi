@@ -152,7 +152,7 @@ export default function HistoryView({
             <button
               type="button"
               onClick={onUndoLastTransaction}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-3.5 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-3.5 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-orange-200 hover:text-orange-700"
             >
               <Undo2 size={15} strokeWidth={2.2} />
               Undo
@@ -217,10 +217,10 @@ export default function HistoryView({
       </div>
 
       <div className="hidden md:block">
-        <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+              <p className="font-jakarta text-[11px] font-extrabold  text-muted">
                 Riwayat transaksi
               </p>
               <h2 className="mt-2 font-jakarta text-[28px] font-extrabold tracking-tight text-midnight">
@@ -241,7 +241,7 @@ export default function HistoryView({
                 <button
                   type="button"
                   onClick={onUndoLastTransaction}
-                  className="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+                  className="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-orange-200 hover:text-orange-700"
                 >
                   <Undo2 size={16} strokeWidth={2.2} />
                   Undo terakhir
@@ -317,7 +317,7 @@ export default function HistoryView({
               <button
                 type="button"
                 onClick={resetFilters}
-                className="self-end inline-flex h-[46px] items-center justify-center gap-2 rounded-[14px] border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
+                className="self-end inline-flex h-[46px] items-center justify-center gap-2 rounded-[12px] border border-midnight/10 bg-white px-4 font-jakarta text-[12px] font-bold text-muted transition-colors hover:text-midnight"
               >
                 <X size={15} strokeWidth={2.2} />
                 Reset
@@ -326,7 +326,7 @@ export default function HistoryView({
           </div>
         </section>
 
-        <section className="mt-5 rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="mt-5 rounded-[20px] border border-midnight/[0.08] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
           <HistoryBody
             transactions={transactions}
             filteredTransactions={filteredTransactions}
@@ -416,7 +416,7 @@ function HistoryBody({
             <button
               type="button"
               onClick={onLoadMore}
-              className="rounded-[14px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
+              className="rounded-[12px] border border-midnight/[0.08] bg-white px-5 py-3 font-jakarta text-[13px] font-bold text-muted transition-colors hover:text-midnight"
             >
               {loadingMore ? 'Memuat...' : 'Muat lagi'}
             </button>
@@ -439,21 +439,21 @@ function HistoryBody({
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-[18px] border border-midnight/[0.08]">
+          <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08]">
             <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_120px_150px_88px] gap-3 bg-champagne/70 px-4 py-3">
-              <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+              <span className="font-jakarta text-[11px] font-extrabold  text-muted">
                 Transaksi
               </span>
-              <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+              <span className="font-jakarta text-[11px] font-extrabold  text-muted">
                 Dompet
               </span>
-              <span className="text-center font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+              <span className="text-center font-jakarta text-[11px] font-extrabold  text-muted">
                 Jenis
               </span>
-              <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+              <span className="text-right font-jakarta text-[11px] font-extrabold  text-muted">
                 Nominal
               </span>
-              <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+              <span className="text-right font-jakarta text-[11px] font-extrabold  text-muted">
                 Aksi
               </span>
             </div>
@@ -489,7 +489,7 @@ function HistoryBody({
 function SearchField({ query, onChange, desktop = false }) {
   return (
     <div
-      className={`relative mb-3 flex min-h-[52px] items-center rounded-[14px] border border-midnight/[0.08] bg-white p-1.5 ${
+      className={`relative mb-3 flex min-h-[52px] items-center rounded-[12px] border border-midnight/[0.08] bg-white p-1.5 ${
         desktop ? 'mb-0' : ''
       }`}
     >
@@ -514,8 +514,8 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick, desk
       onClick={onClick}
       className={`inline-flex min-h-[42px] shrink-0 items-center justify-center gap-2 rounded-[13px] border px-4 font-jakarta text-[13px] font-bold transition-all ${
         active
-          ? 'border-emerald-500 bg-emerald-500 text-white'
-          : 'border-midnight/10 bg-white text-midnight hover:border-emerald-200'
+          ? 'border-orange-500 bg-orange-700 text-white'
+          : 'border-midnight/10 bg-white text-midnight hover:border-orange-200'
       } ${desktop ? 'h-10 rounded-full px-4 text-[12px]' : ''}`}
     >
       {Icon ? (
@@ -525,7 +525,7 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick, desk
               ? 'border-white/70'
               : danger
                 ? 'border-red-400 text-red-500'
-                : 'border-emerald-500 text-emerald-600'
+                : 'border-orange-500 text-orange-600'
           }`}
         >
           <Icon size={14} strokeWidth={2.2} />
@@ -539,13 +539,13 @@ function FilterButton({ active, label, icon: Icon, danger = false, onClick, desk
 function FilterSelect({ label, value, onChange, options, desktop = false }) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
-      <span className={`font-jakarta text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted ${desktop ? 'ml-1' : ''}`}>
+      <span className={`font-jakarta text-[11px] font-extrabold  text-muted ${desktop ? 'ml-1' : ''}`}>
         {label}
       </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={`min-w-0 rounded-[14px] border border-midnight/[0.08] bg-white px-3 py-3 font-jakarta text-[13px] font-semibold text-midnight outline-none transition-all focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 ${
+        className={`min-w-0 rounded-[12px] border border-midnight/[0.08] bg-white px-3 py-3 font-jakarta text-[13px] font-semibold text-midnight outline-none transition-all focus:border-orange-300 focus:ring-2 focus:ring-orange-100 ${
           desktop ? 'h-[46px]' : ''
         }`}
       >
@@ -571,7 +571,7 @@ function EmptyHistoryState({ onNavigate, desktop = false }) {
       <button
         type="button"
         onClick={() => onNavigate?.('chat')}
-        className="mt-4 rounded-full bg-emerald-500 px-4 py-2.5 font-jakarta text-[12px] font-bold text-white transition-colors hover:bg-emerald-600"
+        className="mt-4 rounded-full bg-orange-700 px-4 py-2.5 font-jakarta text-[12px] font-bold text-white transition-colors hover:bg-orange-700"
       >
         Buka Chat
       </button>
@@ -590,7 +590,7 @@ function NoHistoryResult({ onReset, desktop = false }) {
       <button
         type="button"
         onClick={onReset}
-        className="mt-4 rounded-full border border-midnight/10 bg-white px-4 py-2.5 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
+        className="mt-4 rounded-full border border-midnight/10 bg-white px-4 py-2.5 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-orange-200 hover:text-orange-700"
       >
         Tampilkan semua
       </button>
@@ -605,7 +605,7 @@ function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction, 
     <div className="group relative flex items-center gap-3 border-b border-midnight/8 px-3.5 py-3.5 last:border-b-0 sm:px-5">
       <div
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
-          isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+          isIncome ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-500'
         }`}
       >
         {transaction.wallet ? (
@@ -622,7 +622,7 @@ function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction, 
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <span
             className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-              isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+              isIncome ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-600'
             }`}
           >
             {isIncome ? 'Pemasukan' : 'Pengeluaran'}
@@ -636,7 +636,7 @@ function MobileTransactionRow({ transaction, formatRupiah, onDeleteTransaction, 
       <div className="flex shrink-0 flex-col items-end gap-2">
         <p
           className={`max-w-[112px] truncate text-right font-jakarta text-[15px] font-bold tracking-tight sm:max-w-none sm:text-[16px] ${
-            isIncome ? 'text-emerald-600' : 'text-red-500'
+            isIncome ? 'text-orange-600' : 'text-red-500'
           }`}
         >
           {isIncome ? '+' : '-'}
@@ -681,7 +681,7 @@ function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction,
       <div className="flex min-w-0 items-center gap-3">
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-            isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+            isIncome ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-500'
           }`}
         >
           {transaction.wallet ? (
@@ -709,7 +709,7 @@ function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction,
       <div className="flex flex-col items-center gap-1 text-center">
         <span
           className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-            isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+            isIncome ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-600'
           }`}
         >
           {isIncome ? 'Masuk' : 'Keluar'}
@@ -720,7 +720,7 @@ function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction,
       <div className="text-right">
         <p
           className={`font-jakarta text-[15px] font-extrabold tracking-tight ${
-            isIncome ? 'text-emerald-600' : 'text-red-500'
+            isIncome ? 'text-orange-600' : 'text-red-500'
           }`}
         >
           {isIncome ? '+' : '-'}
@@ -762,14 +762,14 @@ function DesktopTransactionRow({ transaction, formatRupiah, onDeleteTransaction,
 function DesktopHistoryStatCard({ label, value, helper, tone = 'slate' }) {
   const toneClass = {
     amber: 'border-amber-100 bg-amber-50 text-amber-700',
-    emerald: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    emerald: 'border-orange-100 bg-orange-50 text-orange-700',
     rose: 'border-rose-100 bg-rose-50 text-rose-700',
     slate: 'border-slate-200 bg-slate-50 text-slate-700',
   }[tone] || 'border-slate-200 bg-slate-50 text-slate-700'
 
   return (
-    <div className={`rounded-[18px] border p-4 ${toneClass}`}>
-      <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] opacity-75">
+    <div className={`rounded-[16px] border p-4 ${toneClass}`}>
+      <p className="font-jakarta text-[11px] font-extrabold  opacity-75">
         {label}
       </p>
       <p className="mt-3 font-jakarta text-[24px] font-extrabold tracking-tight">{value}</p>

@@ -38,7 +38,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
         onClick={onClose}
       />
 
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-2xl animate-scale-in">
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-2xl animate-scale-in">
         <div className="p-5 md:p-6">
           <div className="mb-7 flex items-center justify-between">
             <div>
@@ -49,7 +49,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
               type="button"
               onClick={onClose}
               aria-label="Tutup"
-              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-champagne text-muted transition-colors hover:text-midnight"
+              className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-champagne text-muted transition-colors hover:text-midnight"
             >
               <X size={20} strokeWidth={2.5} />
             </button>
@@ -57,7 +57,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="ml-1 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">Nama target</label>
+              <label className="ml-1 font-jakarta text-[12px] font-extrabold  text-muted">Nama target</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                   <Target size={18} />
@@ -67,7 +67,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
                   type="text"
                   required
                   placeholder="Contoh: Dana Darurat"
-                  className="w-full rounded-[16px] border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                  className="w-full rounded-[16px] border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -75,7 +75,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
             </div>
 
             <div className="space-y-2">
-              <label className="ml-1 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">Nominal</label>
+              <label className="ml-1 font-jakarta text-[12px] font-extrabold  text-muted">Nominal</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                   <DollarSign size={18} />
@@ -84,7 +84,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
                   type="number"
                   required
                   placeholder="0"
-                  className="w-full rounded-[16px] border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                  className="w-full rounded-[16px] border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
                 />
@@ -92,14 +92,14 @@ export default function AddGoalModal({ onClose, onSubmit }) {
             </div>
 
             <div className="space-y-2">
-              <label className="ml-1 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">Deadline</label>
+              <label className="ml-1 font-jakarta text-[12px] font-extrabold  text-muted">Deadline</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                   <Calendar size={18} />
                 </div>
                 <input
                   type="date"
-                  className="w-full rounded-[16px] border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                  className="w-full rounded-[16px] border border-midnight/10 bg-champagne py-4 pl-11 pr-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
                 />
@@ -109,7 +109,7 @@ export default function AddGoalModal({ onClose, onSubmit }) {
             <button
               type="submit"
               disabled={submitting}
-              className="mt-2 w-full rounded-[16px] bg-emerald-500 py-4 font-jakarta text-[15px] font-extrabold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50"
+              className="mt-2 w-full rounded-[16px] bg-orange-700 py-4 font-jakarta text-[15px] font-extrabold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-700 active:scale-[0.98] disabled:opacity-50"
             >
               {submitting ? 'Memproses...' : 'Simpan'}
             </button>

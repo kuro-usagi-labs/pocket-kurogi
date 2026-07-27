@@ -235,13 +235,13 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     listening: 'Mendengarkan...',
     recording: 'Merekam voice note...',
     transcribing: 'Menulis ulang suara...',
-  }[voiceState] || 'Tulis pesan atau perintah...'
+  }[voiceState] || 'Ceritakan transaksi atau tujuanmu...'
 
   return (
-    <div className="pointer-events-none absolute bottom-[82px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-8 md:bottom-6">
+    <div className="pointer-events-none absolute bottom-[82px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6 md:bottom-5">
       <div className="flex w-full max-w-4xl flex-col gap-2.5">
         {selectedImage && (
-          <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[18px] border border-midnight/10 bg-white shadow-lg">
+          <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[16px] border border-midnight/10 bg-white shadow-premium">
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
             <button
               type="button"
@@ -255,7 +255,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
         )}
 
         {isVoiceBusy ? (
-          <div className="pointer-events-auto self-start rounded-full border border-emerald-100 bg-white px-3.5 py-2 font-jakarta text-[12px] font-extrabold text-emerald-700 shadow-sm">
+          <div className="pointer-events-auto self-start rounded-full border border-orange-100 bg-white px-3.5 py-2 font-jakarta text-[12px] font-extrabold text-orange-700 shadow-sm">
             {voiceState === 'transcribing'
               ? 'Memproses suara'
               : voiceState === 'recording'
@@ -264,8 +264,8 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         ) : null}
 
-        <div className={`pointer-events-auto flex w-full items-end gap-1.5 rounded-[22px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-colors ${
-          isVoiceBusy ? 'border-emerald-200' : 'border-midnight/10'
+        <div className={`glass-panel pointer-events-auto flex w-full items-end gap-1.5 rounded-[20px] p-2 shadow-[0_20px_52px_rgba(31,32,38,0.14)] transition-colors ${
+          isVoiceBusy ? 'border-orange-200' : 'border-midnight/10'
         }`}>
           <input
             type="file"
@@ -279,7 +279,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
             disabled={isTyping || isVoiceBusy}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-midnight/8 bg-white text-midnight transition-all hover:bg-champagne disabled:opacity-45 sm:h-11 sm:w-11"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45 sm:h-11 sm:w-11"
           >
             <Paperclip size={21} strokeWidth={2.1} />
           </button>
@@ -288,7 +288,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               ref={textareaRef}
               rows={1}
               aria-label="Tulis pesan"
-              className="max-h-[120px] min-h-10 w-full resize-none rounded-[16px] border border-midnight/8 bg-champagne/70 px-3.5 py-2.5 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:border-emerald-200 focus:bg-white focus:ring-0 sm:min-h-11 sm:text-[15px]"
+              className="max-h-[120px] min-h-10 w-full resize-none border-0 bg-transparent px-2 py-2.5 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:ring-0 sm:min-h-11 sm:text-[15px]"
               placeholder={voicePlaceholder}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -302,11 +302,11 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
               disabled={voiceState === 'transcribing' || isTyping}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] transition-all sm:h-11 sm:w-11 ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] sm:h-11 sm:w-11 ${
                 voiceState === 'listening' || voiceState === 'recording'
                   ? 'animate-pulse bg-red-50 text-red-500'
                   : voiceState === 'transcribing'
-                    ? 'bg-emerald-50 text-emerald-600'
+                    ? 'bg-orange-50 text-orange-600'
                     : 'text-midnight hover:bg-champagne'
               }`}
             >
@@ -316,9 +316,9 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               type="submit"
               aria-label="Kirim"
               disabled={(!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] transition-all sm:h-11 sm:w-11 ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all sm:h-11 sm:w-11 ${
                 (inputValue.trim() || selectedImage) && !isTyping && !isVoiceBusy
-                  ? 'bg-emerald-500 text-white shadow-sm active:scale-95'
+                  ? 'bg-orange-700 text-white shadow-[0_10px_24px_rgba(232,84,46,0.26)] active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}
             >

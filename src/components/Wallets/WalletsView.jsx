@@ -28,9 +28,9 @@ const WALLET_TYPE_META = {
   cash: {
     label: 'Tunai',
     description: 'Dompet tunai',
-    badgeClass: 'bg-emerald-50 text-emerald-700',
-    iconClass: 'from-emerald-50 to-white text-emerald-600 ring-emerald-100/80',
-    accentClass: 'bg-emerald-500',
+    badgeClass: 'bg-orange-50 text-orange-700',
+    iconClass: 'from-orange-50 to-white text-orange-600 ring-orange-100/80',
+    accentClass: 'bg-orange-700',
   },
   bank: {
     label: 'Bank',
@@ -192,7 +192,7 @@ export default function WalletsView({
               <AlertTriangle size={16} />
             </div>
             <div className="min-w-0">
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.14em] text-amber-800">
+              <p className="font-jakarta text-[11px] font-extrabold  text-amber-800">
                 Nama bentrok
               </p>
               <div className="mt-1 space-y-1 text-[12px] font-semibold text-amber-900/80">
@@ -228,7 +228,7 @@ export default function WalletsView({
               <button
                 type="button"
                 onClick={() => setShowAddWallet(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-midnight/10 bg-white text-emerald-600 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-midnight/10 bg-white text-orange-600 shadow-sm transition-all hover:border-orange-200 hover:bg-orange-50"
                 aria-label="Tambah dompet"
                 title="Tambah dompet"
               >
@@ -240,8 +240,8 @@ export default function WalletsView({
                 aria-pressed={manageMode}
                 className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-3.5 font-jakarta text-[13px] font-bold transition-all ${
                   manageMode
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-transparent bg-white text-emerald-600 hover:bg-emerald-50'
+                    ? 'border-orange-200 bg-orange-50 text-orange-700'
+                    : 'border-transparent bg-white text-orange-600 hover:bg-orange-50'
                 }`}
               >
                 <SlidersHorizontal size={17} strokeWidth={2.3} />
@@ -261,7 +261,7 @@ export default function WalletsView({
                   onClick={() => setActiveWalletFilter(filter.id)}
                   className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
                     isActive
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      ? 'border-orange-400 bg-orange-50 text-orange-700'
                       : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
                   }`}
                 >
@@ -294,15 +294,15 @@ export default function WalletsView({
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-emerald-100/80 bg-emerald-50/55 px-4 py-3 text-muted">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-emerald-600">
+          <div className="mt-4 flex items-center gap-3 rounded-[12px] border border-orange-100/80 bg-orange-50/55 px-4 py-3 text-muted">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-orange-600">
               <Info size={20} strokeWidth={2.2} />
             </span>
             <p className="min-w-0 text-[13px] font-medium leading-relaxed sm:text-[14px]">
-              <span className="font-jakarta font-extrabold text-emerald-700">Menghapus dompet akan </span>
+              <span className="font-jakarta font-extrabold text-orange-700">Menghapus dompet akan </span>
               menghapus dompet dan riwayat terkait.
             </p>
-            <span className="ml-auto hidden shrink-0 items-center gap-1 text-emerald-500/60 sm:flex">
+            <span className="ml-auto hidden shrink-0 items-center gap-1 text-orange-500/60 sm:flex">
               <Wallet size={26} strokeWidth={2.1} />
               <Calendar size={26} strokeWidth={2.1} />
             </span>
@@ -320,7 +320,7 @@ export default function WalletsView({
           </div>
           <button
             onClick={() => setShowAddGoal(true)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-emerald-600 shadow-sm transition-all hover:bg-emerald-50"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-orange-600 shadow-sm transition-all hover:bg-orange-50"
           >
             <Plus size={15} strokeWidth={2.4} />
             Target
@@ -346,7 +346,7 @@ export default function WalletsView({
             className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/70 px-5 py-7 text-center transition-all hover:border-midnight/30 hover:bg-white"
           >
             <Target size={20} className="text-muted" />
-            <span className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.12em] text-midnight">
+            <span className="font-jakarta text-[12px] font-extrabold  text-midnight">
               Buat target
             </span>
           </button>
@@ -376,10 +376,10 @@ export default function WalletsView({
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
-          <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+          <section className="rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+                <p className="font-jakarta text-[11px] font-extrabold  text-muted">
                   Struktur dana
                 </p>
                 <h2 className="mt-2 font-jakarta text-[28px] font-extrabold tracking-tight text-midnight">
@@ -399,8 +399,8 @@ export default function WalletsView({
                   aria-pressed={manageMode}
                   className={`inline-flex h-11 items-center justify-center gap-2 rounded-full border px-4 font-jakarta text-[13px] font-bold transition-all ${
                     manageMode
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : 'border-midnight/10 bg-white text-midnight hover:border-emerald-200 hover:text-emerald-700'
+                      ? 'border-orange-200 bg-orange-50 text-orange-700'
+                      : 'border-midnight/10 bg-white text-midnight hover:border-orange-200 hover:text-orange-700'
                   }`}
                 >
                   <SlidersHorizontal size={17} strokeWidth={2.2} />
@@ -409,7 +409,7 @@ export default function WalletsView({
                 <button
                   type="button"
                   onClick={() => setShowAddWallet(true)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 font-jakarta text-[13px] font-bold text-white transition-all hover:bg-emerald-600"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-orange-700 px-4 font-jakarta text-[13px] font-bold text-white transition-all hover:bg-orange-700"
                 >
                   <Plus size={16} strokeWidth={2.5} />
                   Tambah dompet
@@ -417,7 +417,7 @@ export default function WalletsView({
               </div>
             </div>
 
-            <div className="mt-5 rounded-[18px] border border-midnight/[0.08] bg-champagne/55 p-2">
+            <div className="mt-5 rounded-[16px] border border-midnight/[0.08] bg-champagne/55 p-2">
               <div className="flex flex-wrap gap-2">
                 {WALLET_FILTERS.map((filter) => {
                   const isActive = activeWalletFilter === filter.id
@@ -444,18 +444,18 @@ export default function WalletsView({
               {wallets.length === 0 ? (
                 <EmptyWalletCard onAdd={() => setShowAddWallet(true)} />
               ) : filteredWallets.length > 0 ? (
-                <div className="overflow-hidden rounded-[18px] border border-midnight/[0.08]">
+                <div className="overflow-hidden rounded-[16px] border border-midnight/[0.08]">
                   <div className="grid grid-cols-[minmax(0,1.8fr)_130px_170px_88px] gap-4 bg-champagne/70 px-4 py-3">
-                    <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                    <span className="font-jakarta text-[11px] font-extrabold  text-muted">
                       Dompet
                     </span>
-                    <span className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                    <span className="font-jakarta text-[11px] font-extrabold  text-muted">
                       Tipe
                     </span>
-                    <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                    <span className="text-right font-jakarta text-[11px] font-extrabold  text-muted">
                       Saldo
                     </span>
-                    <span className="text-right font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                    <span className="text-right font-jakarta text-[11px] font-extrabold  text-muted">
                       Aksi
                     </span>
                   </div>
@@ -482,17 +482,17 @@ export default function WalletsView({
           </section>
 
           <aside className="space-y-5">
-            <section className="rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+            <section className="rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+                  <p className="font-jakarta text-[11px] font-extrabold  text-muted">
                     Target
                   </p>
                   <h3 className="mt-2 font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">Simpanan</h3>
                 </div>
                 <button
                   onClick={() => setShowAddGoal(true)}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-emerald-600 transition-all hover:bg-emerald-50"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-orange-600 transition-all hover:bg-orange-50"
                 >
                   <Plus size={15} strokeWidth={2.4} />
                   Target
@@ -514,7 +514,7 @@ export default function WalletsView({
                   <button
                     type="button"
                     onClick={() => setShowAddGoal(true)}
-                    className="flex w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-midnight/20 bg-champagne/45 px-5 py-8 text-center transition-all hover:border-midnight/30 hover:bg-champagne/65"
+                    className="flex w-full items-center justify-center gap-3 rounded-[16px] border border-dashed border-midnight/20 bg-champagne/45 px-5 py-8 text-center transition-all hover:border-midnight/30 hover:bg-champagne/65"
                   >
                     <Target size={20} className="text-muted" />
                     <span className="font-jakarta text-[13px] font-extrabold text-midnight">
@@ -564,13 +564,13 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
   const meta = getWalletMeta(wallet)
 
   return (
-    <div className="group relative overflow-visible rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200">
+    <div className="group relative overflow-visible rounded-[16px] border border-midnight/[0.08] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.025)] transition-all hover:border-orange-200">
       {featured ? (
         <span className={`absolute left-0 top-4 h-[calc(100%-2rem)] w-1 rounded-r-full ${meta.accentClass}`} />
       ) : null}
 
       <div className="grid min-h-[96px] grid-cols-[54px_minmax(0,1fr)_minmax(108px,auto)] items-center gap-3 px-3 py-3 sm:min-h-[104px] sm:grid-cols-[64px_minmax(0,1fr)_minmax(146px,auto)] sm:gap-4 sm:px-4">
-        <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[64px] sm:w-[64px] sm:rounded-[18px]`}>
+        <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br ring-1 ${meta.iconClass} sm:h-[64px] sm:w-[64px] sm:rounded-[16px]`}>
           <WalletIcon walletName={wallet.name} size={31} strokeWidth={2.15} />
         </div>
 
@@ -737,7 +737,7 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
-        className={`flex items-center justify-center rounded-full bg-slate-50 text-midnight transition-all hover:bg-emerald-50 hover:text-emerald-700 ${
+        className={`flex items-center justify-center rounded-full bg-slate-50 text-midnight transition-all hover:bg-orange-50 hover:text-orange-700 ${
           compact ? 'h-9 w-9' : 'h-9 w-9 sm:h-10 sm:w-10'
         }`}
         aria-label={`Aksi untuk ${walletName}`}
@@ -747,7 +747,7 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
       </button>
 
       {menuOpen ? (
-        <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[14px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_12px_26px_rgba(15,23,42,0.10)]">
+        <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[12px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_12px_26px_rgba(15,23,42,0.10)]">
           <button
             type="button"
             onClick={handleRenameClick}
@@ -775,10 +775,10 @@ function MobileGoalCard({ goal, formatRupiah, onRename, onDelete }) {
   const remainingAmount = Math.max(Number(goal.target_amount || 0) - Number(goal.current_amount || 0), 0)
 
   return (
-    <div className="rounded-[18px] border border-midnight/10 bg-white p-4 shadow-sm transition-all hover:border-emerald-200">
+    <div className="rounded-[16px] border border-midnight/10 bg-white p-4 shadow-sm transition-all hover:border-orange-200">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-14 sm:w-14">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-600 sm:h-14 sm:w-14">
             <Target size={24} strokeWidth={2.1} />
           </div>
           <div className="min-w-0">
@@ -791,7 +791,7 @@ function MobileGoalCard({ goal, formatRupiah, onRename, onDelete }) {
           </div>
         </div>
 
-        <span className="font-jakarta text-[20px] font-extrabold text-emerald-600">
+        <span className="font-jakarta text-[20px] font-extrabold text-orange-600">
           {Math.round(progress)}%
         </span>
       </div>
@@ -803,7 +803,7 @@ function MobileGoalCard({ goal, formatRupiah, onRename, onDelete }) {
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
           <div
-            className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+            className="h-full rounded-full bg-orange-700 transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -812,7 +812,7 @@ function MobileGoalCard({ goal, formatRupiah, onRename, onDelete }) {
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           onClick={onRename}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted transition-all hover:border-midnight/20 hover:text-midnight"
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-midnight/10 bg-white px-3 py-2.5 font-jakarta text-[11px] font-extrabold  text-muted transition-all hover:border-midnight/20 hover:text-midnight"
           title="Ubah target"
         >
           <Pencil size={14} strokeWidth={2.1} />
@@ -820,7 +820,7 @@ function MobileGoalCard({ goal, formatRupiah, onRename, onDelete }) {
         </button>
         <button
           onClick={onDelete}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-600 transition-all hover:bg-red-100"
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 font-jakarta text-[11px] font-extrabold  text-red-600 transition-all hover:bg-red-100"
         >
           <X size={15} strokeWidth={2.1} />
           Hapus
@@ -835,7 +835,7 @@ function DesktopGoalCard({ goal, formatRupiah, onRename, onDelete }) {
   const remainingAmount = Math.max(Number(goal.target_amount || 0) - Number(goal.current_amount || 0), 0)
 
   return (
-    <div className="rounded-[18px] border border-midnight/[0.08] bg-white p-4">
+    <div className="rounded-[16px] border border-midnight/[0.08] bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="truncate font-jakarta text-[17px] font-extrabold tracking-tight text-midnight">
@@ -845,7 +845,7 @@ function DesktopGoalCard({ goal, formatRupiah, onRename, onDelete }) {
             Terkumpul {formatRupiah(goal.current_amount)}
           </p>
         </div>
-        <span className="font-jakarta text-[18px] font-extrabold text-emerald-600">
+        <span className="font-jakarta text-[18px] font-extrabold text-orange-600">
           {Math.round(progress)}%
         </span>
       </div>
@@ -857,7 +857,7 @@ function DesktopGoalCard({ goal, formatRupiah, onRename, onDelete }) {
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
           <div
-            className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+            className="h-full rounded-full bg-orange-700 transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -887,14 +887,14 @@ function DesktopGoalCard({ goal, formatRupiah, onRename, onDelete }) {
 
 function DesktopWalletStatCard({ label, value, helper, tone = 'emerald' }) {
   const toneClass = {
-    emerald: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+    emerald: 'border-orange-100 bg-orange-50 text-orange-700',
     sky: 'border-sky-100 bg-sky-50 text-sky-700',
     amber: 'border-amber-100 bg-amber-50 text-amber-700',
   }[tone] || 'border-slate-200 bg-slate-50 text-slate-700'
 
   return (
-    <div className={`rounded-[18px] border p-4 ${toneClass}`}>
-      <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] opacity-70">
+    <div className={`rounded-[16px] border p-4 ${toneClass}`}>
+      <p className="font-jakarta text-[11px] font-extrabold  opacity-70">
         {label}
       </p>
       <p className="mt-3 font-jakarta text-[26px] font-extrabold tracking-tight">
@@ -910,9 +910,9 @@ function EmptyWalletCard({ onAdd }) {
     <button
       type="button"
       onClick={onAdd}
-      className="flex w-full items-center gap-3 rounded-[18px] border border-dashed border-midnight/15 bg-white px-4 py-5 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
+      className="flex w-full items-center gap-3 rounded-[16px] border border-dashed border-midnight/15 bg-white px-4 py-5 text-left transition-colors hover:border-orange-200 hover:bg-orange-50/40"
     >
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-600">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-orange-50 text-orange-600">
         <Plus size={24} strokeWidth={2.2} />
       </span>
       <span className="min-w-0">
@@ -925,7 +925,7 @@ function EmptyWalletCard({ onAdd }) {
 
 function FilteredWalletEmpty({ filterLabel, onAdd }) {
   return (
-    <div className="rounded-[18px] border border-dashed border-midnight/15 bg-slate-50/70 px-4 py-5">
+    <div className="rounded-[16px] border border-dashed border-midnight/15 bg-slate-50/70 px-4 py-5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-jakarta text-[15px] font-extrabold text-midnight">
@@ -938,7 +938,7 @@ function FilteredWalletEmpty({ filterLabel, onAdd }) {
         <button
           type="button"
           onClick={onAdd}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-all hover:bg-emerald-600"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-700 text-white shadow-sm transition-all hover:bg-orange-700"
           aria-label="Tambah dompet"
         >
           <Plus size={18} strokeWidth={2.4} />

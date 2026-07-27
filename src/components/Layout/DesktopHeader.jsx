@@ -1,60 +1,36 @@
 import { useAuth } from '../../contexts/AuthContext'
 
 const PAGE_COPY = {
-  chat: {
-    title: 'Chat',
-    subtitle: 'Catat transaksi dan tanya arus kas.',
-  },
-  history: {
-    title: 'Histori',
-    subtitle: 'Semua transaksi tersimpan.',
-  },
-  wallets: {
-    title: 'Dompet',
-    subtitle: 'Saldo dan target.',
-  },
-  analytics: {
-    title: 'Analitik',
-    subtitle: 'Ringkasan uang bulan ini.',
-  },
+  chat: ['Ruang obrolan', 'Bicarakan uangmu seperti bicara dengan teman.'],
+  history: ['Jejak uang', 'Semua yang masuk dan keluar, tanpa ribet.'],
+  wallets: ['Ruang tabungan', 'Dompet dan tujuan yang sedang kamu kejar.'],
+  analytics: ['Pola uang', 'Lihat kebiasaan, bukan sekadar angka.'],
 }
 
 export default function DesktopHeader({ activeTab = 'chat', balance = 0, formatRupiah }) {
   const { user } = useAuth()
-
-  const emailName = user?.email?.split('@')[0] || 'User'
-  const displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1)
-  const page = PAGE_COPY[activeTab] || PAGE_COPY.chat
+  const emailName = user?.email?.split('@')[0] || 'teman'
+  const [title, subtitle] = PAGE_COPY[activeTab] || PAGE_COPY.chat
 
   return (
-    <header className="sticky top-0 z-30 hidden h-[68px] w-full shrink-0 items-center justify-between bg-champagne px-5 font-jakarta md:flex">
+    <header className="hidden h-[78px] w-full shrink-0 items-center justify-between px-6 font-jakarta md:flex">
       <div className="min-w-0">
-        <h2 className="text-[19px] font-extrabold tracking-tight text-midnight">
-          {page.title}
-        </h2>
-        <p className="mt-0.5 text-[12px] font-medium text-muted">
-          {page.subtitle}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg border border-midnight/[0.08] bg-white px-3.5 py-2 text-right">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">Saldo</p>
-          <p className="mt-0.5 text-[14px] font-extrabold tracking-tight text-midnight">
-            {formatRupiah ? formatRupiah(balance) : balance}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 border-l border-midnight/[0.08] pl-3">
-          <div className="hidden text-right sm:block">
-            <p className="text-[13px] font-extrabold text-midnight">{displayName}</p>
-            <p className="text-[11px] font-semibold text-muted">Akun</p>
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-midnight text-[15px] font-extrabold text-white">
-            {displayName.charAt(0)}
-          </div>
+        <p className="text-[11px] font-bold text-muted">Halo, {emailName}</p>
+        <div className="mt-1 flex items-baseline gap-3">
+          <h1 className="text-[22px] font-bold tracking-[-0.035em] text-midnight">{title}</h1>
+          <p className="hidden text-[12px] font-medium text-muted lg:block">{subtitle}</p>
         </div>
       </div>
+
+      <button
+        type="button"
+        className="rounded-[16px] border border-midnight/8 bg-white px-4 py-2.5 text-right transition-transform active:scale-[0.98]"
+      >
+        <span className="block text-[10px] font-bold text-muted">Saldo tersedia</span>
+        <span className="money-number mt-0.5 block text-[17px] font-bold text-midnight">
+          {formatRupiah ? formatRupiah(balance) : balance}
+        </span>
+      </button>
     </header>
   )
 }

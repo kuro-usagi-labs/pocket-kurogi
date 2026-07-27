@@ -22,7 +22,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
       label: 'Masuk',
       value: `+${formatRupiah(totalIncome)}`,
       Icon: ArrowUpRight,
-      tone: 'text-emerald-600 bg-emerald-50',
+      tone: 'text-orange-600 bg-orange-50',
     },
     {
       label: 'Keluar',
@@ -52,7 +52,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
           <p className="mt-1.5 text-[14px] font-semibold text-muted">Ringkasan uang bulan ini.</p>
         </div>
 
-        <section className="rounded-[18px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
+        <section className="rounded-[16px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
           <p className="font-jakarta text-[14px] font-semibold text-muted">
             Arus kas
           </p>
@@ -70,7 +70,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                 {netCashflowPositive ? 'Masih positif.' : 'Perlu ditahan.'}
               </p>
             </div>
-            <div className="rounded-full bg-emerald-50 px-3.5 py-2 font-jakarta text-[12px] font-bold text-emerald-700">
+            <div className="rounded-full bg-orange-50 px-3.5 py-2 font-jakarta text-[12px] font-bold text-orange-700">
               {activeBudgetCount} budget aktif
             </div>
           </div>
@@ -81,7 +81,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
             const Icon = item.Icon
 
             return (
-              <div key={item.label} className="rounded-[14px] border border-midnight/[0.08] bg-white p-3.5">
+              <div key={item.label} className="rounded-[12px] border border-midnight/[0.08] bg-white p-3.5">
                 <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
                   <Icon size={20} strokeWidth={2.2} />
                 </div>
@@ -96,7 +96,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
           })}
         </div>
 
-        <section className="rounded-[18px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
+        <section className="rounded-[16px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
           <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <SmallSummary
               label="Kategori utama"
@@ -123,11 +123,11 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
       </div>
 
       <div className="hidden md:block">
-        <section className="overflow-hidden rounded-[24px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
-          <div className="border-b border-midnight/[0.08] bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(255,255,255,0.94))] px-6 py-6">
+        <section className="overflow-hidden rounded-[20px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
+          <div className="border-b border-midnight/[0.08] bg-[linear-gradient(135deg,rgba(255,237,213,0.95),rgba(255,255,255,0.94))] px-6 py-6">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="min-w-0">
-                <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+                <p className="font-jakarta text-[11px] font-extrabold  text-muted">
                   Ringkasan bulan ini
                 </p>
                 <h2 className="mt-3 font-jakarta text-[32px] font-extrabold tracking-tight text-midnight">
@@ -148,7 +148,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                   const Icon = item.Icon
 
                   return (
-                    <div key={item.label} className="rounded-[18px] border border-white/90 bg-white/80 p-4 backdrop-blur-sm">
+                    <div key={item.label} className="rounded-[16px] border border-white/90 bg-white/80 p-4 backdrop-blur-sm">
                       <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
                         <Icon size={20} strokeWidth={2.2} />
                       </div>
@@ -182,10 +182,10 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
           </div>
         </section>
 
-        <section className="mt-5 rounded-[24px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="mt-5 rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
-              <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted">
+              <p className="font-jakarta text-[11px] font-extrabold  text-muted">
                 Pengeluaran
               </p>
               <h3 className="mt-2 font-jakarta text-[26px] font-extrabold tracking-tight text-midnight">
@@ -226,7 +226,7 @@ function ExpenseCategoryList({ topExpenseCategories, budgets, formatRupiah, desk
           return (
             <div key={cat} className={`py-4 first:pt-0 last:pb-0 ${desktop ? 'md:py-5' : ''}`}>
               <div className="flex items-start gap-3.5">
-                <div className={`flex shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ${desktop ? 'h-14 w-14' : 'h-12 w-12'}`}>
+                <div className={`flex shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-600 ${desktop ? 'h-14 w-14' : 'h-12 w-12'}`}>
                   <CategoryIcon category={cat} size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -235,7 +235,7 @@ function ExpenseCategoryList({ topExpenseCategories, budgets, formatRupiah, desk
                       {cat}
                     </p>
                     {overflow && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.1em] text-red-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-[9px] font-extrabold  text-red-600">
                         <AlertCircle size={10} /> Lewat
                       </span>
                     )}
@@ -260,7 +260,7 @@ function ExpenseCategoryList({ topExpenseCategories, budgets, formatRupiah, desk
                 <div className="h-2 w-full overflow-hidden rounded-full bg-midnight/10">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ${
-                      overflow ? 'bg-red-500' : usagePercent >= 80 ? 'bg-amber-500' : idx === 0 ? 'bg-emerald-500' : 'bg-midnight/70'
+                      overflow ? 'bg-red-500' : usagePercent >= 80 ? 'bg-amber-500' : idx === 0 ? 'bg-orange-700' : 'bg-midnight/70'
                     }`}
                     style={{ width: `${progressWidth}%` }}
                   />
@@ -270,7 +270,7 @@ function ExpenseCategoryList({ topExpenseCategories, budgets, formatRupiah, desk
           )
         })
       ) : (
-        <div className="rounded-[18px] border border-dashed border-midnight/15 bg-champagne px-5 py-8 text-center">
+        <div className="rounded-[16px] border border-dashed border-midnight/15 bg-champagne px-5 py-8 text-center">
           <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada arus kas.</p>
           <p className="mt-1 text-[12px] font-medium text-muted">Catat dari chat.</p>
         </div>
@@ -281,7 +281,7 @@ function ExpenseCategoryList({ topExpenseCategories, budgets, formatRupiah, desk
 
 function SmallSummary({ label, value, helper }) {
   return (
-    <div className="rounded-[14px] border border-midnight/8 bg-champagne px-3.5 py-3">
+    <div className="rounded-[12px] border border-midnight/8 bg-champagne px-3.5 py-3">
       <p className="font-jakarta text-[12px] font-semibold text-muted">
         {label}
       </p>
@@ -295,8 +295,8 @@ function SmallSummary({ label, value, helper }) {
 
 function DesktopInsightTile({ label, value, helper }) {
   return (
-    <div className="rounded-[18px] border border-midnight/[0.08] bg-white p-4">
-      <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
+    <div className="rounded-[16px] border border-midnight/[0.08] bg-white p-4">
+      <p className="font-jakarta text-[11px] font-extrabold  text-muted">
         {label}
       </p>
       <p className="mt-3 font-jakarta text-[26px] font-extrabold tracking-tight text-midnight">

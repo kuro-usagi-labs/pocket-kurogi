@@ -78,13 +78,12 @@ function ViewLoadingFallback() {
   return (
     <div className="h-full w-full p-4 sm:p-6">
       <div className="mx-auto w-full max-w-5xl animate-pulse space-y-4 md:max-w-none">
-        <div className="h-8 w-44 rounded-lg bg-midnight/8" />
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="h-28 rounded-[18px] bg-midnight/[0.06]" />
-          <div className="h-28 rounded-[18px] bg-midnight/[0.06]" />
-          <div className="h-28 rounded-[18px] bg-midnight/[0.06]" />
+        <div className="h-8 w-44 rounded-[12px] bg-midnight/8" />
+        <div className="grid gap-3 md:grid-cols-[1.4fr_0.6fr]">
+          <div className="h-32 rounded-[16px] bg-midnight/[0.06]" />
+          <div className="h-32 rounded-[16px] bg-midnight/[0.06]" />
         </div>
-        <div className="h-[340px] rounded-[22px] bg-midnight/[0.05]" />
+        <div className="h-[340px] rounded-[20px] bg-midnight/[0.05]" />
       </div>
     </div>
   )
@@ -1736,9 +1735,9 @@ export default function AppShell() {
   }, [renameGoal, showNotice, syncFinancialViews])
 
   return (
-    <div className="app-viewport flex overflow-hidden bg-white font-inter text-midnight selection:bg-emerald-100 selection:text-midnight">
+    <div className="app-viewport flex overflow-hidden bg-champagne font-inter text-midnight selection:bg-orange-100 selection:text-midnight">
       <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="app-viewport mx-auto flex w-full max-w-6xl min-w-0 flex-col overflow-hidden bg-white md:max-w-none md:bg-champagne">
+      <main className="app-viewport mx-auto flex min-w-0 flex-1 flex-col overflow-hidden bg-champagne">
         <AppHeader
           balance={grandTotalBalance}
           formatRupiah={formatRupiah}
@@ -1750,12 +1749,12 @@ export default function AppShell() {
           formatRupiah={formatRupiah}
         />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden md:gap-5 md:p-5 md:pt-0">
+        <div className="flex min-h-0 flex-1 overflow-hidden md:gap-3 md:px-5 md:pb-5">
           <section
             className={`relative min-w-0 flex-1 overflow-hidden bg-white ${
               activeTab === 'chat'
-                ? 'md:rounded-[20px] md:border md:border-midnight/[0.08] md:shadow-[0_8px_24px_rgba(15,23,42,0.035)]'
-                : 'md:bg-transparent'
+                ? 'md:rounded-[20px] md:border md:border-midnight/[0.08] md:shadow-[0_24px_70px_-42px_rgba(31,32,38,0.35)]'
+                : 'md:rounded-[20px] md:bg-transparent'
             }`}
           >
             {activeTab === 'chat' ? (
@@ -1776,6 +1775,8 @@ export default function AppShell() {
                 onNotify={showNotice}
                 formatRupiah={formatRupiah}
                 quickActions={chatQuickActions}
+                goals={goals}
+                balance={grandTotalBalance}
                 hasMore={hasMoreMessages}
                 loadingMore={loadingMoreMessages}
                 onLoadMore={loadMoreMessages}
@@ -1841,6 +1842,7 @@ export default function AppShell() {
             <DesktopRightPanel
               analytics={analytics}
               transactions={transactions}
+              goals={goals}
               onExecuteStrategy={handleExecuteStrategy}
             />
           ) : null}

@@ -18,20 +18,20 @@ export default function MessageBubble({
   const bubbleShape = getBubbleShape({ isUser, isFirstInGroup, isLastInGroup })
 
   return (
-    <div className={`${groupSpacing} flex w-full animate-fade-in ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
+    <div className={`${groupSpacing} flex w-full ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
       {!isUser ? (
         isLastInGroup ? (
-          <KurogiLogo size={46} className="mt-auto hidden sm:inline-flex" />
+          <KurogiLogo size={38} className="mt-auto hidden sm:inline-flex" />
         ) : (
-          <span className="hidden h-[46px] w-[46px] shrink-0 sm:block" aria-hidden="true" />
+          <span className="hidden h-[38px] w-[38px] shrink-0 sm:block" aria-hidden="true" />
         )
       ) : null}
-      <div className={`flex max-w-[86%] flex-col ${isUser ? 'items-end' : 'items-start'} md:max-w-[72%]`}>
+      <div className={`flex max-w-[88%] flex-col ${isUser ? 'items-end' : 'items-start'} md:max-w-[74%]`}>
         <div
           className={`relative text-[14px] leading-relaxed transition-all sm:text-[15px] ${bubbleShape} ${
             isUser
-              ? 'border border-emerald-200 bg-emerald-50 px-4 py-3 text-midnight shadow-sm'
-              : 'border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight shadow-[0_6px_18px_rgba(15,23,42,0.035)]'
+              ? 'bg-midnight px-4 py-3 text-white shadow-[0_12px_28px_rgba(31,32,38,0.14)]'
+              : 'border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight'
           }`}
         >
           {msg.image && (
@@ -49,7 +49,7 @@ export default function MessageBubble({
                   type="button"
                   disabled={disabled}
                   onClick={() => onReply?.(candidate.name)}
-                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 font-jakarta text-[12px] font-extrabold text-emerald-700 transition hover:border-emerald-200 hover:bg-emerald-100 disabled:opacity-50"
+                  className="rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 font-jakarta text-[12px] font-extrabold text-orange-700 transition hover:border-orange-200 hover:bg-orange-100 disabled:opacity-50"
                 >
                   {candidate.name}
                 </button>
@@ -58,7 +58,7 @@ export default function MessageBubble({
           ) : null}
 
           {!isUser && msg.metadata?.intentStatus === 'needs_confirmation' ? (
-            <div className="mt-3 rounded-[14px] border border-amber-100 bg-amber-50 px-3.5 py-2.5">
+            <div className="mt-3 rounded-[12px] border border-amber-100 bg-amber-50 px-3.5 py-2.5">
               <p className="font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
                 Balas dengan nama pilihan, "Ya", atau "Batal".
               </p>
@@ -107,14 +107,14 @@ function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction
   const canUseTransactionAction = Boolean(card.transactionId)
 
   return (
-    <div className="mt-3 overflow-hidden rounded-[16px] border border-emerald-100 bg-emerald-50/50 text-midnight">
+    <div className="mt-3 overflow-hidden rounded-[16px] border border-orange-200 bg-orange-50 text-midnight">
       <div className="p-3.5">
         <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-midnight text-white">
             <CategoryIcon category={card.category} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+            <p className="truncate text-[10px] font-bold  text-muted">
               {card.wallet}
             </p>
             <div className="mt-0.5 flex items-center justify-between gap-3">
@@ -123,7 +123,7 @@ function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction
               </span>
               <span
                 className={`shrink-0 text-[13px] font-extrabold ${
-                  isIncome ? 'text-emerald-600' : 'text-rose-600'
+                  isIncome ? 'text-orange-600' : 'text-rose-600'
                 }`}
               >
                 {isIncome ? '+' : '-'}{formatRupiah(card.amount)}
@@ -131,12 +131,9 @@ function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction
             </div>
           </div>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-white">
-          <div className={`h-full w-full rounded-full ${isIncome ? 'bg-emerald-500' : 'bg-rose-400'}`} />
-        </div>
       </div>
 
-      <div className="grid grid-cols-3 border-t border-emerald-100 bg-white/72">
+      <div className="grid grid-cols-3 border-t border-orange-100 bg-white/72">
         <ReceiptActionButton
           icon={Pencil}
           label="Koreksi"
@@ -167,10 +164,10 @@ function ReceiptActionButton({ icon, label, disabled = false, danger = false, on
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex min-h-[42px] items-center justify-center gap-1.5 border-r border-emerald-100 px-2 font-jakarta text-[11px] font-extrabold transition last:border-r-0 disabled:cursor-not-allowed disabled:opacity-45 ${
+      className={`inline-flex min-h-[42px] items-center justify-center gap-1.5 border-r border-orange-100 px-2 font-jakarta text-[11px] font-extrabold transition last:border-r-0 disabled:cursor-not-allowed disabled:opacity-45 ${
         danger
           ? 'text-rose-600 hover:bg-rose-50'
-          : 'text-midnight hover:bg-emerald-50'
+          : 'text-midnight hover:bg-orange-50'
       }`}
     >
       {createElement(icon, { size: 14, strokeWidth: 2.3 })}

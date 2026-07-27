@@ -49,11 +49,11 @@ export default function RenameEntityModal({
         onClick={submitting ? undefined : onClose}
       />
 
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-2xl animate-scale-in">
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-2xl animate-scale-in">
         <div className="p-5 md:p-6">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
-              <div className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <div className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-full bg-orange-50 text-orange-600">
                 <PencilLine size={22} strokeWidth={2.2} />
               </div>
               <div>
@@ -70,7 +70,7 @@ export default function RenameEntityModal({
             <button
               onClick={onClose}
               disabled={submitting}
-                className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-champagne text-muted transition-colors hover:text-midnight disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-champagne text-muted transition-colors hover:text-midnight disabled:cursor-not-allowed disabled:opacity-60"
             >
               <X size={18} strokeWidth={2.5} />
             </button>
@@ -78,7 +78,7 @@ export default function RenameEntityModal({
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="ml-1 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.14em] text-muted">
+              <label className="ml-1 font-jakarta text-[12px] font-extrabold  text-muted">
                 {label}
               </label>
               <input
@@ -88,7 +88,7 @@ export default function RenameEntityModal({
                 placeholder={placeholder}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-5 py-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-5 py-4 text-[16px] font-medium text-midnight outline-none transition-all placeholder:text-muted/50 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
               />
             </div>
 
@@ -110,7 +110,7 @@ export default function RenameEntityModal({
               <button
                 type="submit"
                 disabled={submitting || !value.trim() || value.trim() === normalizedInitialValue}
-                className="rounded-[16px] bg-emerald-500 px-5 py-4 font-jakarta text-[13px] font-extrabold text-white transition-all hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-[16px] bg-orange-700 px-5 py-4 font-jakarta text-[13px] font-extrabold text-white transition-all hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   {submitting ? <LoaderCircle size={15} className="animate-spin" strokeWidth={2.2} /> : null}

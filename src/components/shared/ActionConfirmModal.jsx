@@ -65,7 +65,7 @@ export default function ActionConfirmModal({
                 <Icon size={20} strokeWidth={2.2} />
               </div>
               <div className="min-w-0">
-                <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                <p className="font-jakarta text-[10px] font-extrabold  text-muted">
                   {styles.eyebrow}
                 </p>
                 <h3 id={titleId} className="mt-1 font-jakarta text-[19px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[21px]">
@@ -95,14 +95,14 @@ export default function ActionConfirmModal({
             <button
               onClick={onCancel}
               disabled={submitting}
-              className="rounded-lg border border-midnight/10 bg-white px-4 py-3.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.11em] text-muted transition-all hover:bg-champagne hover:text-midnight disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-midnight/10 bg-white px-4 py-3.5 font-jakarta text-[11px] font-extrabold  text-muted transition-all hover:bg-champagne hover:text-midnight disabled:cursor-not-allowed disabled:opacity-60"
             >
               {cancelLabel}
             </button>
             <button
               onClick={onConfirm}
               disabled={submitting}
-              className={`rounded-lg px-4 py-3.5 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.11em] transition-all disabled:cursor-not-allowed disabled:opacity-60 ${styles.button}`}
+              className={`rounded-lg px-4 py-3.5 font-jakarta text-[11px] font-extrabold  transition-all disabled:cursor-not-allowed disabled:opacity-60 ${styles.button}`}
             >
               <span className="inline-flex items-center justify-center gap-2">
                 {submitting ? <LoaderCircle size={15} className="animate-spin" strokeWidth={2.2} /> : null}

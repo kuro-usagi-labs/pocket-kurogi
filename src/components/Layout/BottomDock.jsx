@@ -1,50 +1,36 @@
-import { MessageSquare, Clock, Wallet, BarChart3 } from 'lucide-react'
+import { BarChart3, Clock3, MessageCircle, PiggyBank } from 'lucide-react'
 
 const navItems = [
-  { id: 'chat', icon: MessageSquare, label: 'Chat' },
-  { id: 'history', icon: Clock, label: 'Histori' },
-  { id: 'wallets', icon: Wallet, label: 'Dompet' },
-  { id: 'analytics', icon: BarChart3, label: 'Analisa' },
+  { id: 'chat', icon: MessageCircle, label: 'Chat' },
+  { id: 'history', icon: Clock3, label: 'Histori' },
+  { id: 'wallets', icon: PiggyBank, label: 'Dompet' },
+  { id: 'analytics', icon: BarChart3, label: 'Analitik' },
 ]
 
 export default function BottomDock({ activeTab, onTabChange }) {
   return (
     <div
-      className="pointer-events-none absolute bottom-0 left-0 z-50 flex w-full justify-center border-t border-midnight/[0.06] bg-white/96 px-2 backdrop-blur-md md:hidden"
-      style={{ paddingBottom: 'calc(0.45rem + env(safe-area-inset-bottom))' }}
+      className="pointer-events-none absolute bottom-0 left-0 z-50 flex w-full justify-center px-3 md:hidden"
+      style={{ paddingBottom: 'calc(0.65rem + env(safe-area-inset-bottom))' }}
     >
-      <nav className="pointer-events-auto relative isolate grid w-full max-w-3xl grid-cols-4 gap-0 pt-1.5">
+      <nav className="glass-panel pointer-events-auto grid w-full max-w-md grid-cols-4 gap-1 rounded-[20px] p-1.5 shadow-[0_18px_50px_rgba(31,32,38,0.18)]">
         {navItems.map((item) => {
           const isActive = activeTab === item.id
           const Icon = item.icon
+
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => onTabChange(item.id)}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`group/nav relative z-10 flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-lg outline-none transition-[color,transform] duration-200 active:scale-[0.98] ${
-                isActive
-                  ? 'text-emerald-600'
-                  : 'text-muted hover:text-midnight'
+              className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-[12px] text-[10px] font-bold transition-[background-color,color,transform] active:scale-[0.97] ${
+                isActive ? 'bg-midnight text-white' : 'text-muted hover:text-midnight'
               }`}
             >
-              <Icon
-                size={isActive ? 23 : 22}
-                strokeWidth={isActive ? 2.35 : 2.05}
-                className={`relative z-10 shrink-0 transition-[transform,opacity] duration-200 ${
-                  isActive
-                    ? '-translate-y-[1px] opacity-100'
-                    : 'translate-y-0 opacity-[0.96] group-hover/nav:-translate-y-[1px] group-hover/nav:opacity-100'
-                }`}
-              />
-              <span
-                className={`relative z-10 whitespace-nowrap font-jakarta text-[11px] font-semibold leading-none transition-colors duration-200 ${
-                  isActive ? 'text-emerald-600' : 'text-muted'
-                }`}
-              >
-                {item.label}
-              </span>
+              <Icon size={20} strokeWidth={isActive ? 2.35 : 1.9} />
+              <span>{item.label}</span>
             </button>
           )
         })}

@@ -1,17 +1,19 @@
-import { createElement, useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react'
+import { createElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   ArrowDownRight,
   ArrowUpRight,
-  BarChart3,
   ChevronDown,
-  ClipboardList,
+  CircleHelp,
   Lightbulb,
-  MessageSquarePlus,
+  MessageCircleMore,
+  PiggyBank,
   Repeat2,
   RotateCcw,
   Sparkles,
+  Target,
   Wallet,
 } from 'lucide-react'
+import { motion as Motion, useReducedMotion } from 'motion/react'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
 
@@ -19,23 +21,21 @@ const ACTION_ICON_MAP = {
   advice: Lightbulb,
   balance: Wallet,
   cleanup: Sparkles,
-  compose: MessageSquarePlus,
+  compose: MessageCircleMore,
   expense: ArrowDownRight,
-  help: Sparkles,
+  help: CircleHelp,
   income: ArrowUpRight,
   restore: RotateCcw,
   sparkles: Sparkles,
-  summary: ClipboardList,
+  summary: PiggyBank,
   transfer: Repeat2,
   wallet: Wallet,
 }
 
 function getLastMessageId(messages = []) {
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return null
-  }
-
-  return messages[messages.length - 1]?.id || null
+  return Array.isArray(messages) && messages.length > 0
+    ? messages[messages.length - 1]?.id || null
+    : null
 }
 
 export default function ChatView({
@@ -45,6 +45,8 @@ export default function ChatView({
   onNotify,
   formatRupiah,
   quickActions = [],
+  goals = [],
+  balance = 0,
   hasMore = false,
   loadingMore = false,
   onLoadMore,
@@ -56,83 +58,55 @@ export default function ChatView({
   const isLoadingOlderRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
   const previousLastMessageIdRef = useRef(getLastMessageId(messages))
-  const showJumpToLatestRef = useRef(false)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
+  const reduceMotion = useReducedMotion()
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior })
   }, [])
 
-  const setJumpToLatestVisible = useCallback((nextValue) => {
-    if (showJumpToLatestRef.current === nextValue) {
-      return
-    }
-
-    showJumpToLatestRef.current = nextValue
-    setShowJumpToLatest(nextValue)
-  }, [])
-
   const handleJumpToLatest = useCallback(() => {
-    setJumpToLatestVisible(false)
+    setShowJumpToLatest(false)
     scrollToBottom()
-  }, [scrollToBottom, setJumpToLatestVisible])
-
-  const updateJumpVisibility = useCallback(() => {
-    const container = containerRef.current
-    if (!container || isLoadingOlderRef.current) {
-      return
-    }
-
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
-    setJumpToLatestVisible(distanceFromBottom > 360)
-  }, [setJumpToLatestVisible])
+  }, [scrollToBottom])
 
   const handleLoadMore = useCallback(() => {
-    if (!onLoadMore || loadingMore) {
-      return
-    }
+    if (!onLoadMore || loadingMore) return
 
     const container = containerRef.current
     if (container) {
       isLoadingOlderRef.current = true
       previousScrollHeightRef.current = container.scrollHeight
     }
-
     onLoadMore()
   }, [loadingMore, onLoadMore])
 
   const handleScroll = useCallback(() => {
-    updateJumpVisibility()
-  }, [updateJumpVisibility])
+    const container = containerRef.current
+    if (!container || isLoadingOlderRef.current) return
+    const distance = container.scrollHeight - container.scrollTop - container.clientHeight
+    setShowJumpToLatest(distance > 360)
+  }, [])
 
   useLayoutEffect(() => {
     const container = containerRef.current
-    if (!container) {
-      previousLastMessageIdRef.current = getLastMessageId(messages)
-      return
-    }
+    if (!container) return
 
     if (isLoadingOlderRef.current) {
-      const nextScrollHeight = container.scrollHeight
-      const heightDelta = nextScrollHeight - previousScrollHeightRef.current
+      const heightDelta = container.scrollHeight - previousScrollHeightRef.current
       container.scrollTop += Math.max(heightDelta, 0)
       isLoadingOlderRef.current = false
-      previousLastMessageIdRef.current = getLastMessageId(messages)
-      return
+    } else {
+      const lastMessageId = getLastMessageId(messages)
+      if (lastMessageId && lastMessageId !== previousLastMessageIdRef.current) {
+        scrollToBottom()
+      }
+      previousLastMessageIdRef.current = lastMessageId
     }
-
-    const lastMessageId = getLastMessageId(messages)
-    if (lastMessageId && lastMessageId !== previousLastMessageIdRef.current) {
-      scrollToBottom()
-    }
-
-    previousLastMessageIdRef.current = lastMessageId
   }, [messages, scrollToBottom])
 
   useEffect(() => {
-    if (isTyping) {
-      scrollToBottom()
-    }
+    if (isTyping) scrollToBottom()
   }, [isTyping, scrollToBottom])
 
   useEffect(() => {
@@ -143,243 +117,173 @@ export default function ChatView({
   }, [loadingMore])
 
   const handleQuickAction = useCallback((item) => {
-    if (item.action === 'scroll') {
-      handleJumpToLatest()
-      return
-    }
-
-    if (item.navigateTo) {
-      onNavigate?.(item.navigateTo)
-      return
-    }
-
-    if (item.prompt) {
-      onSend(item.prompt)
-    }
+    if (item.action === 'scroll') return handleJumpToLatest()
+    if (item.navigateTo) return onNavigate?.(item.navigateTo)
+    if (item.prompt) onSend(item.prompt)
   }, [handleJumpToLatest, onNavigate, onSend])
 
   return (
     <div className="absolute inset-0 h-full w-full">
-      <div className="pointer-events-none absolute bottom-[70px] left-0 z-30 h-[145px] w-full bg-gradient-to-t from-white via-white/96 to-transparent md:bottom-0" />
-
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="no-scrollbar absolute inset-0 z-20 mx-auto flex w-full max-w-5xl flex-col overflow-y-auto scroll-smooth px-4 pb-[200px] pt-1 sm:px-6 md:pb-[150px] lg:px-8"
+        className="no-scrollbar absolute inset-0 mx-auto flex w-full max-w-4xl flex-col overflow-y-auto scroll-smooth px-4 pb-[178px] pt-2 sm:px-6 md:pb-[130px] lg:px-8"
       >
-        <HeroCard onNavigate={onNavigate} />
-        <div className="mb-5 grid grid-cols-2 gap-2 sm:mb-6 sm:grid-cols-4 sm:gap-3">
-          {quickActions.map((item) => (
+        <SavingsOpening
+          balance={balance}
+          goals={goals}
+          formatRupiah={formatRupiah}
+          onNavigate={onNavigate}
+          reduceMotion={reduceMotion}
+        />
+
+        <div className="no-scrollbar mb-7 flex snap-x gap-2 overflow-x-auto pb-1">
+          {quickActions.slice(0, 5).map((item) => (
             <QuickAction
               key={item.id}
-              iconKey={item.icon}
-              label={item.label}
-              helper={item.helper}
+              item={item}
               disabled={isTyping}
               onClick={() => handleQuickAction(item)}
             />
           ))}
         </div>
 
-        {hasMore && (
-          <div className="mb-5 flex justify-center">
-            <button
-              type="button"
-              onClick={handleLoadMore}
-              className="rounded-lg border border-midnight/[0.08] bg-white px-3 py-2 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted transition-colors hover:text-midnight"
-            >
-              {loadingMore ? 'Memuat...' : 'Muat lagi'}
-            </button>
-          </div>
-        )}
+        {hasMore ? (
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            className="mb-6 self-center text-[11px] font-bold text-muted underline decoration-midnight/20 underline-offset-4 transition-colors hover:text-midnight"
+          >
+            {loadingMore ? 'Mengambil pesan lama...' : 'Lihat pesan sebelumnya'}
+          </button>
+        ) : null}
 
-        <div className="mb-5 flex justify-center">
-          <span className="rounded-full border border-midnight/[0.06] bg-white px-4 py-2 font-jakarta text-[12px] font-semibold text-muted">
-            Hari ini
-          </span>
-        </div>
+        <p className="mb-5 text-center text-[11px] font-bold text-muted">Percakapan hari ini</p>
 
-        {messages.map((msg, index) => {
+        {messages.map((message, index) => {
           const previousMessage = messages[index - 1]
           const nextMessage = messages[index + 1]
-          const isFirstInGroup = previousMessage?.sender !== msg.sender
-          const isLastInGroup = nextMessage?.sender !== msg.sender
 
           return (
-            <MessageBubble
-              key={msg.id}
-              msg={msg}
-              formatRupiah={formatRupiah}
-              onReply={onSend}
-              onCardAction={onCardAction}
-              disabled={isTyping}
-              isFirstInGroup={isFirstInGroup}
-              isLastInGroup={isLastInGroup}
-            />
+            <Motion.div
+              key={message.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <MessageBubble
+                msg={message}
+                formatRupiah={formatRupiah}
+                onReply={onSend}
+                onCardAction={onCardAction}
+                disabled={isTyping}
+                isFirstInGroup={previousMessage?.sender !== message.sender}
+                isLastInGroup={nextMessage?.sender !== message.sender}
+              />
+            </Motion.div>
           )
         })}
 
-        {isTyping && <TypingIndicator />}
+        {isTyping ? <TypingIndicator /> : null}
         <div ref={messagesEndRef} className="h-2" />
       </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[166px] bg-gradient-to-t from-white via-white/95 to-transparent md:h-[122px]" />
 
       {showJumpToLatest ? (
         <button
           type="button"
           aria-label="Lompat ke pesan terbaru"
           onClick={handleJumpToLatest}
-          className="absolute bottom-[198px] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-extrabold text-midnight shadow-[0_10px_28px_rgba(15,23,42,0.10)] transition-all hover:border-emerald-200 hover:text-emerald-700 md:bottom-[132px]"
+          className="glass-panel absolute bottom-[170px] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-bold text-midnight shadow-premium active:scale-[0.98] md:bottom-[116px]"
         >
-          <ChevronDown size={16} strokeWidth={2.5} />
-          Pesan terbaru
+          <ChevronDown size={15} strokeWidth={2.2} />
+          Pesan baru
         </button>
       ) : null}
 
-      <PromptRail
-        actions={quickActions}
-        disabled={isTyping}
-        onAction={handleQuickAction}
-      />
       <ChatInput onSend={onSend} isTyping={isTyping} onNotify={onNotify} />
     </div>
   )
 }
 
-function PromptRail({ actions = [], disabled = false, onAction }) {
-  const visibleActions = actions.filter((item) => item.prompt || item.navigateTo || item.action).slice(0, 4)
-
-  if (visibleActions.length === 0) {
-    return null
-  }
+function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion }) {
+  const activeGoal = goals[0] || null
+  const current = Number(activeGoal?.current_amount || 0)
+  const target = Number(activeGoal?.target_amount || 0)
+  const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
 
   return (
-    <div className="pointer-events-none absolute bottom-[148px] left-0 z-40 w-full px-3 sm:px-8 md:bottom-[82px]">
-      <div className="mx-auto flex w-full max-w-4xl gap-2 overflow-x-auto no-scrollbar">
-        {visibleActions.map((item) => {
-          const IconComponent = ACTION_ICON_MAP[item.icon] || Sparkles
-
-          return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={disabled}
-              onClick={() => onAction(item)}
-              className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-full border border-midnight/[0.08] bg-white/95 px-3 py-2 font-jakarta text-[12px] font-extrabold text-midnight shadow-[0_8px_22px_rgba(15,23,42,0.055)] backdrop-blur transition-all hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
-            >
-              {createElement(IconComponent, { size: 16, strokeWidth: 2.4 })}
-              <span>{item.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function TypingIndicator() {
-  return (
-    <div className="mb-6 flex w-full animate-fade-in items-start">
-      <div className="flex items-center gap-3 rounded-[22px] border border-midnight/8 bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-1.5">
-          <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
-          <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
-          <div className="typing-dot h-2 w-2 rounded-full bg-emerald-500/70" />
-        </div>
-        <span className="font-jakarta text-[12px] font-extrabold text-muted">
-          Menganalisis input
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function HeroCard({ onNavigate }) {
-  return (
-    <section className="mb-5 hidden overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.025)] sm:block">
-      <div className="grid items-center gap-5 sm:grid-cols-[minmax(0,1fr)_220px]">
+    <Motion.section
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      className="paper-grid relative mb-4 overflow-hidden rounded-[20px] border border-midnight/8 bg-white p-5 sm:p-6"
+    >
+      <div className="relative grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <p className="font-jakarta text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">
-            Command center
+          <p className="max-w-[16ch] font-jakarta text-[25px] font-bold leading-[1.05] tracking-[-0.05em] text-midnight sm:text-[34px]">
+            Mau nabung untuk apa hari ini?
           </p>
-          <h2 className="mt-2 font-jakarta text-[22px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[28px]">
-            Catat, koreksi, dan baca arus kas
-          </h2>
-          <p className="mt-2 max-w-xl text-[13px] font-medium text-muted">
-            Jalur tercepat untuk input harian, cek saldo, dan evaluasi keputusan uang tanpa pindah terlalu jauh.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onNavigate?.('history')}
-              className="rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
-            >
-              Histori
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate?.('wallets')}
-              className="rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
-            >
-              Dompet
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate?.('analytics')}
-              className="rounded-full border border-midnight/[0.08] bg-white px-3.5 py-2 font-jakarta text-[12px] font-bold text-midnight transition-colors hover:border-emerald-200 hover:text-emerald-700"
-            >
-              Analitik
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('wallets')}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-orange-700 px-4 py-2.5 text-[12px] font-bold text-white transition-transform active:scale-[0.98]"
+          >
+            <PiggyBank size={17} strokeWidth={2.1} />
+            Buka tabungan
+          </button>
         </div>
-        <FinanceIllustration />
+
+        <div className="min-w-[190px] rounded-[16px] bg-midnight p-4 text-white">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold text-white/55">{activeGoal?.name || 'Saldo tersedia'}</p>
+              <p className="money-number mt-1.5 text-[22px] font-bold leading-none">
+                {formatRupiah(activeGoal ? current : balance)}
+              </p>
+            </div>
+            <Target size={19} className="text-orange-300" strokeWidth={2} />
+          </div>
+          <p className="mt-4 text-[11px] font-medium text-white/60">
+            {activeGoal ? `${progress}% dari ${formatRupiah(target)}` : 'Siap dibagi ke tujuan baru'}
+          </p>
+        </div>
       </div>
-    </section>
+    </Motion.section>
   )
 }
 
-function QuickAction({ iconKey, label, helper, disabled = false, onClick }) {
-  const IconComponent = ACTION_ICON_MAP[iconKey] || Wallet
+function QuickAction({ item, disabled, onClick }) {
+  const Icon = ACTION_ICON_MAP[item.icon] || Sparkles
 
   return (
     <button
       type="button"
-      onClick={onClick}
       disabled={disabled}
-      className="flex min-h-[72px] items-center gap-2.5 rounded-[14px] border border-midnight/[0.08] bg-white px-3 py-3 text-left font-jakarta leading-tight text-midnight shadow-[0_5px_16px_rgba(15,23,42,0.025)] transition-all hover:border-emerald-200 hover:bg-emerald-50/40 disabled:opacity-60 sm:min-h-[76px]"
+      onClick={onClick}
+      className="flex min-w-[168px] snap-start items-center gap-3 rounded-[16px] border border-midnight/8 bg-white px-3.5 py-3 text-left transition-[border-color,transform] hover:border-orange-300 active:scale-[0.98] disabled:opacity-50"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 sm:h-9 sm:w-9">
-        {createElement(IconComponent, { size: 20, strokeWidth: 2.2 })}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-orange-50 text-orange-600">
+        {createElement(Icon, { size: 18, strokeWidth: 2 })}
       </span>
       <span className="min-w-0">
-        <span className="block text-[12px] font-extrabold sm:text-[13px]">{label}</span>
-        <span className="mt-0.5 block truncate text-[11px] font-semibold text-muted">{helper}</span>
+        <span className="block text-[12px] font-bold text-midnight">{item.label}</span>
+        <span className="mt-0.5 block truncate text-[10px] font-medium text-muted">{item.helper}</span>
       </span>
     </button>
   )
 }
 
-function FinanceIllustration() {
+function TypingIndicator() {
   return (
-    <div className="relative mx-auto hidden h-[172px] w-full max-w-[240px] sm:block">
-      <div className="absolute inset-x-2 bottom-0 h-[140px] rounded-[45%] bg-emerald-50" />
-      <div className="absolute left-7 top-10 h-28 w-24 rounded-xl border-2 border-slate-300 bg-white shadow-sm">
-        <div className="absolute -top-3 left-7 h-5 w-12 rounded-md bg-midnight" />
-        <div className="ml-5 mt-6 h-9 w-9 rounded-full bg-emerald-500" />
-        <div className="ml-5 mt-5 h-1.5 w-16 rounded-full bg-slate-300" />
-        <div className="ml-5 mt-3 flex items-end gap-2">
-          <span className="h-8 w-3 rounded-t bg-emerald-300" />
-          <span className="h-12 w-3 rounded-t bg-emerald-400" />
-          <span className="h-16 w-3 rounded-t bg-emerald-500" />
-        </div>
+    <div className="mb-6 flex items-center gap-2.5 text-muted">
+      <div className="flex items-center gap-1 rounded-[16px] border border-midnight/8 bg-white px-3 py-2.5">
+        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-orange-700" />
+        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-orange-700" />
+        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-orange-700" />
       </div>
-      <div className="absolute bottom-10 right-10 h-20 w-28 rounded-xl bg-midnight shadow-xl">
-        <div className="absolute right-3 top-8 h-5 w-5 rounded-full bg-emerald-500 ring-4 ring-midnight" />
-      </div>
-      <div className="absolute bottom-3 right-1 h-14 w-24 rounded-xl bg-emerald-400 shadow-lg">
-        <div className="ml-4 mt-4 h-2 w-10 rounded-full bg-white/80" />
-        <div className="ml-4 mt-3 h-1.5 w-14 rounded-full bg-midnight" />
-      </div>
-      <BarChart3 className="absolute right-1 top-6 text-emerald-600/70" size={28} strokeWidth={1.7} />
+      <span className="text-[11px] font-bold">Kurogi sedang berpikir</span>
     </div>
   )
 }

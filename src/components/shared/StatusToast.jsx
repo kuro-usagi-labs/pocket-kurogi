@@ -2,9 +2,9 @@ import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 
 const TONE_MAP = {
   success: {
-    container: 'border-emerald-100 bg-white text-midnight shadow-[0_18px_36px_rgba(15,23,42,0.12)]',
-    iconWrap: 'bg-emerald-50 text-emerald-600',
-    bar: 'bg-emerald-500',
+    container: 'border-orange-100 bg-white text-midnight shadow-[0_18px_36px_rgba(15,23,42,0.12)]',
+    iconWrap: 'bg-orange-50 text-orange-600',
+    bar: 'bg-orange-700',
     label: 'Berhasil',
     Icon: CheckCircle2,
   },
@@ -45,7 +45,7 @@ export default function StatusToast({
             <Icon size={18} strokeWidth={2.2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-midnight/45 font-jakarta">
+            <p className="text-[11px] font-extrabold  text-midnight/45 font-jakarta">
               {config.label}
             </p>
             <p className="mt-1 text-[13px] font-semibold leading-relaxed text-midnight/78">

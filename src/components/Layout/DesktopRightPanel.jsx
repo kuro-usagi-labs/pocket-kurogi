@@ -1,123 +1,112 @@
-import { ChevronRight, ReceiptText, Sparkles } from 'lucide-react'
+import { ArrowUpRight, MessageCircleMore, ReceiptText, Target } from 'lucide-react'
 
-export default function DesktopRightPanel({ analytics, transactions = [], onExecuteStrategy }) {
-  const {
-    totalIncome = 0,
-    totalExpense = 0,
-    totalSavings = 0,
-    netCashflow = 0,
-    topExpenseCategories = [],
-  } = analytics || {}
+export default function DesktopRightPanel({
+  analytics,
+  transactions = [],
+  goals = [],
+  onExecuteStrategy,
+}) {
+  const { totalIncome = 0, totalSavings = 0, netCashflow = 0 } = analytics || {}
+  const savingsRate = totalIncome > 0 ? Math.round((totalSavings / totalIncome) * 100) : 0
+  const activeGoal = goals[0] || null
+  const goalProgress = activeGoal?.target_amount > 0
+    ? Math.min(100, Math.round((Number(activeGoal.current_amount || 0) / Number(activeGoal.target_amount)) * 100))
+    : 0
 
-  const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0
-  const liquidityRatio = totalIncome > 0 ? (netCashflow / totalIncome) * 100 : 0
-  let healthScore = Math.min(99, Math.max(10, Math.round(savingsRate)))
-  if (totalIncome === 0 && totalExpense === 0 && totalSavings === 0) healthScore = 100
-
-  const formatRupiah = (number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(number)
-  }
-
-  const topCategory = topExpenseCategories[0]
+  const formatRupiah = (number) => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Number(number || 0))
 
   return (
-    <aside className="hidden h-full w-[292px] shrink-0 flex-col overflow-y-auto overflow-x-hidden rounded-[20px] border border-midnight/[0.08] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] xl:flex">
-      <div className="mb-4">
-        <h3 className="font-jakarta text-[12px] font-extrabold uppercase tracking-[0.16em] text-muted">Insight</h3>
-      </div>
-
-      <div className="space-y-2.5">
-        <section className="rounded-lg border border-midnight/[0.08] bg-champagne p-4">
-          <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
-            Skor tabung
-          </p>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="font-jakarta text-[36px] font-extrabold leading-none tracking-tight text-midnight">
-              {healthScore}
-            </span>
-            <span className={`font-jakarta text-[12px] font-extrabold ${liquidityRatio >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {liquidityRatio >= 0 ? '+' : ''}{liquidityRatio.toFixed(1)}%
-            </span>
+    <aside className="no-scrollbar hidden h-full w-[304px] shrink-0 overflow-y-auto pr-1 xl:block">
+      <section className="overflow-hidden rounded-[20px] bg-midnight p-5 text-white shadow-[0_24px_60px_rgba(31,32,38,0.16)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold text-white/60">Ritme bulan ini</p>
+            <p className="money-number mt-2 text-[34px] font-bold leading-none">
+              {savingsRate}%
+            </p>
           </div>
-          <p className="mt-2.5 text-[12px] font-semibold text-muted">
-            Savings rate {savingsRate.toFixed(1)}%
-          </p>
-        </section>
-
-        <section className="rounded-lg border border-midnight/[0.08] bg-white p-4">
-          <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
-            Pengeluaran
-          </p>
-          <div className="mt-3 space-y-2.5">
-            {topExpenseCategories.slice(0, 3).map((categorySummary, idx) => {
-              const cat = categorySummary.name
-              const percentage = Math.round(Number(categorySummary.percentage || 0))
-              const colors = ['bg-gold', 'bg-indigo-500', 'bg-rose-400']
-
-              return (
-                <div key={cat} className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className={`h-3 w-3 shrink-0 rounded-full ${colors[idx] || colors[0]}`} />
-                    <span className="truncate text-[12px] font-bold capitalize text-midnight">{cat}</span>
-                  </div>
-                  <span className="text-[12px] font-extrabold text-muted">{percentage}%</span>
-                </div>
-              )
-            })}
-            {topExpenseCategories.length === 0 && (
-              <p className="text-[12px] font-medium text-muted">Belum ada data.</p>
-            )}
+          <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-white/10 text-orange-300">
+            <ArrowUpRight size={22} strokeWidth={2} />
           </div>
-        </section>
+        </div>
+        <p className="mt-4 max-w-[22ch] text-[12px] font-medium leading-relaxed text-white/65">
+          {netCashflow >= 0 ? 'Arus kasmu masih memberi ruang untuk menabung.' : 'Pengeluaran sedang lebih cepat dari pemasukan.'}
+        </p>
+      </section>
 
-        <section className="rounded-lg bg-midnight p-4 text-white">
-          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-            <Sparkles size={17} />
+      <section className="mt-3 rounded-[20px] border border-midnight/8 bg-white p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-orange-50 text-orange-600">
+            <Target size={20} strokeWidth={2} />
           </div>
-          <h4 className="font-jakarta text-[15px] font-extrabold tracking-tight">Saran cepat</h4>
-          <p className="mt-2 text-[12px] font-medium leading-relaxed text-white/65">
-            {topCategory
-              ? `${topCategory.name}: hemat ${formatRupiah(Number(topCategory.amount || 0) * 0.2)}.`
-              : 'Tanya strategi bulan ini.'}
-          </p>
-          <button
-            onClick={() => onExecuteStrategy('Melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?')}
-            className="mt-4 w-full rounded-lg bg-white px-4 py-3 font-jakarta text-[11px] font-extrabold uppercase tracking-[0.12em] text-midnight transition-all hover:bg-champagne active:scale-[0.98]"
-          >
-            Tanya saran
-          </button>
-        </section>
-      </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold text-muted">Tujuan terdekat</p>
+            <h2 className="truncate font-jakarta text-[15px] font-bold text-midnight">
+              {activeGoal?.name || 'Buat target pertama'}
+            </h2>
+          </div>
+        </div>
 
-      <div className="mt-6 pb-6">
-        <h4 className="mb-3 font-jakarta text-[12px] font-extrabold uppercase tracking-[0.16em] text-muted">
-          Terbaru
-        </h4>
-        <div className="space-y-2">
-          {transactions.slice(0, 4).map((tx) => (
-            <div key={tx.id} className="flex items-center gap-3 rounded-lg border border-midnight/[0.08] bg-white p-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-champagne text-muted">
-                <ReceiptText size={18} />
-              </div>
+        {activeGoal ? (
+          <div className="mt-5 grid grid-cols-[72px_1fr] items-center gap-4">
+            <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[7px] border-orange-100 bg-orange-50 text-center">
+              <span className="money-number text-[18px] font-bold text-orange-700">{goalProgress}%</span>
+            </div>
+            <div className="min-w-0">
+              <p className="money-number truncate text-[16px] font-bold text-midnight">
+                {formatRupiah(activeGoal.current_amount)}
+              </p>
+              <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted">
+                Target {formatRupiah(activeGoal.target_amount)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-[12px] font-medium leading-relaxed text-muted">
+            Ceritakan apa yang ingin kamu kumpulkan. Kurogi akan membantu membuat targetnya.
+          </p>
+        )}
+      </section>
+
+      <section className="mt-3 rounded-[20px] border border-midnight/8 bg-white p-5">
+        <h2 className="font-jakarta text-[15px] font-bold text-midnight">Baru terjadi</h2>
+        <div className="mt-3">
+          {transactions.slice(0, 4).map((transaction, index) => (
+            <div
+              key={transaction.id}
+              className={`flex items-center gap-3 py-3 ${index > 0 ? 'border-t border-midnight/8' : ''}`}
+            >
+              <ReceiptText size={17} className="shrink-0 text-muted" strokeWidth={1.8} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-bold text-midnight">{tx.desc}</p>
-                <p className="mt-0.5 truncate text-[10px] font-semibold text-muted">{formatRupiah(tx.amount)} - {tx.date}</p>
+                <p className="truncate text-[12px] font-bold text-midnight">{transaction.desc}</p>
+                <p className="money-number mt-0.5 truncate text-[11px] font-medium text-muted">
+                  {formatRupiah(transaction.amount)}
+                </p>
               </div>
-              <ChevronRight size={14} className="shrink-0 text-muted/70" />
             </div>
           ))}
-          {transactions.length === 0 && (
-            <div className="rounded-lg border border-dashed border-midnight/15 bg-champagne px-4 py-5 text-center text-[12px] font-medium text-muted">
-              Belum ada transaksi.
-            </div>
-          )}
+          {transactions.length === 0 ? (
+            <p className="py-3 text-[12px] font-medium text-muted">Belum ada transaksi.</p>
+          ) : null}
         </div>
-      </div>
+      </section>
+
+      <button
+        type="button"
+        onClick={() => onExecuteStrategy('Melihat data saya, apa satu langkah menabung yang paling realistis untuk minggu ini?')}
+        className="mt-3 flex w-full items-center justify-between rounded-[20px] bg-orange-700 px-5 py-4 text-left text-white shadow-[0_16px_36px_rgba(232,84,46,0.2)] transition-transform active:scale-[0.98]"
+      >
+        <span>
+          <span className="block text-[11px] font-bold text-white/75">Butuh arah?</span>
+          <span className="mt-0.5 block font-jakarta text-[14px] font-bold">Tanya langkah berikutnya</span>
+        </span>
+        <MessageCircleMore size={21} strokeWidth={2} />
+      </button>
     </aside>
   )
 }
