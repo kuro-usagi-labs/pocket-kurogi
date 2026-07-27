@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import LoginPage from './components/Auth/LoginPage'
 import AppShell from './components/Layout/AppShell'
 import AppErrorBoundary from './components/shared/AppErrorBoundary'
+import { ThemeProvider } from './contexts/ThemeContext'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -37,9 +38,11 @@ function AppContent() {
 export default function App() {
   return (
     <AppErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
     </AppErrorBoundary>
   )
 }

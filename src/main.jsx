@@ -4,10 +4,13 @@ import '@fontsource-variable/manrope'
 import '@fontsource-variable/space-grotesk'
 import './index.css'
 import App from './App.jsx'
+import { initializeTheme } from './lib/theme'
+
+initializeTheme()
 
 function renderBootFailure(error) {
   const rootElement = document.getElementById('root')
-  const isDarkMode = window.matchMedia?.('(prefers-color-scheme: dark)').matches
+  const isDarkMode = document.documentElement.dataset.theme === 'dark'
   const fallbackTheme = isDarkMode
     ? {
         canvas: '#111317',

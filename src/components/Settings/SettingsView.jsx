@@ -1,9 +1,106 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { AlertTriangle, Check, LoaderCircle, LogOut, RotateCcw, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Check, LoaderCircle, LogOut, Moon, RotateCcw, ShieldCheck, Smartphone, SunMedium, X } from 'lucide-react'
+import { motion as Motion, useReducedMotion } from 'motion/react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { useAccountReset } from '../../hooks/useAccountReset'
 
 const CONFIRMATION_TEXT = 'RESET'
+
+function SettingsSwitch({ checked, disabled = false, label, onChange }) {
+  const reduceMotion = useReducedMotion()
+
+  return (
+    <Motion.button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      whileTap={disabled || reduceMotion ? undefined : { scale: 0.96 }}
+      className={`relative h-8 w-[52px] shrink-0 rounded-full border p-1 transition-colors disabled:cursor-not-allowed ${
+        checked
+          ? 'border-orange-700 bg-orange-700'
+          : 'border-midnight/10 bg-midnight/10'
+      } ${disabled ? 'opacity-45' : 'shadow-inner'}`}
+    >
+      <Motion.span
+        aria-hidden="true"
+        animate={{ x: checked ? 20 : 0 }}
+        transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34, mass: 0.7 }}
+        className="block h-6 w-6 rounded-full bg-[#fff] shadow-[0_2px_7px_rgba(0,0,0,0.28)]"
+      />
+    </Motion.button>
+  )
+}
+
+function ThemeSettings() {
+  const { preference, resolvedTheme, setThemePreference } = useTheme()
+  const reduceMotion = useReducedMotion()
+  const followsSystem = preference === 'system'
+  const darkModeEnabled = resolvedTheme === 'dark'
+
+  const toggleDarkMode = () => {
+    setThemePreference(darkModeEnabled ? 'light' : 'dark')
+  }
+
+  const toggleSystemTheme = () => {
+    setThemePreference(followsSystem ? resolvedTheme : 'system')
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_20px_60px_-45px_rgba(31,32,38,0.35)]">
+      <div className="border-b border-midnight/[0.07] p-5 sm:p-6">
+        <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.12em] text-muted">Tampilan</p>
+        <h2 className="mt-1.5 font-jakarta text-[21px] font-extrabold tracking-[-0.035em] text-midnight">Pilih suasana aplikasi</h2>
+        <p className="mt-1 text-[13px] font-medium text-muted">Atur tema yang paling nyaman untuk matamu.</p>
+      </div>
+
+      <div className="px-5 sm:px-6">
+        <div className="flex items-center gap-3.5 py-5">
+          <Motion.div
+            initial={false}
+            animate={{ rotate: darkModeEnabled ? 0 : 180 }}
+            transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 360, damping: 28 }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-orange-50 text-orange-700"
+          >
+            {darkModeEnabled ? <Moon size={20} strokeWidth={2.2} /> : <SunMedium size={20} strokeWidth={2.2} />}
+          </Motion.div>
+          <div className="min-w-0 flex-1">
+            <p className="font-jakarta text-[14px] font-bold text-midnight">Mode gelap</p>
+            <p className="mt-0.5 text-[12px] font-medium text-muted">
+              {followsSystem ? 'Dikendalikan oleh perangkat' : darkModeEnabled ? 'Aktif' : 'Nonaktif'}
+            </p>
+          </div>
+          <SettingsSwitch
+            checked={darkModeEnabled}
+            disabled={followsSystem}
+            label="Mode gelap"
+            onChange={toggleDarkMode}
+          />
+        </div>
+
+        <div className="h-px bg-midnight/[0.07]" />
+
+        <div className="flex items-center gap-3.5 py-5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-champagne text-muted">
+            <Smartphone size={20} strokeWidth={2.1} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-jakarta text-[14px] font-bold text-midnight">Ikuti perangkat</p>
+            <p className="mt-0.5 text-[12px] font-medium text-muted">Berubah otomatis bersama sistem.</p>
+          </div>
+          <SettingsSwitch
+            checked={followsSystem}
+            label="Ikuti tema perangkat"
+            onChange={toggleSystemTheme}
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
 
 function ResetDataDialog({ onClose, onReset, resetting }) {
   const [confirmation, setConfirmation] = useState('')
@@ -162,6 +259,8 @@ export default function SettingsView() {
             </div>
           </div>
         </section>
+
+        <ThemeSettings />
 
         <section className="rounded-[22px] border border-red-200/80 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(31,32,38,0.3)] sm:p-6">
           <div className="flex items-start gap-3.5">

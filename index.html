@@ -13,6 +13,26 @@
     <title>Pocket Kurogi</title>
     <script>
       (function () {
+        var preference = 'system'
+        var isDark = false
+
+        try {
+          preference = window.localStorage.getItem('kurogi-theme') || 'system'
+          isDark = preference === 'dark' || (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        } catch (error) {}
+
+        var root = document.documentElement
+        root.dataset.theme = isDark ? 'dark' : 'light'
+        root.dataset.themePreference = preference
+        root.style.colorScheme = isDark ? 'dark' : 'light'
+        root.style.setProperty('--boot-canvas', isDark ? '#111317' : '#f1f2f4')
+        root.style.setProperty('--boot-surface', isDark ? '#1d2026' : '#ffffff')
+        root.style.setProperty('--boot-ink', isDark ? '#f4f3f1' : '#17181b')
+        root.style.setProperty('--boot-muted', isDark ? '#a5a7ad' : '#666970')
+      })()
+    </script>
+    <script>
+      (function () {
         window.__KUROGI_APP_READY__ = false
         window.__KUROGI_BOOT_ERROR__ = false
 
@@ -33,11 +53,11 @@
           if (!root) return
 
           root.innerHTML = [
-            '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f7fb;color:#111827;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:20px;">',
-            '<div style="width:100%;max-width:360px;border:1px solid rgba(17,24,39,.10);border-radius:24px;background:#fff;padding:22px;text-align:center;box-shadow:0 20px 60px rgba(15,23,42,.08);">',
+            '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--boot-canvas);color:var(--boot-ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:20px;">',
+            '<div style="width:100%;max-width:360px;border:1px solid color-mix(in srgb,var(--boot-ink) 10%,transparent);border-radius:24px;background:var(--boot-surface);padding:22px;text-align:center;box-shadow:0 20px 60px rgba(15,23,42,.08);">',
             '<div style="width:48px;height:48px;border-radius:16px;background:#111827;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;"><span style="width:10px;height:10px;border-radius:999px;background:#fff;display:block;"></span></div>',
             '<h1 style="margin:0;font-size:18px;font-weight:800;letter-spacing:-.02em;">Aplikasi belum bisa dibuka</h1>',
-            '<p style="margin:10px 0 0;color:#667085;font-size:13px;line-height:1.6;font-weight:500;">Koneksi atau browser sedang menahan proses awal. Muat ulang halaman untuk mencoba lagi.</p>',
+            '<p style="margin:10px 0 0;color:var(--boot-muted);font-size:13px;line-height:1.6;font-weight:500;">Koneksi atau browser sedang menahan proses awal. Muat ulang halaman untuk mencoba lagi.</p>',
             '<button type="button" onclick="window.location.reload()" style="margin-top:18px;width:100%;border:0;border-radius:16px;background:#111827;color:#fff;padding:13px 16px;font-size:13px;font-weight:800;cursor:pointer;">Muat ulang</button>',
             '</div>',
             '</div>',
@@ -46,7 +66,7 @@
       })()
     </script>
   </head>
-  <body style="margin: 0; background: #f5f7fb;">
+  <body style="margin: 0; background: var(--canvas, var(--boot-canvas));">
     <div id="root">
       <div
         style="
@@ -54,8 +74,8 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #f5f7fb;
-          color: #64748b;
+          background: var(--boot-canvas);
+          color: var(--boot-muted);
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 12px;
           font-weight: 700;

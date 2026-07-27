@@ -42,47 +42,45 @@
   --shadow-color: 23 24 27;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --canvas: #111317;
-    --surface: #17191e;
-    --surface-strong: #1d2026;
-    --ink: #f4f3f1;
-    --muted-ink: #a5a7ad;
-    --line: #30333a;
-    --control: #0d0f12;
-    --accent: #c64224;
-    --accent-hover: #db4d2b;
-    --accent-soft: #35211d;
-    --accent-soft-hover: #492a22;
-    --accent-border: #75402f;
-    --accent-ink: #ffb19d;
-    --danger: #bd463e;
-    --danger-hover: #ce554c;
-    --danger-soft: #352020;
-    --danger-soft-hover: #492826;
-    --danger-border: #703936;
-    --danger-ink: #ffaaa3;
-    --warning: #b77828;
-    --warning-soft: #302719;
-    --warning-soft-hover: #42341f;
-    --warning-border: #67512c;
-    --warning-ink: #f2c777;
-    --success: #368467;
-    --success-soft: #182d27;
-    --success-border: #315f50;
-    --success-ink: #8ed8bb;
-    --cool-soft: #192630;
-    --cool-border: #304b5e;
-    --cool-ink: #9bc4df;
-    --violet-soft: #272130;
-    --violet-border: #514262;
-    --violet-ink: #c5addd;
-    --teal-soft: #182b2a;
-    --teal-border: #305b57;
-    --teal-ink: #93d1c9;
-    --shadow-color: 0 0 0;
-  }
+:root[data-theme='dark'] {
+  --canvas: #111317;
+  --surface: #17191e;
+  --surface-strong: #1d2026;
+  --ink: #f4f3f1;
+  --muted-ink: #a5a7ad;
+  --line: #30333a;
+  --control: #0d0f12;
+  --accent: #c64224;
+  --accent-hover: #db4d2b;
+  --accent-soft: #35211d;
+  --accent-soft-hover: #492a22;
+  --accent-border: #75402f;
+  --accent-ink: #ffb19d;
+  --danger: #bd463e;
+  --danger-hover: #ce554c;
+  --danger-soft: #352020;
+  --danger-soft-hover: #492826;
+  --danger-border: #703936;
+  --danger-ink: #ffaaa3;
+  --warning: #b77828;
+  --warning-soft: #302719;
+  --warning-soft-hover: #42341f;
+  --warning-border: #67512c;
+  --warning-ink: #f2c777;
+  --success: #368467;
+  --success-soft: #182d27;
+  --success-border: #315f50;
+  --success-ink: #8ed8bb;
+  --cool-soft: #192630;
+  --cool-border: #304b5e;
+  --cool-ink: #9bc4df;
+  --violet-soft: #272130;
+  --violet-border: #514262;
+  --violet-ink: #c5addd;
+  --teal-soft: #182b2a;
+  --teal-border: #305b57;
+  --teal-ink: #93d1c9;
+  --shadow-color: 0 0 0;
 }
 
 @theme {
@@ -308,11 +306,9 @@ select:-webkit-autofill {
   -webkit-backdrop-filter: blur(18px) saturate(135%);
 }
 
-@media (prefers-color-scheme: dark) {
-  .glass-panel,
-  .glass-card {
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
-  }
+:root[data-theme='dark'] .glass-panel,
+:root[data-theme='dark'] .glass-card {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 
 .shadow-premium {
@@ -371,18 +367,43 @@ select:-webkit-autofill {
 .typing-dot:nth-child(2) { animation-delay: 0.15s; }
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
 
-@media (prefers-color-scheme: dark) {
-  .bg-midnight {
-    background-color: var(--control);
-  }
+:root[data-theme='dark'] .bg-midnight {
+  background-color: var(--control);
+}
 
-  .text-midnight {
-    color: var(--ink);
-  }
+:root[data-theme='dark'] .text-midnight {
+  color: var(--ink);
+}
 
-  .border-white\/90,
-  .border-white\/80 {
-    border-color: color-mix(in srgb, var(--ink) 10%, transparent);
+:root[data-theme='dark'] .border-white\/90,
+:root[data-theme='dark'] .border-white\/80 {
+  border-color: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.theme-transition body,
+.theme-transition .app-shell,
+.theme-transition main,
+.theme-transition aside,
+.theme-transition header,
+.theme-transition section,
+.theme-transition nav,
+.theme-transition button,
+.theme-transition input,
+.theme-transition textarea,
+.theme-transition select,
+.theme-transition [class*='bg-'],
+.theme-transition [class*='border-'],
+.theme-transition [class*='text-'] {
+  transition-duration: 280ms;
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition-duration: 0ms !important;
   }
 }
 
