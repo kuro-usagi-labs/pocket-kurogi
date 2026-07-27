@@ -45,8 +45,8 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-4 pb-7 pt-4 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
-      <div className="md:hidden">
+    <div className="mx-auto max-w-5xl space-y-4 px-4 pb-7 pt-4 sm:px-6 lg:max-w-none lg:px-0 lg:pb-0 lg:pt-0">
+      <div className="lg:hidden">
         <div>
           <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">Analitik</h2>
           <p className="mt-1.5 text-[14px] font-semibold text-muted">Ringkasan uang bulan ini.</p>
@@ -122,7 +122,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
         </section>
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <section className="overflow-hidden rounded-[20px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
           <div className="border-b border-midnight/[0.08] bg-[var(--accent-soft)] px-6 py-6">
             <div className="flex flex-wrap items-start justify-between gap-5">

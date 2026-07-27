@@ -19,18 +19,20 @@ function SettingsSwitch({ checked, disabled = false, label, onChange }) {
       disabled={disabled}
       onClick={onChange}
       whileTap={disabled || reduceMotion ? undefined : { scale: 0.96 }}
-      className={`relative h-8 w-[52px] shrink-0 rounded-full border p-1 transition-colors disabled:cursor-not-allowed ${
-        checked
-          ? 'border-orange-700 bg-orange-700'
-          : 'border-midnight/10 bg-midnight/10'
-      } ${disabled ? 'opacity-45' : 'shadow-inner'}`}
+      className="relative h-11 w-[60px] shrink-0 rounded-full disabled:cursor-not-allowed"
     >
-      <Motion.span
+      <span
         aria-hidden="true"
-        animate={{ x: checked ? 20 : 0 }}
-        transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34, mass: 0.7 }}
-        className="block h-6 w-6 rounded-full bg-[#fff] shadow-[0_2px_7px_rgba(0,0,0,0.28)]"
-      />
+        className={`absolute left-1 top-1.5 h-8 w-[52px] rounded-full border p-1 transition-colors ${
+          checked ? 'border-orange-700 bg-orange-700' : 'border-midnight/10 bg-midnight/10'
+        } ${disabled ? 'opacity-45' : 'shadow-inner'}`}
+      >
+        <Motion.span
+          animate={{ x: checked ? 20 : 0 }}
+          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34, mass: 0.7 }}
+          className="block h-6 w-6 rounded-full bg-[#fff] shadow-[0_2px_7px_rgba(0,0,0,0.28)]"
+        />
+      </span>
     </Motion.button>
   )
 }
@@ -237,7 +239,7 @@ export default function SettingsView() {
   const [showResetDialog, setShowResetDialog] = useState(false)
 
   return (
-    <div className="h-full overflow-y-auto px-4 pb-28 pt-5 no-scrollbar sm:px-6 sm:pt-6 md:pb-8">
+    <div className="h-full overflow-y-auto px-4 pb-7 pt-5 no-scrollbar sm:px-6 sm:pt-6 lg:pb-8">
       <div className="mx-auto w-full max-w-3xl space-y-4">
         <section className="overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_20px_60px_-45px_rgba(31,32,38,0.35)]">
           <div className="border-b border-midnight/[0.07] p-5 sm:p-6">
@@ -287,7 +289,7 @@ export default function SettingsView() {
         <button
           type="button"
           onClick={signOut}
-          className="flex w-full items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 py-3.5 font-jakarta text-[12px] font-bold text-muted transition-colors hover:bg-midnight hover:text-white md:hidden"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 py-3.5 font-jakarta text-[12px] font-bold text-muted transition-colors hover:bg-midnight hover:text-white lg:hidden"
         >
           <LogOut size={17} strokeWidth={2.1} /> Keluar dari akun
         </button>

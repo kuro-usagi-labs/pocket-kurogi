@@ -249,12 +249,46 @@ select:-webkit-autofill {
     var(--canvas);
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .chat-surface {
     border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
     border-radius: 18px;
     background: var(--surface);
     box-shadow: 0 24px 70px -48px rgb(var(--shadow-color) / 0.42);
+  }
+}
+
+.mobile-content-inset {
+  bottom: calc(68px + env(safe-area-inset-bottom));
+}
+
+.chat-composer-inset {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+.chat-latest-inset {
+  bottom: calc(170px + env(safe-area-inset-bottom));
+}
+
+.chat-scroll-inset {
+  padding-bottom: calc(152px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .mobile-content-inset {
+    bottom: 0;
+  }
+
+  .chat-composer-inset {
+    bottom: 1.25rem;
+  }
+
+  .chat-latest-inset {
+    bottom: 116px;
+  }
+
+  .chat-scroll-inset {
+    padding-bottom: 118px;
   }
 }
 

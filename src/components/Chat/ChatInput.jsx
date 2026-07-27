@@ -239,7 +239,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   }[voiceState] || 'Ceritakan transaksi atau tujuanmu...'
 
   return (
-    <div className="pointer-events-none absolute bottom-[76px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6 md:bottom-5">
+    <div className="chat-composer-inset pointer-events-none absolute left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6">
       <div className="flex w-full max-w-[880px] flex-col gap-2.5">
         {selectedImage && (
           <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[16px] border border-midnight/10 bg-white shadow-premium">
@@ -280,7 +280,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
             disabled={isTyping || isVoiceBusy}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45 sm:h-11 sm:w-11"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45"
           >
             <Paperclip size={21} strokeWidth={2.1} />
           </button>
@@ -289,7 +289,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               ref={textareaRef}
               rows={1}
               aria-label="Tulis pesan"
-              className="max-h-[120px] min-h-10 w-full resize-none border-0 bg-transparent px-2 py-2.5 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:ring-0 sm:min-h-11 sm:text-[15px]"
+              className="max-h-[120px] min-h-11 w-full resize-none border-0 bg-transparent px-2 py-2.5 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:ring-0 sm:text-[15px]"
               placeholder={voicePlaceholder}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -303,7 +303,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
               disabled={voiceState === 'transcribing' || isTyping}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] sm:h-11 sm:w-11 ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] ${
                 voiceState === 'listening' || voiceState === 'recording'
                   ? 'animate-pulse bg-red-50 text-red-500'
                   : voiceState === 'transcribing'
@@ -317,7 +317,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               type="submit"
               aria-label="Kirim"
               disabled={(!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all sm:h-11 sm:w-11 ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all ${
                 (inputValue.trim() || selectedImage) && !isTyping && !isVoiceBusy
                   ? 'bg-orange-700 text-white shadow-[0_10px_24px_rgba(232,84,46,0.26)] active:scale-95'
                   : 'bg-champagne text-muted/35'

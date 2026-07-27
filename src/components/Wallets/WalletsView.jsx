@@ -184,7 +184,7 @@ export default function WalletsView({
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-5xl overflow-x-hidden px-4 pb-7 pt-4 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
+    <div className="mx-auto min-w-0 max-w-5xl overflow-x-hidden px-4 pb-7 pt-4 sm:px-6 lg:max-w-none lg:px-0 lg:pb-0 lg:pt-0">
       {hasConflicts ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
           <div className="flex items-start gap-3">
@@ -212,11 +212,11 @@ export default function WalletsView({
         </div>
       ) : null}
 
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <section className="mb-7 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-jakarta text-[26px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
+              <h2 className="font-jakarta text-[28px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
                 Dompet
               </h2>
               <p className="mt-1 text-[13px] font-semibold text-muted sm:text-[14px]">
@@ -228,7 +228,7 @@ export default function WalletsView({
               <button
                 type="button"
                 onClick={() => setShowAddWallet(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-midnight/10 bg-white text-orange-600 shadow-sm transition-all hover:border-orange-200 hover:bg-orange-50"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-midnight/10 bg-white text-orange-600 shadow-sm transition-all hover:border-orange-200 hover:bg-orange-50"
                 aria-label="Tambah dompet"
                 title="Tambah dompet"
               >
@@ -238,7 +238,7 @@ export default function WalletsView({
                 type="button"
                 onClick={() => setManageMode((current) => !current)}
                 aria-pressed={manageMode}
-                className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-3.5 font-jakarta text-[13px] font-bold transition-all ${
+                className={`inline-flex h-11 items-center justify-center gap-2 rounded-full border px-3.5 font-jakarta text-[13px] font-bold transition-all ${
                   manageMode
                     ? 'border-orange-200 bg-orange-50 text-orange-700'
                     : 'border-transparent bg-white text-orange-600 hover:bg-orange-50'
@@ -259,7 +259,7 @@ export default function WalletsView({
                   key={filter.id}
                   type="button"
                   onClick={() => setActiveWalletFilter(filter.id)}
-                  className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
+                  className={`h-11 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
                     isActive
                       ? 'border-gold accent-soft'
                       : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
@@ -313,7 +313,7 @@ export default function WalletsView({
           </div>
           <button
             onClick={() => setShowAddGoal(true)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-orange-600 shadow-sm transition-all hover:bg-orange-50"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-midnight/10 bg-white px-4 font-jakarta text-[13px] font-bold text-orange-600 shadow-sm transition-all hover:bg-orange-50"
           >
             <Plus size={15} strokeWidth={2.4} />
             Target
@@ -346,7 +346,7 @@ export default function WalletsView({
         )}
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <section className="mb-5 grid overflow-hidden rounded-[18px] border border-midnight/[0.08] bg-white lg:grid-cols-[1.5fr_1fr_1fr]">
           <div className="bg-[var(--accent-soft)] px-6 py-5">
             <p className="font-jakarta text-[11px] font-bold text-[var(--accent-ink)]">Saldo aktif</p>
@@ -587,7 +587,7 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
               <button
                 type="button"
                 onClick={onRename}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-midnight/10 bg-white text-muted shadow-sm transition-all hover:border-midnight/20 hover:text-midnight"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-midnight/10 bg-white text-muted shadow-sm transition-all hover:border-midnight/20 hover:text-midnight"
                 aria-label={`Ubah ${wallet.name}`}
                 title="Ubah"
               >
@@ -596,7 +596,7 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
               <button
                 type="button"
                 onClick={onDelete}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 shadow-sm transition-all hover:bg-red-100"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 shadow-sm transition-all hover:bg-red-100"
                 aria-label={`Hapus ${wallet.name}`}
                 title="Hapus"
               >
@@ -728,7 +728,7 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         className={`flex items-center justify-center rounded-full bg-slate-50 text-midnight transition-all hover:bg-orange-50 hover:text-orange-700 ${
-          compact ? 'h-9 w-9' : 'h-9 w-9 sm:h-10 sm:w-10'
+          compact ? 'h-10 w-10' : 'h-11 w-11'
         }`}
         aria-label={`Aksi untuk ${walletName}`}
         aria-expanded={menuOpen}

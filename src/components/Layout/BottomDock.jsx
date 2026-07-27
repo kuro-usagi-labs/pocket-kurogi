@@ -11,7 +11,7 @@ const navItems = [
 export default function BottomDock({ activeTab, onTabChange }) {
   return (
     <div
-      className="bottom-dock-surface pointer-events-none absolute bottom-0 left-0 z-50 flex w-full justify-center border-t border-midnight/[0.08] px-1.5 backdrop-blur-xl md:hidden"
+      className="bottom-dock-surface pointer-events-none absolute bottom-0 left-0 z-50 flex w-full justify-center border-t border-midnight/[0.08] px-1.5 backdrop-blur-xl lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <nav className="pointer-events-auto grid h-[68px] w-full max-w-md grid-cols-5 gap-0.5 py-1.5">
@@ -26,7 +26,7 @@ export default function BottomDock({ activeTab, onTabChange }) {
               onClick={() => onTabChange(item.id)}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-[12px] px-0.5 text-[9px] font-bold transition-[background-color,color,transform] active:scale-[0.97] ${
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-[12px] px-0.5 text-[10px] font-bold transition-[background-color,color,transform] active:scale-[0.97] ${
                 isActive ? 'accent-soft' : 'text-muted hover:text-midnight'
               }`}
             >

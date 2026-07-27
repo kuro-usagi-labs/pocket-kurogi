@@ -14,7 +14,7 @@ export default function DesktopHeader({ activeTab = 'chat', balance = 0, formatR
   const [title, subtitle] = PAGE_COPY[activeTab] || PAGE_COPY.chat
 
   return (
-    <header className="hidden h-[88px] w-full shrink-0 items-center justify-between px-7 font-jakarta md:flex">
+    <header className="hidden h-[88px] w-full shrink-0 items-center justify-between px-7 font-jakarta lg:flex">
       <div className="min-w-0">
         <p className="text-[11px] font-bold text-gold">Halo, {emailName}</p>
         <h1 className="mt-1 text-[24px] font-bold tracking-[-0.04em] text-midnight">{title}</h1>

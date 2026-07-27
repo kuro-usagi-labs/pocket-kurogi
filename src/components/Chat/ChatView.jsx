@@ -127,7 +127,7 @@ export default function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="no-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pb-[152px] pt-4 sm:px-6 md:pb-[118px] md:pt-6 lg:px-8"
+        className="chat-scroll-inset no-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
       >
         <SavingsOpening
           balance={balance}
@@ -192,14 +192,14 @@ export default function ChatView({
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      <div className="composer-fade pointer-events-none absolute inset-x-0 bottom-0 h-[142px] md:h-[112px]" />
+      <div className="composer-fade pointer-events-none absolute inset-x-0 bottom-0 h-[142px] lg:h-[112px]" />
 
       {showJumpToLatest ? (
         <button
           type="button"
           aria-label="Lompat ke pesan terbaru"
           onClick={handleJumpToLatest}
-          className="glass-panel absolute bottom-[170px] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-bold text-midnight shadow-premium active:scale-[0.98] md:bottom-[116px]"
+          className="chat-latest-inset glass-panel absolute left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-bold text-midnight shadow-premium active:scale-[0.98]"
         >
           <ChevronDown size={15} strokeWidth={2.2} />
           Pesan baru
@@ -232,7 +232,7 @@ function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion
           <button
             type="button"
             onClick={() => onNavigate?.('wallets')}
-            className="mt-5 inline-flex items-center gap-2 rounded-[13px] bg-midnight px-4 py-2.5 text-[12px] font-bold text-white transition-transform active:scale-[0.98]"
+            className="mt-5 inline-flex items-center gap-2 whitespace-nowrap rounded-[13px] bg-midnight px-4 py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[0.98]"
           >
             <PiggyBank size={17} strokeWidth={2.1} />
             Buka tabungan

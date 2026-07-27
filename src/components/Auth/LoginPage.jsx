@@ -52,7 +52,7 @@ export default function LoginPage() {
 
   return (
     <main className="app-min-viewport paper-grid w-full overflow-y-auto bg-champagne px-4 py-4 font-inter sm:px-6 lg:p-8">
-      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] w-full max-w-6xl overflow-hidden rounded-[20px] border border-midnight/8 bg-white shadow-[0_32px_100px_-48px_rgba(31,32,38,0.45)] lg:grid-cols-[1.08fr_0.92fr]">
+      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] w-full max-w-6xl overflow-hidden rounded-[20px] border border-midnight/8 bg-white shadow-[0_32px_100px_-48px_rgba(31,32,38,0.45)] lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[1.08fr_0.92fr]">
         <Motion.section
           initial={reduceMotion ? false : { opacity: 0, x: -18 }}
           animate={{ opacity: 1, x: 0 }}
@@ -68,7 +68,7 @@ export default function LoginPage() {
           </div>
 
           <div className="relative mb-2 mt-8 max-w-xl sm:my-12 lg:my-16">
-            <h1 className="max-w-[12ch] font-jakarta text-[35px] font-bold leading-[0.98] tracking-[-0.06em] sm:text-[54px]">
+            <h1 className="max-w-[15ch] font-jakarta text-[35px] font-bold leading-[0.98] tracking-[-0.06em] sm:text-[50px]">
               Uang lebih mudah saat bisa dibicarakan.
             </h1>
             <p className="mt-4 max-w-[38ch] text-[13px] font-medium leading-relaxed text-white/62 sm:mt-5 sm:text-[15px]">

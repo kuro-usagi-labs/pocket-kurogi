@@ -14,7 +14,7 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
   const { signOut } = useAuth()
 
   return (
-    <aside className="hidden h-full w-[216px] shrink-0 flex-col border-r border-midnight/[0.07] bg-white px-4 py-5 font-jakarta md:flex">
+    <aside className="hidden h-full w-[216px] shrink-0 flex-col border-r border-midnight/[0.07] bg-white px-4 py-5 font-jakarta lg:flex">
       <div className="flex items-center gap-3 px-2 pb-7">
         <KurogiLogo size={44} className="shadow-[0_10px_24px_rgba(232,84,46,0.14)]" />
         <div>

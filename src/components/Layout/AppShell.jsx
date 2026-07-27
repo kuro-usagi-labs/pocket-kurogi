@@ -1755,12 +1755,12 @@ export default function AppShell() {
           formatRupiah={formatRupiah}
         />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden md:px-7 md:pb-7">
+        <div className="flex min-h-0 flex-1 overflow-hidden lg:px-7 lg:pb-7">
           <section
             className={`relative min-w-0 flex-1 overflow-hidden ${
               activeTab === 'chat'
                 ? 'chat-surface bg-white'
-                : 'md:rounded-[18px] md:bg-transparent'
+                : 'lg:rounded-[18px] lg:bg-transparent'
             }`}
           >
             {activeTab === 'chat' ? (
@@ -1793,7 +1793,7 @@ export default function AppShell() {
             ) : null}
 
             {activeTab === 'history' ? (
-              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0">
+              <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-y-auto no-scrollbar animate-fade-in lg:bottom-0">
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <HistoryView
                     transactions={transactions}
@@ -1813,7 +1813,7 @@ export default function AppShell() {
             ) : null}
 
             {activeTab === 'wallets' ? (
-              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0">
+              <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-y-auto no-scrollbar animate-fade-in lg:bottom-0">
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <WalletsView
                     wallets={wallets}
@@ -1832,7 +1832,7 @@ export default function AppShell() {
             ) : null}
 
             {activeTab === 'analytics' ? (
-              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-y-auto no-scrollbar animate-fade-in md:bottom-0">
+              <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-y-auto no-scrollbar animate-fade-in lg:bottom-0">
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <AnalyticsView
                     analytics={analytics}
@@ -1844,7 +1844,7 @@ export default function AppShell() {
             ) : null}
 
             {activeTab === 'settings' ? (
-              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-hidden animate-fade-in md:bottom-0">
+              <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-hidden animate-fade-in lg:bottom-0">
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <SettingsView />
                 </Suspense>
