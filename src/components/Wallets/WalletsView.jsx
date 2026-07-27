@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
   Calendar,
@@ -682,7 +683,49 @@ function DesktopWalletRow({ wallet, formatRupiah, featured, manageMode, onRename
 
 function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState(null)
+  const buttonRef = useRef(null)
   const menuRef = useRef(null)
+  const menuId = useId()
+
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      return undefined
+    }
+
+    const updateMenuPosition = () => {
+      const button = buttonRef.current
+      const menu = menuRef.current
+
+      if (!button || !menu) return
+
+      const buttonRect = button.getBoundingClientRect()
+      const menuWidth = menu.offsetWidth
+      const menuHeight = menu.offsetHeight
+      const viewportPadding = 12
+      const gap = 8
+      const left = Math.min(
+        window.innerWidth - menuWidth - viewportPadding,
+        Math.max(viewportPadding, buttonRect.right - menuWidth),
+      )
+      const hasRoomBelow = buttonRect.bottom + gap + menuHeight <= window.innerHeight - viewportPadding
+      const top = hasRoomBelow
+        ? buttonRect.bottom + gap
+        : Math.max(viewportPadding, buttonRect.top - menuHeight - gap)
+
+      setMenuPosition({ left, top })
+    }
+
+    updateMenuPosition()
+    const handleScroll = () => setMenuOpen(false)
+    window.addEventListener('resize', updateMenuPosition)
+    document.addEventListener('scroll', handleScroll, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      document.removeEventListener('scroll', handleScroll, true)
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     if (!menuOpen) {
@@ -690,7 +733,10 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
     }
 
     const handlePointerDown = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (
+        !buttonRef.current?.contains(event.target)
+        && !menuRef.current?.contains(event.target)
+      ) {
         setMenuOpen(false)
       }
     }
@@ -698,6 +744,7 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setMenuOpen(false)
+        buttonRef.current?.focus()
       }
     }
 
@@ -722,39 +769,59 @@ function WalletActionMenu({ walletName, onRename, onDelete, compact = false }) {
     onDelete()
   }
 
+  const handleMenuToggle = () => {
+    if (!menuOpen) setMenuPosition(null)
+    setMenuOpen((open) => !open)
+  }
+
   return (
-    <div ref={menuRef} className="relative">
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setMenuOpen((open) => !open)}
+        onClick={handleMenuToggle}
         className={`flex items-center justify-center rounded-full bg-slate-50 text-midnight transition-all hover:bg-orange-50 hover:text-orange-700 ${
           compact ? 'h-10 w-10' : 'h-11 w-11'
         }`}
         aria-label={`Aksi untuk ${walletName}`}
         aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        aria-controls={menuOpen ? menuId : undefined}
       >
         <ChevronRight size={18} strokeWidth={2.3} />
       </button>
 
-      {menuOpen ? (
-        <div className="absolute right-0 top-full z-20 mt-2 w-36 overflow-hidden rounded-[12px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_12px_26px_rgba(15,23,42,0.10)]">
+      {menuOpen ? createPortal(
+        <div
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          aria-label={`Aksi untuk ${walletName}`}
+          style={{ left: menuPosition?.left ?? 0, top: menuPosition?.top ?? 0 }}
+          className={`fixed z-[110] w-36 overflow-hidden rounded-[12px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_14px_34px_rgba(15,23,42,0.16)] ${
+            menuPosition ? 'visible animate-scale-in' : 'invisible'
+          }`}
+        >
           <button
             type="button"
+            role="menuitem"
             onClick={handleRenameClick}
-            className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-midnight transition-colors hover:bg-slate-50"
+            className="flex min-h-11 w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-midnight transition-colors hover:bg-slate-50"
           >
             <Pencil size={15} />
             Ubah
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={handleDeleteClick}
-            className="mt-1 flex w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50"
+            className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50"
           >
             <Trash2 size={15} />
             Hapus
           </button>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )

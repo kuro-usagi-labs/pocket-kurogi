@@ -1,5 +1,6 @@
 import { useEffect, useId } from 'react'
 import { AlertTriangle, LoaderCircle, ShieldCheck, Trash2, X } from 'lucide-react'
+import OverlayPortal from './OverlayPortal'
 
 const TONE_STYLES = {
   danger: {
@@ -45,6 +46,7 @@ export default function ActionConfirmModal({
   }, [onCancel, submitting])
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-[120] flex items-end justify-center p-3 sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-midnight/38 backdrop-blur-md transition-opacity"
@@ -113,5 +115,6 @@ export default function ActionConfirmModal({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   )
 }

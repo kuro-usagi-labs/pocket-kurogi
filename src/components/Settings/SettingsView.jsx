@@ -4,6 +4,7 @@ import { motion as Motion, useReducedMotion } from 'motion/react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAccountReset } from '../../hooks/useAccountReset'
+import OverlayPortal from '../shared/OverlayPortal'
 
 const CONFIRMATION_TEXT = 'RESET'
 
@@ -141,6 +142,7 @@ function ResetDataDialog({ onClose, onReset, resetting }) {
   }
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-[140] flex items-end justify-center p-3 sm:items-center sm:p-4">
       <button
         type="button"
@@ -230,6 +232,7 @@ function ResetDataDialog({ onClose, onReset, resetting }) {
         </div>
       </form>
     </div>
+    </OverlayPortal>
   )
 }
 

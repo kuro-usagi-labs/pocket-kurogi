@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import OverlayPortal from '../shared/OverlayPortal'
 
 export default function AddWalletModal({ onClose, onSubmit }) {
   const [name, setName] = useState('')
@@ -26,8 +27,14 @@ export default function AddWalletModal({ onClose, onSubmit }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-midnight/35 p-3 backdrop-blur-md transition-opacity animate-fade-in sm:items-center sm:p-4">
-      <div className="w-full max-w-[390px] rounded-[20px] border border-midnight/10 bg-white p-5 shadow-2xl">
+    <OverlayPortal>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-midnight/35 p-3 backdrop-blur-md transition-opacity animate-fade-in sm:items-center sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Dompet baru"
+        className="max-h-[calc(100dvh-24px)] w-full max-w-[390px] overflow-y-auto overscroll-contain rounded-[20px] border border-midnight/10 bg-white p-5 shadow-2xl"
+      >
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">
             Dompet Baru
@@ -83,5 +90,6 @@ export default function AddWalletModal({ onClose, onSubmit }) {
         </form>
       </div>
     </div>
+    </OverlayPortal>
   )
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, LoaderCircle, PencilLine, X } from 'lucide-react'
+import OverlayPortal from '../shared/OverlayPortal'
 
 function parseAmountInput(value = '') {
   const normalized = String(value || '')
@@ -144,13 +145,19 @@ export default function EditTransactionModal({
   }
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-[130] flex items-end justify-center p-3 sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-midnight/30 backdrop-blur-md transition-opacity"
         onClick={submitting ? undefined : onClose}
       />
 
-      <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-[20px] bg-white shadow-2xl animate-scale-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Koreksi transaksi"
+        className="relative z-10 max-h-[calc(100dvh-24px)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-[20px] bg-white shadow-2xl animate-scale-in"
+      >
         <div className="p-5 md:p-6">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
@@ -282,6 +289,7 @@ export default function EditTransactionModal({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   )
 }
 

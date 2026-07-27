@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X, Target, Calendar, DollarSign } from 'lucide-react'
+import OverlayPortal from '../shared/OverlayPortal'
 
 export default function AddGoalModal({ onClose, onSubmit }) {
   const [name, setName] = useState('')
@@ -32,13 +33,19 @@ export default function AddGoalModal({ onClose, onSubmit }) {
   }
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-midnight/35 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
 
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-2xl animate-scale-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Target baru"
+        className="relative z-10 max-h-[calc(100dvh-24px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-[20px] bg-white shadow-2xl animate-scale-in"
+      >
         <div className="p-5 md:p-6">
           <div className="mb-7 flex items-center justify-between">
             <div>
@@ -122,5 +129,6 @@ export default function AddGoalModal({ onClose, onSubmit }) {
         </div>
       </div>
     </div>
+    </OverlayPortal>
   )
 }
