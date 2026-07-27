@@ -239,8 +239,8 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   }[voiceState] || 'Ceritakan transaksi atau tujuanmu...'
 
   return (
-    <div className="pointer-events-none absolute bottom-[82px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6 md:bottom-5">
-      <div className="flex w-full max-w-4xl flex-col gap-2.5">
+    <div className="pointer-events-none absolute bottom-[76px] left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6 md:bottom-5">
+      <div className="flex w-full max-w-[880px] flex-col gap-2.5">
         {selectedImage && (
           <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[16px] border border-midnight/10 bg-white shadow-premium">
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
@@ -265,7 +265,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
           </div>
         ) : null}
 
-        <div className={`glass-panel pointer-events-auto flex w-full items-end gap-1.5 rounded-[20px] p-2 shadow-[0_20px_52px_rgba(31,32,38,0.14)] transition-colors ${
+        <div className={`glass-panel pointer-events-auto flex w-full items-end gap-1.5 rounded-[17px] p-2 shadow-[0_20px_52px_rgba(31,32,38,0.14)] transition-colors ${
           isVoiceBusy ? 'border-orange-200' : 'border-midnight/10'
         }`}>
           <input

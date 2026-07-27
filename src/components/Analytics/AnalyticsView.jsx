@@ -22,37 +22,37 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
       label: 'Masuk',
       value: `+${formatRupiah(totalIncome)}`,
       Icon: ArrowUpRight,
-      tone: 'text-orange-600 bg-orange-50',
+      tone: 'accent-soft',
     },
     {
       label: 'Keluar',
       value: formatRupiah(totalExpense),
       Icon: ArrowDownRight,
-      tone: 'text-rose-600 bg-rose-50',
+      tone: 'accent-soft',
     },
     {
       label: 'Tabung',
       value: formatRupiah(totalSavings),
       Icon: PiggyBank,
-      tone: 'text-gold bg-teal-50',
+      tone: 'accent-soft',
     },
     {
       label: 'Transfer',
       value: formatRupiah(transferVolume),
       Icon: Repeat2,
-      tone: 'text-indigo-600 bg-indigo-50',
+      tone: 'accent-soft',
     },
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-4 pb-7 pt-2 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
+    <div className="mx-auto max-w-5xl space-y-4 px-4 pb-7 pt-4 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
       <div className="md:hidden">
         <div>
           <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">Analitik</h2>
           <p className="mt-1.5 text-[14px] font-semibold text-muted">Ringkasan uang bulan ini.</p>
         </div>
 
-        <section className="rounded-[16px] border border-midnight/[0.08] bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.025)] sm:p-5">
+        <section className="rounded-[18px] border border-midnight/[0.08] bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
           <p className="font-jakarta text-[14px] font-semibold text-muted">
             Arus kas
           </p>
@@ -70,7 +70,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                 {netCashflowPositive ? 'Masih positif.' : 'Perlu ditahan.'}
               </p>
             </div>
-            <div className="rounded-full bg-orange-50 px-3.5 py-2 font-jakarta text-[12px] font-bold text-orange-700">
+            <div className="accent-soft rounded-[12px] px-3.5 py-2 font-jakarta text-[12px] font-bold">
               {activeBudgetCount} budget aktif
             </div>
           </div>
@@ -81,8 +81,8 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
             const Icon = item.Icon
 
             return (
-              <div key={item.label} className="rounded-[12px] border border-midnight/[0.08] bg-white p-3.5">
-                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
+              <div key={item.label} className="rounded-[16px] border border-midnight/[0.08] bg-white p-4">
+                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-[11px] ${item.tone}`}>
                   <Icon size={20} strokeWidth={2.2} />
                 </div>
                 <p className="font-jakarta text-[13px] font-semibold text-muted">

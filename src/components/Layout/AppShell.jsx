@@ -9,7 +9,6 @@ import { useTransactionActions } from '../../hooks/useTransactionActions'
 import BottomDock from './BottomDock'
 import DesktopHeader from './DesktopHeader'
 import DesktopSidebar from './DesktopSidebar'
-import DesktopRightPanel from './DesktopRightPanel'
 import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
 import StatusToast from '../shared/StatusToast'
@@ -1542,11 +1541,6 @@ export default function AppShell() {
     ]
   )
 
-  const handleExecuteStrategy = useCallback((prompt) => {
-    setActiveTab('chat')
-    handleSend(prompt)
-  }, [handleSend])
-
   const handleChatCardAction = useCallback((action, card = {}) => {
     if (action === 'history') {
       setActiveTab('history')
@@ -1747,9 +1741,9 @@ export default function AppShell() {
   }, [renameGoal, showNotice, syncFinancialViews])
 
   return (
-    <div className="app-viewport flex overflow-hidden bg-champagne font-inter text-midnight selection:bg-orange-100 selection:text-midnight">
+    <div className="app-shell app-viewport flex overflow-hidden font-inter text-midnight selection:bg-orange-100 selection:text-midnight">
       <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="app-viewport mx-auto flex min-w-0 flex-1 flex-col overflow-hidden bg-champagne">
+      <main className="app-viewport mx-auto flex min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader
           balance={grandTotalBalance}
           formatRupiah={formatRupiah}
@@ -1761,12 +1755,12 @@ export default function AppShell() {
           formatRupiah={formatRupiah}
         />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden md:gap-3 md:px-5 md:pb-5">
+        <div className="flex min-h-0 flex-1 overflow-hidden md:px-7 md:pb-7">
           <section
-            className={`relative min-w-0 flex-1 overflow-hidden bg-white ${
+            className={`relative min-w-0 flex-1 overflow-hidden ${
               activeTab === 'chat'
-                ? 'md:rounded-[20px] md:border md:border-midnight/[0.08] md:shadow-[0_24px_70px_-42px_rgba(31,32,38,0.35)]'
-                : 'md:rounded-[20px] md:bg-transparent'
+                ? 'chat-surface bg-white'
+                : 'md:rounded-[18px] md:bg-transparent'
             }`}
           >
             {activeTab === 'chat' ? (
@@ -1858,14 +1852,6 @@ export default function AppShell() {
             ) : null}
           </section>
 
-          {activeTab === 'chat' ? (
-            <DesktopRightPanel
-              analytics={analytics}
-              transactions={transactions}
-              goals={goals}
-              onExecuteStrategy={handleExecuteStrategy}
-            />
-          ) : null}
         </div>
 
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />

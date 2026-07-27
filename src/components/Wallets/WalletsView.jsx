@@ -184,7 +184,7 @@ export default function WalletsView({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-7 pt-2 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
+    <div className="mx-auto min-w-0 max-w-5xl overflow-x-hidden px-4 pb-7 pt-4 sm:px-6 lg:px-8 md:max-w-none md:px-0 md:pb-0 md:pt-0">
       {hasConflicts ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
           <div className="flex items-start gap-3">
@@ -213,7 +213,7 @@ export default function WalletsView({
       ) : null}
 
       <div className="md:hidden">
-        <section className="mb-6 rounded-[20px] border border-midnight/[0.08] bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.025)] sm:p-5 lg:p-6">
+        <section className="mb-7 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="font-jakarta text-[26px] font-extrabold leading-tight tracking-tight text-midnight sm:text-[30px]">
@@ -250,7 +250,7 @@ export default function WalletsView({
             </div>
           </div>
 
-          <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+          <div className="no-scrollbar -mx-4 mt-5 flex max-w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 pb-1">
             {WALLET_FILTERS.map((filter) => {
               const isActive = activeWalletFilter === filter.id
 
@@ -261,7 +261,7 @@ export default function WalletsView({
                   onClick={() => setActiveWalletFilter(filter.id)}
                   className={`h-10 shrink-0 rounded-full border px-5 font-jakarta text-[13px] font-bold transition-all sm:min-w-[118px] sm:text-[14px] ${
                     isActive
-                      ? 'border-orange-400 bg-orange-50 text-orange-700'
+                      ? 'border-gold accent-soft'
                       : 'border-midnight/10 bg-white text-muted hover:border-midnight/20 hover:text-midnight'
                   }`}
                 >
@@ -294,18 +294,11 @@ export default function WalletsView({
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-[12px] border border-orange-100/80 bg-orange-50/55 px-4 py-3 text-muted">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 text-orange-600">
-              <Info size={20} strokeWidth={2.2} />
-            </span>
-            <p className="min-w-0 text-[13px] font-medium leading-relaxed sm:text-[14px]">
-              <span className="font-jakarta font-extrabold text-orange-700">Menghapus dompet akan </span>
-              menghapus dompet dan riwayat terkait.
+          <div className="mt-4 flex items-start gap-2.5 px-1 text-muted">
+            <Info size={16} className="mt-0.5 shrink-0 text-gold" strokeWidth={2.2} />
+            <p className="min-w-0 text-[11px] font-medium leading-relaxed sm:text-[12px]">
+              Menghapus dompet juga menghapus riwayat transaksi yang terkait.
             </p>
-            <span className="ml-auto hidden shrink-0 items-center gap-1 text-orange-500/60 sm:flex">
-              <Wallet size={26} strokeWidth={2.1} />
-              <Calendar size={26} strokeWidth={2.1} />
-            </span>
           </div>
         </section>
 
@@ -343,7 +336,7 @@ export default function WalletsView({
           <button
             type="button"
             onClick={() => setShowAddGoal(true)}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-midnight/20 bg-white/70 px-5 py-7 text-center transition-all hover:border-midnight/30 hover:bg-white"
+            className="flex w-full items-center justify-center gap-3 rounded-[16px] border border-dashed border-midnight/20 bg-white px-5 py-7 text-center transition-all hover:border-gold"
           >
             <Target size={20} className="text-muted" />
             <span className="font-jakarta text-[12px] font-extrabold  text-midnight">
@@ -354,26 +347,23 @@ export default function WalletsView({
       </div>
 
       <div className="hidden md:block">
-        <div className="mb-4 grid gap-4 xl:grid-cols-3">
-          <DesktopWalletStatCard
-            label="Saldo aktif"
-            value={formatRupiah(totalWalletBalance)}
-            helper={`${activeWalletCount} dompet aktif`}
-            tone="emerald"
-          />
-          <DesktopWalletStatCard
-            label="Filter aktif"
-            value={formatRupiah(filteredWalletBalance)}
-            helper={activeFilterLabel}
-            tone="sky"
-          />
-          <DesktopWalletStatCard
-            label="Target berjalan"
-            value={`${fundedGoalsCount}/${goals.length || 0}`}
-            helper={goals.length > 0 ? 'sudah terisi' : 'belum dibuat'}
-            tone="amber"
-          />
-        </div>
+        <section className="mb-5 grid overflow-hidden rounded-[18px] border border-midnight/[0.08] bg-white lg:grid-cols-[1.5fr_1fr_1fr]">
+          <div className="bg-[var(--accent-soft)] px-6 py-5">
+            <p className="font-jakarta text-[11px] font-bold text-[var(--accent-ink)]">Saldo aktif</p>
+            <p className="money-number mt-2 text-[32px] font-bold text-midnight">{formatRupiah(totalWalletBalance)}</p>
+            <p className="mt-1 text-[12px] font-medium text-muted">{activeWalletCount} dompet aktif</p>
+          </div>
+          <div className="border-t border-midnight/[0.07] px-6 py-5 lg:border-l lg:border-t-0">
+            <p className="text-[11px] font-bold text-muted">Filter aktif</p>
+            <p className="money-number mt-2 text-[21px] font-bold text-midnight">{formatRupiah(filteredWalletBalance)}</p>
+            <p className="mt-1 text-[12px] font-medium text-muted">{activeFilterLabel}</p>
+          </div>
+          <div className="border-t border-midnight/[0.07] px-6 py-5 lg:border-l lg:border-t-0">
+            <p className="text-[11px] font-bold text-muted">Target berjalan</p>
+            <p className="mt-2 font-jakarta text-[21px] font-bold text-midnight">{fundedGoalsCount}/{goals.length || 0}</p>
+            <p className="mt-1 text-[12px] font-medium text-muted">{goals.length > 0 ? 'sudah terisi' : 'belum dibuat'}</p>
+          </div>
+        </section>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
           <section className="rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
@@ -881,26 +871,6 @@ function DesktopGoalCard({ goal, formatRupiah, onRename, onDelete }) {
           <X size={15} strokeWidth={2.1} />
         </button>
       </div>
-    </div>
-  )
-}
-
-function DesktopWalletStatCard({ label, value, helper, tone = 'emerald' }) {
-  const toneClass = {
-    emerald: 'border-orange-100 bg-orange-50 text-orange-700',
-    sky: 'border-sky-100 bg-sky-50 text-sky-700',
-    amber: 'border-amber-100 bg-amber-50 text-amber-700',
-  }[tone] || 'border-slate-200 bg-slate-50 text-slate-700'
-
-  return (
-    <div className={`rounded-[16px] border p-4 ${toneClass}`}>
-      <p className="font-jakarta text-[11px] font-extrabold  opacity-70">
-        {label}
-      </p>
-      <p className="mt-3 font-jakarta text-[26px] font-extrabold tracking-tight">
-        {value}
-      </p>
-      <p className="mt-1 text-[13px] font-semibold opacity-80">{helper}</p>
     </div>
   )
 }

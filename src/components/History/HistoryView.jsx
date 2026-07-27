@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, Pencil, Search, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Pencil, Search, SlidersHorizontal, Trash2, Undo2, X } from 'lucide-react'
 import { TransactionIcon, WalletIcon } from '../shared/CategoryIcon'
 import EditTransactionModal from './EditTransactionModal'
 
@@ -29,6 +29,7 @@ export default function HistoryView({
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
   const [editorTransaction, setEditorTransaction] = useState(null)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   const lastUndoableTransaction = useMemo(
     () => transactions.find((transaction) => transaction.canDelete) || null,
@@ -160,7 +161,22 @@ export default function HistoryView({
           ) : null}
         </div>
 
-        <SearchField query={query} onChange={setQuery} />
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_48px] gap-2">
+          <SearchField query={query} onChange={setQuery} />
+          <button
+            type="button"
+            aria-label="Filter lanjutan"
+            aria-expanded={showMobileFilters}
+            onClick={() => setShowMobileFilters((current) => !current)}
+            className={`flex h-[52px] items-center justify-center rounded-[13px] border transition-colors ${
+              showMobileFilters || walletFilter !== 'all' || categoryFilter !== 'all' || dateFilter !== 'all'
+                ? 'border-gold accent-soft'
+                : 'border-midnight/[0.08] bg-white text-muted'
+            }`}
+          >
+            <SlidersHorizontal size={19} strokeWidth={2.1} />
+          </button>
+        </div>
 
         <div className="mb-3 flex gap-2 overflow-x-auto no-scrollbar">
           <FilterButton active={typeFilter === 'all'} label="Semua" onClick={() => setTypeFilter('all')} />
@@ -179,7 +195,7 @@ export default function HistoryView({
           />
         </div>
 
-        <div className="mb-5 grid gap-2 sm:grid-cols-3">
+        {showMobileFilters ? <div className="mb-5 grid gap-2 rounded-[16px] border border-midnight/[0.08] bg-white p-3 sm:grid-cols-3">
           <FilterSelect
             label="Dompet"
             value={walletFilter}
@@ -198,7 +214,7 @@ export default function HistoryView({
             onChange={setDateFilter}
             options={DATE_FILTERS.map((option) => ({ value: option.id, label: option.label }))}
           />
-        </div>
+        </div> : null}
 
         <HistoryBody
           transactions={transactions}
@@ -489,7 +505,7 @@ function HistoryBody({
 function SearchField({ query, onChange, desktop = false }) {
   return (
     <div
-      className={`relative mb-3 flex min-h-[52px] items-center rounded-[12px] border border-midnight/[0.08] bg-white p-1.5 ${
+      className={`relative flex min-h-[52px] items-center rounded-[13px] border border-midnight/[0.08] bg-white p-1.5 ${
         desktop ? 'mb-0' : ''
       }`}
     >

@@ -127,7 +127,7 @@ export default function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="no-scrollbar absolute inset-0 mx-auto flex w-full max-w-4xl flex-col overflow-y-auto scroll-smooth px-4 pb-[178px] pt-2 sm:px-6 md:pb-[130px] lg:px-8"
+        className="no-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pb-[152px] pt-4 sm:px-6 md:pb-[118px] md:pt-6 lg:px-8"
       >
         <SavingsOpening
           balance={balance}
@@ -137,7 +137,7 @@ export default function ChatView({
           reduceMotion={reduceMotion}
         />
 
-        <div className="no-scrollbar mb-7 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="no-scrollbar mb-8 flex snap-x gap-2 overflow-x-auto pb-1">
           {quickActions.slice(0, 5).map((item) => (
             <QuickAction
               key={item.id}
@@ -158,7 +158,11 @@ export default function ChatView({
           </button>
         ) : null}
 
-        <p className="mb-5 text-center text-[11px] font-bold text-muted">Percakapan hari ini</p>
+        <div className="mb-5 flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1 bg-midnight/[0.08]" />
+          <p className="text-[10px] font-bold text-muted">Percakapan hari ini</p>
+          <span className="h-px flex-1 bg-midnight/[0.08]" />
+        </div>
 
         {messages.map((message, index) => {
           const previousMessage = messages[index - 1]
@@ -188,7 +192,7 @@ export default function ChatView({
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[166px] bg-gradient-to-t from-white via-white/95 to-transparent md:h-[122px]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[142px] bg-gradient-to-t from-white via-white/95 to-transparent md:h-[112px]" />
 
       {showJumpToLatest ? (
         <button
@@ -218,24 +222,24 @@ function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion
       initial={reduceMotion ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      className="paper-grid relative mb-4 overflow-hidden rounded-[20px] border border-midnight/8 bg-white p-5 sm:p-6"
+      className="relative mb-4 overflow-hidden rounded-[18px] border border-midnight/[0.08] bg-[var(--accent-soft)] p-5 sm:p-7"
     >
       <div className="relative grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <p className="max-w-[16ch] font-jakarta text-[25px] font-bold leading-[1.05] tracking-[-0.05em] text-midnight sm:text-[34px]">
+          <p className="max-w-[17ch] font-jakarta text-[27px] font-bold leading-[1.05] tracking-[-0.05em] text-midnight sm:text-[36px]">
             Mau nabung untuk apa hari ini?
           </p>
           <button
             type="button"
             onClick={() => onNavigate?.('wallets')}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-orange-700 px-4 py-2.5 text-[12px] font-bold text-white transition-transform active:scale-[0.98]"
+            className="mt-5 inline-flex items-center gap-2 rounded-[13px] bg-midnight px-4 py-2.5 text-[12px] font-bold text-white transition-transform active:scale-[0.98]"
           >
             <PiggyBank size={17} strokeWidth={2.1} />
             Buka tabungan
           </button>
         </div>
 
-        <div className="min-w-[190px] rounded-[16px] bg-midnight p-4 text-white">
+        <div className="min-w-[210px] rounded-[15px] bg-midnight p-4 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.55)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold text-white/55">{activeGoal?.name || 'Saldo tersedia'}</p>
@@ -262,9 +266,9 @@ function QuickAction({ item, disabled, onClick }) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="flex min-w-[168px] snap-start items-center gap-3 rounded-[16px] border border-midnight/8 bg-white px-3.5 py-3 text-left transition-[border-color,transform] hover:border-orange-300 active:scale-[0.98] disabled:opacity-50"
+      className="flex min-w-[170px] snap-start items-center gap-3 rounded-[14px] border border-midnight/8 bg-white px-3.5 py-3 text-left transition-[border-color,transform] hover:border-gold active:scale-[0.98] disabled:opacity-50"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-orange-50 text-orange-600">
+      <span className="accent-soft flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]">
         {createElement(Icon, { size: 18, strokeWidth: 2 })}
       </span>
       <span className="min-w-0">

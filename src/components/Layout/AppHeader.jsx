@@ -3,9 +3,9 @@ import KurogiLogo from '../shared/KurogiLogo'
 
 export default function AppHeader({ balance = 0, formatRupiah, onBalanceClick }) {
   return (
-    <header className="mx-auto flex w-full max-w-5xl shrink-0 items-center justify-between gap-3 px-4 pb-3 pt-4 font-jakarta md:hidden">
+    <header className="mx-auto flex h-[72px] w-full max-w-5xl shrink-0 items-center justify-between gap-3 border-b border-midnight/[0.07] bg-white px-4 font-jakarta md:hidden">
       <div className="flex min-w-0 items-center gap-2.5">
-        <KurogiLogo size={42} />
+        <KurogiLogo size={38} />
         <div className="min-w-0">
           <h1 className="truncate text-[16px] font-bold tracking-[-0.035em] text-midnight">Kurogi</h1>
           <p className="truncate text-[11px] font-medium text-muted">Teman nabungmu</p>
