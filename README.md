@@ -37,7 +37,8 @@ cp .env.local.example .env.local
 # Configure Neon backend
 # - apply SQL migrations in neon/migrations
 # - deploy functions in neon/functions
-# - set GEMINI_API_KEY in both Neon Functions
+# - set GEMINI_API_KEY securely in both Neon Functions
+powershell -ExecutionPolicy Bypass -File .\scripts\configure-neon-gemini.ps1
 
 # Start development
 npm run dev
