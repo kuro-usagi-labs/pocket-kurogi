@@ -68,7 +68,7 @@ Prioritas utama bukan lagi hanya "membuat tampilan bagus", tetapi:
 - Tambahkan koreksi natural: `yang tadi harusnya 80rb`, `ganti ke makan`, `hapus transaksi terakhir`.
 - Tambahkan batch input: `hari ini makan 30rb, parkir 5rb, kopi 20rb dari tunai`.
 - Tambahkan explainability singkat saat kategori otomatis dipilih.
-- Tambahkan fallback AI yang lebih ramah saat Supabase Edge Function error.
+- Tambahkan fallback AI yang lebih ramah saat Neon Function error.
 - Simpan learning rule dari koreksi user, bukan hanya dari input awal.
 
 ## Kualitas Teknis
@@ -82,7 +82,7 @@ Prioritas utama bukan lagi hanya "membuat tampilan bagus", tetapi:
 - Audit keamanan upload gambar dan voice: ukuran, mime, cleanup object URL, dan error state.
 - Tambah telemetry lokal untuk error penting, minimal console grouping yang rapi saat development.
 - Kurangi penggunaan string panjang langsung di komponen; copy/domain text bisa dipindah ke helper.
-- Review Supabase policies dan migration consistency, terutama wallet delete/archive.
+- Review Neon RLS policies dan migration consistency, terutama wallet delete/archive.
 
 ## Urutan Eksekusi Terbaik
 

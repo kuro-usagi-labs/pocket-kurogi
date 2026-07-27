@@ -1,70 +1,34 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext } from 'react'
 import { neon } from '../lib/neon'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let isActive = true
-
-    const applySession = (currentSession) => {
-      if (!isActive) {
-        return
-      }
-
-      setSession(currentSession ?? null)
-      setUser(currentSession?.user ?? null)
-      setLoading(false)
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      console.warn('Auth bootstrap timed out. Continuing without cached session.')
-      applySession(null)
-    }, 2500)
-
-    neon.auth
-      .getSession()
-      .then(({ data: { session: currentSession } }) => {
-        window.clearTimeout(timeoutId)
-        applySession(currentSession)
-      })
-      .catch((error) => {
-        window.clearTimeout(timeoutId)
-        console.warn('Auth bootstrap failed:', error)
-        applySession(null)
-      })
-
-    const {
-      data: { subscription },
-    } = neon.auth.onAuthStateChange(async (_event, currentSession) => {
-      window.clearTimeout(timeoutId)
-      applySession(currentSession)
-    })
-
-    return () => {
-      isActive = false
-      window.clearTimeout(timeoutId)
-      subscription.unsubscribe()
-    }
-  }, [])
+  const authSession = neon.auth.useSession()
+  const user = authSession.data?.user ?? null
+  const session = authSession.data?.session ?? null
+  const loading = authSession.isPending
 
   const signUp = async (email, password) => {
-    const { data, error } = await neon.auth.signUp({ email, password })
+    const { data, error } = await neon.auth.signUp.email({
+      email,
+      password,
+      name: email.split('@')[0],
+    })
     return { data, error }
   }
 
   const signInWithPassword = async (email, password) => {
-    const { data, error } = await neon.auth.signInWithPassword({ email, password })
+    const { data, error } = await neon.auth.signIn.email({ email, password })
     return { data, error }
   }
 
   const signInWithMagicLink = async (email) => {
-    const { error } = await neon.auth.signInWithOtp({ email })
+    const { error } = await neon.auth.signIn.magicLink({
+      email,
+      callbackURL: window.location.origin,
+    })
     return { error }
   }
 

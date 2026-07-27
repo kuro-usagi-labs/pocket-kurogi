@@ -14,12 +14,9 @@ export async function invokeNeonFunction(name, body) {
     }
   }
 
-  const {
-    data: { session },
-    error: sessionError,
-  } = await neon.auth.getSession()
+  const { data: tokenData, error: sessionError } = await neon.auth.token()
 
-  if (sessionError || !session?.access_token) {
+  if (sessionError || !tokenData?.token) {
     return {
       data: null,
       error: sessionError || new Error('Sesi login tidak tersedia.'),
@@ -30,7 +27,7 @@ export async function invokeNeonFunction(name, body) {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${tokenData.token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),

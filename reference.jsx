@@ -8,20 +8,16 @@ import {
 } from 'lucide-react';
 
 // =====================================================================
-// 🚀 PERSIAPAN INTEGRASI (SUPABASE & GEMINI)
+// 🚀 PERSIAPAN INTEGRASI (NEON & GEMINI)
 // =====================================================================
-// Nanti uncomment dan setup Supabase di sini:
-// import { createClient } from '@supabase/supabase-js';
-// const supabaseUrl = 'https://xyzcompany.supabase.co';
-// const supabaseKey = 'public-anon-key';
-// const supabase = createClient(supabaseUrl, supabaseKey);
+// Nanti gunakan Neon client dari src/lib/neon.js.
 
 const GEMINI_API_KEY = ''; // Kosongkan dulu, nanti isi dengan API Key Gemini 2.5
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('chat');
 
-  // Dummy Initial Data (Nanti ini diisi dari hasil fetch Supabase di useEffect)
+  // Dummy Initial Data (Nanti ini diisi dari hasil fetch Neon di useEffect)
   const initialTransactions = [
     { id: 101, type: 'expense', amount: 45000, desc: 'Blue Bottle Coffee', category: 'kopi', wallet: 'gopay', time: '09:15', date: 'Hari Ini' },
     { id: 102, type: 'expense', amount: 85000, desc: 'Makan Siang Bisnis', category: 'makan', wallet: 'tunai', time: '12:30', date: 'Hari Ini' },
@@ -44,7 +40,7 @@ export default function App() {
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Nanti fungsi ini panggil supabase.from('wallets').insert()
+  // Nanti fungsi ini panggil neon.from('wallets').insert()
   const handleAddWalletSubmit = (e) => {
     e.preventDefault();
     if (!newWalletData.name.trim()) return;
@@ -58,7 +54,7 @@ export default function App() {
     setNewWalletData({ name: '', balance: '' });
   };
 
-  // Nanti fungsi ini panggil supabase.from('wallets').delete()
+  // Nanti fungsi ini panggil neon.from('wallets').delete()
   const handleDeleteWallet = (id) => {
     setWallets(prev => prev.filter(w => w.id !== id));
   };
@@ -237,7 +233,7 @@ export default function App() {
     if (analysis.type === 'transaction') {
       
       // ==========================================================
-      // 🚀 NANTI TAMBAHKAN SUPABASE INSERT DI SINI
+      // 🚀 NANTI TAMBAHKAN NEON INSERT DI SINI
       // ==========================================================
       
       setWallets(prev => prev.map(w => {

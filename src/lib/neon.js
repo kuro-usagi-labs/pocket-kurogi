@@ -1,4 +1,5 @@
-import { createClient, SupabaseAuthAdapter } from '@neondatabase/neon-js'
+import { createClient } from '@neondatabase/neon-js'
+import { BetterAuthReactAdapter } from '@neondatabase/neon-js/auth/react/adapters'
 
 const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL
 const neonDataApiUrl = import.meta.env.VITE_NEON_DATA_API_URL
@@ -11,7 +12,7 @@ if (!neonAuthUrl || !neonDataApiUrl) {
 
 export const neon = createClient({
   auth: {
-    adapter: SupabaseAuthAdapter(),
+    adapter: BetterAuthReactAdapter(),
     url: neonAuthUrl,
   },
   dataApi: {
