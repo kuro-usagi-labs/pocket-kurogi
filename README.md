@@ -2,11 +2,12 @@
 
 > Your private financial analyst. Intelligent. Minimal. Elegant.
 
-**Pocket Kurogi** adalah aplikasi pencatatan keuangan pribadi berbasis AI Chatbot dengan visual premium ala Private Banking.
+**Pocket Kurogi** adalah aplikasi pencatatan keuangan pribadi berbasis percakapan dengan mesin aturan lokal yang privat dan dapat diprediksi.
 
 ## ✨ Fitur
 
-- **Smart Chat Input** — Cukup ketik "Makan siang 85k tunai" dan AI akan otomatis mengekstrak nominal, kategori, dan dompet
+- **Smart Chat Input** — Cukup ketik "Makan siang 85k tunai" untuk mengekstrak nominal, kategori, dan dompet tanpa layanan AI
+- **Local Financial Assistant** — Cek kemampuan membeli, budget harian, proyeksi target, pengeluaran rutin, dan ringkasan arus kas tanpa API key
 - **Multi-Wallet Management** — Kelola berbagai akun: Bank, E-Wallet, Tunai
 - **Transaction History** — Riwayat transaksi dengan kategorisasi otomatis
 - **Analytics Dashboard** — Ringkasan arus kas dan kategori pengeluaran terbesar
@@ -19,7 +20,7 @@
 | Frontend | React (Vite) |
 | Styling | Tailwind CSS v4 |
 | Backend | Neon (Postgres + Auth + Data API + Functions) |
-| AI/NLP | Gemini 2.5 Flash API |
+| Smart parser | Aturan deterministik lokal + pembelajaran preferensi user |
 | Icons | Lucide React |
 
 ## 🚀 Getting Started
@@ -36,9 +37,6 @@ cp .env.local.example .env.local
 
 # Configure Neon backend
 # - apply SQL migrations in neon/migrations
-# - deploy functions in neon/functions
-# - set GEMINI_API_KEY securely in both Neon Functions
-powershell -ExecutionPolicy Bypass -File .\scripts\configure-neon-gemini.ps1
 
 # Start development
 npm run dev
@@ -50,16 +48,14 @@ npm run dev
 |----------|-------------|
 | `VITE_NEON_AUTH_URL` | Neon Auth endpoint |
 | `VITE_NEON_DATA_API_URL` | Neon Data API endpoint |
-| `VITE_NEON_ANALYZE_TRANSACTION_URL` | Analyze transaction function endpoint |
-| `VITE_NEON_TRANSCRIBE_VOICE_URL` | Voice transcription function endpoint |
 
-Gemini dipanggil dari Neon Functions, jadi API key tidak pernah disimpan di browser bundle.
+Tidak diperlukan API key AI. Pemahaman chat dan perhitungan finansial berjalan secara lokal; Neon hanya dipakai untuk autentikasi dan penyimpanan data.
 
 ## 📂 Project Structure
 
 ```
 src/
-├── lib/          # Neon client, Auth, Data API, dan Gemini
+├── lib/          # Neon client, parser lokal, dan kalkulator finansial
 ├── contexts/     # Auth context (React Context API)
 ├── hooks/        # Custom hooks (wallets, transactions, categories)
 └── components/

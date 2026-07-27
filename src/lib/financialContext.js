@@ -29,7 +29,7 @@ function formatGoalProgress(goals = []) {
   return items.length > 0 ? items.join(', ') : 'Belum ada'
 }
 
-export function buildAIContextString({
+export function buildFinancialContextString({
   grandTotalBalance = 0,
   totalBalance = 0,
   totalGoalsBalance = 0,

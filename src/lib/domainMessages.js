@@ -179,7 +179,7 @@ export function mapDomainError(error) {
   }
 
   if (message.includes('unauthorized') || message.includes('jwt')) {
-    return 'Sesi Anda untuk memanggil analisis AI sudah tidak valid. Muat ulang lalu login lagi.'
+    return 'Sesi Anda sudah tidak valid. Muat ulang lalu login lagi.'
   }
 
   if (message.includes('goal name is required')) {

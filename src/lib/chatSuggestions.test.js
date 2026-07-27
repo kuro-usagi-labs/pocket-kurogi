@@ -27,10 +27,26 @@ describe('buildChatQuickActions', () => {
     expect(actions.map((item) => item.id)).toEqual([
       'expense',
       'transfer',
-      'balance',
+      'daily-budget',
       'summary',
     ])
     expect(actions[1].prompt).toContain('transfer 100rb dari BCA ke DANA')
+  })
+
+  it('surfaces repeated expense patterns when available', () => {
+    const actions = buildChatQuickActions({
+      wallets: [{ id: 'wallet-bca', name: 'BCA' }],
+      transactions: [
+        { id: 'tx-1', type: 'expense', desc: 'Netflix', amount: 65000, category: 'Hiburan' },
+        { id: 'tx-2', type: 'expense', desc: 'Netflix', amount: 65000, category: 'Hiburan' },
+      ],
+      analytics: { netCashflow: 100000 },
+    })
+
+    expect(actions[2]).toMatchObject({
+      id: 'recurring-expenses',
+      prompt: 'cek transaksi berulang saya',
+    })
   })
 
   it('surfaces archived wallets before other secondary actions', () => {

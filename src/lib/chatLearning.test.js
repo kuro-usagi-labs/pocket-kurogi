@@ -46,7 +46,7 @@ describe('resolveCategoryForMessage', () => {
     })
   })
 
-  it('creates a safe new category when AI suggests a strong category that does not exist yet', () => {
+  it('creates a safe new category when the local parser suggests a strong category that does not exist yet', () => {
     const result = resolveCategoryForMessage({
       text: 'beli golda dingin 10rb',
       categories: baseCategories,
@@ -61,7 +61,7 @@ describe('resolveCategoryForMessage', () => {
     })
   })
 
-  it('maps AI semantic categories to an existing custom category instead of duplicating', () => {
+  it('maps semantic categories to an existing custom category instead of duplicating', () => {
     const result = resolveCategoryForMessage({
       text: 'ngopi sore 35rb',
       categories: [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildGoalOptions, buildWalletOptions } from './chatEntities'
 import { buildCategoryOptions } from './categoryCatalog'
-import { analyzeWithRegex } from './gemini'
+import { analyzeTransaction, analyzeWithRegex } from './localAssistant'
 
 const walletOptions = buildWalletOptions([
   { id: 'wallet-bca', name: 'BCA', current_balance: 5000000 },
@@ -22,6 +22,27 @@ const categoryOptions = buildCategoryOptions([
 ])
 
 describe('analyzeWithRegex', () => {
+  it('routes affordability questions to the local financial calculator', () => {
+    const result = analyzeWithRegex(
+      'saldo BCA cukup untuk beli sepatu 750rb?',
+      walletOptions,
+      goalOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'affordability_query',
+      amount: 750000,
+      walletId: 'wallet-bca',
+    })
+  })
+
+  it('keeps image-only input private and asks for typed details', async () => {
+    const result = await analyzeTransaction('', 'data:image/png;base64,audit', walletOptions, goalOptions)
+
+    expect(result).toMatchObject({ type: 'unknown' })
+    expect(result.reply).toContain('tetap privat')
+  })
+
   it('routes strategy questions to advice instead of ledger fallback', () => {
     const result = analyzeWithRegex(
       'Melihat data saya, apa strategi terbaik untuk mengoptimalkan pengeluaran bulan ini?',
@@ -149,7 +170,7 @@ describe('analyzeWithRegex', () => {
     })
   })
 
-  it('uses semantic fallback categories for common expense intents before AI kicks in', () => {
+  it('uses semantic fallback categories for common expense intents locally', () => {
     const result = analyzeWithRegex('bayar token pln 100rb dari bca', walletOptions, goalOptions)
 
     expect(result).toMatchObject({

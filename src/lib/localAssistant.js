@@ -9,6 +9,7 @@ import {
   resolveOptionReference,
 } from './chatEntities'
 import { inferCategoryFromText, normalizeCategoryLookup } from './categoryCatalog'
+import { detectSmartFinanceQuery } from './smartFinance'
 
 const TRANSACTION_CATEGORIES = [
   'makan',
@@ -28,18 +29,13 @@ const LEDGER_AMOUNT_REQUIRED_REPLY =
 const GENERIC_UNKNOWN_REPLY =
   'Saya belum bisa memetakan permintaan itu ke aksi yang aman. Coba minta analisis keuangan, cek ringkasan, atau tulis transaksi dengan nominal yang jelas.'
 const HELP_REPLY = [
-  'Saya bisa bantu catat transaksi, transfer antar dompet, cek saldo, baca arus kas, analisa pengeluaran, dan kelola target tabungan.',
-  'Tulis natural saja, misalnya: "beli kopi 25rb dari BCA", "transfer 100rb dari BCA ke DANA", atau "analisa pengeluaran bulan ini".',
+  'Saya bisa bantu catat transaksi, transfer antar dompet, cek saldo, membaca arus kas, menghitung budget harian, memproyeksikan target, dan menemukan pengeluaran berulang.',
+  'Tulis natural saja, misalnya: “beli kopi 25rb dari BCA”, “budget harian saya berapa?”, atau “kapan target laptop tercapai kalau nabung 500rb per bulan?”.',
 ].join('\n')
 const TRANSFER_INTENT_PATTERN = /\b(transfer|trf|tf|trasfer|tranfer|pindah|pindahin|geser|kirim|kirimkan|oper|mutasi|move)\b/i
 const ASSISTANT_HELP_PATTERN = /\b(bisa apa|bantu apa|fitur|cara pakai|cara gunakan|contoh perintah|command|help|panduan|instruksi)\b/i
 
-/**
- * Analyze user text for transaction/advice intents.
- * Fast-path regex stays on the client for simple commands.
- * Complex prompts and OCR are delegated to a Neon Edge Function
- * so the Gemini API key is not shipped to the browser.
- */
+/** Analyze text locally with deterministic rules and learned user preferences. */
 export async function analyzeTransaction(
   text,
   imageBase64 = null,
@@ -49,96 +45,24 @@ export async function analyzeTransaction(
   financialContext = '',
   learningContext = {}
 ) {
+  void financialContext
   const archivedWalletOptions = learningContext?.archivedWalletOptions || []
-
-  if (imageBase64) {
-    return callAnalyzerFunction(
-      text,
-      imageBase64,
-      walletOptions,
-      archivedWalletOptions,
-      goalOptions,
-      categoryOptions,
-      financialContext
-    )
-  }
-
-  const regexResult = analyzeWithRegex(
+  const localResult = analyzeWithRegex(
     text || '',
     walletOptions,
     goalOptions,
     archivedWalletOptions,
     categoryOptions
   )
-  if (regexResult.type !== 'unknown') {
-    if (shouldEscalateTransactionCategory(regexResult, text, learningContext)) {
-      try {
-        const analyzerResult = await callAnalyzerFunction(
-          text,
-          null,
-          walletOptions,
-          archivedWalletOptions,
-          goalOptions,
-          categoryOptions,
-          financialContext
-        )
 
-        if (analyzerResult?.type === 'transaction') {
-          return analyzerResult
-        }
-      } catch (error) {
-        console.error('Analyzer category escalation failed:', error)
-      }
+  if (imageBase64 && !String(text || '').trim()) {
+    return {
+      type: 'unknown',
+      reply: 'Gambar sudah tersimpan. Agar tetap privat tanpa layanan AI, tuliskan nominal dan keterangannya, misalnya “makan 45rb dari BCA”.',
     }
-
-    return regexResult
   }
 
-  try {
-    return await callAnalyzerFunction(
-      text,
-      null,
-      walletOptions,
-      archivedWalletOptions,
-      goalOptions,
-      categoryOptions,
-      financialContext
-    )
-  } catch (error) {
-    console.error('Analyzer backend error:', error)
-    return regexResult
-  }
-}
-
-async function callAnalyzerFunction(
-  text,
-  imageBase64,
-  walletOptions,
-  archivedWalletOptions,
-  goalOptions,
-  categoryOptions,
-  financialContext
-) {
-  const { invokeNeonFunction } = await import('./neonFunctions')
-  const { data, error } = await invokeNeonFunction('analyzetransaction', {
-    text,
-    imageBase64,
-    walletOptions,
-    archivedWalletOptions,
-    goalOptions,
-    categoryOptions,
-    financialContext,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  if (!data || typeof data !== 'object') {
-    throw new Error('Analyzer response was empty.')
-  }
-
-  return normalizeAnalysisResult(data, walletOptions, archivedWalletOptions, goalOptions, text)
+  return localResult
 }
 
 export function analyzeWithRegex(
@@ -152,9 +76,14 @@ export function analyzeWithRegex(
   const helpQuery = detectAssistantHelpQuery(normalizedText)
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
+  const smartFinanceQuery = detectSmartFinanceQuery(normalizedText, walletOptions, goalOptions)
 
   if (helpQuery) {
     return helpQuery
+  }
+
+  if (smartFinanceQuery) {
+    return smartFinanceQuery
   }
 
   if (adviceQuery) {
@@ -967,7 +896,7 @@ function resolveWalletForTransaction(normalizedText, walletOptions) {
   })
 }
 
-function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions, goalOptions, rawText) {
+export function normalizeAnalysisResult(analysis, walletOptions, archivedWalletOptions, goalOptions, rawText) {
   if (!analysis || typeof analysis !== 'object') {
     return {
       type: 'unknown',
@@ -1480,42 +1409,6 @@ function buildTransferGuide({ intro, walletOptions = [] }) {
     'Format aman: "transfer 100rb dari BCA ke DANA".',
     walletHint,
   ].join('\n')
-}
-
-function shouldEscalateTransactionCategory(regexResult, text, learningContext = {}) {
-  if (regexResult?.type !== 'transaction') {
-    return false
-  }
-
-  if (regexResult.transactionType !== 'expense') {
-    return false
-  }
-
-  if (normalizeCategoryLookup(regexResult.category) !== 'lainnya') {
-    return false
-  }
-
-  if (hasLearnedCategoryRule(text, learningContext?.categoryRules || [])) {
-    return false
-  }
-
-  return String(text || '').trim().length >= 6
-}
-
-function hasLearnedCategoryRule(text, categoryRules = []) {
-  const normalizedText = normalizeCategoryLookup(text)
-  if (!normalizedText) {
-    return false
-  }
-
-  return categoryRules.some((rule) => {
-    const normalizedKeyword = normalizeCategoryLookup(rule?.keyword)
-    if (!normalizedKeyword) {
-      return false
-    }
-
-    return ` ${normalizedText} `.includes(` ${normalizedKeyword} `)
-  })
 }
 
 function escapeRegExp(value) {

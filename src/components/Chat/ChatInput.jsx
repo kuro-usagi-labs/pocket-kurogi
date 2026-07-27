@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Mic, Paperclip, Send, X } from 'lucide-react'
-import { transcribeVoiceNote } from '../../lib/voiceTranscription'
 
 // Keep this aligned with Neon Function and database constraints.
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
@@ -14,26 +13,11 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const recognitionRef = useRef(null)
-  const mediaRecorderRef = useRef(null)
-  const audioChunksRef = useRef([])
-  const audioStreamRef = useRef(null)
-  const recordTimeoutRef = useRef(null)
   const isVoiceBusy = voiceState !== 'idle'
 
-  const cleanupRecording = useCallback(() => {
-    window.clearTimeout(recordTimeoutRef.current)
-    recordTimeoutRef.current = null
-    audioStreamRef.current?.getTracks().forEach((track) => track.stop())
-    audioStreamRef.current = null
-    mediaRecorderRef.current = null
-    audioChunksRef.current = []
-  }, [])
-
   useEffect(() => () => {
-    window.clearTimeout(recordTimeoutRef.current)
     recognitionRef.current?.stop?.()
-    cleanupRecording()
-  }, [cleanupRecording])
+  }, [])
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current
@@ -106,23 +90,13 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     setSelectedImage(null)
   }
 
-  const handleMicClick = async () => {
+  const handleMicClick = () => {
     if (voiceState === 'listening' && recognitionRef.current) {
       recognitionRef.current.stop()
       return
     }
 
-    if (voiceState === 'recording' && mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop()
-      return
-    }
-
     if (isVoiceBusy || isTyping) return
-
-    if (navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined') {
-      await startAudioRecording()
-      return
-    }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     startSpeechRecognition(SpeechRecognition)
@@ -164,78 +138,8 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     recognition.start()
   }
 
-  const startAudioRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      onNotify?.('Browser ini belum mendukung voice note.', 'info')
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mimeType = getSupportedAudioMimeType()
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-      audioChunksRef.current = []
-      audioStreamRef.current = stream
-      mediaRecorderRef.current = recorder
-
-      recorder.ondataavailable = (event) => {
-        if (event.data?.size > 0) {
-          audioChunksRef.current.push(event.data)
-        }
-      }
-
-      recorder.onerror = () => {
-        cleanupRecording()
-        setVoiceState('idle')
-        onNotify?.('Voice note gagal direkam.', 'error')
-      }
-
-      recorder.onstop = async () => {
-        window.clearTimeout(recordTimeoutRef.current)
-        setVoiceState('transcribing')
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType || 'audio/webm',
-        })
-        cleanupRecording()
-
-        if (!audioBlob.size) {
-          setVoiceState('idle')
-          onNotify?.('Voice note kosong. Coba rekam ulang.', 'info')
-          return
-        }
-
-        const { text, error } = await transcribeVoiceNote(audioBlob)
-        setVoiceState('idle')
-
-        if (error || !text) {
-          onNotify?.('Voice note belum bisa ditranskrip. Coba lagi.', 'error')
-          return
-        }
-
-        setInputValue(text)
-        sendTranscript(text)
-      }
-
-      recorder.start()
-      setVoiceState('recording')
-      onNotify?.('Merekam voice note. Tekan lagi untuk selesai.', 'info')
-      recordTimeoutRef.current = window.setTimeout(() => {
-        if (mediaRecorderRef.current?.state === 'recording') {
-          mediaRecorderRef.current.stop()
-        }
-      }, 60_000)
-    } catch (error) {
-      console.error('Voice recording error', error)
-      cleanupRecording()
-      setVoiceState('idle')
-      onNotify?.('Akses mikrofon belum tersedia.', 'error')
-    }
-  }
-
   const voicePlaceholder = {
     listening: 'Mendengarkan...',
-    recording: 'Merekam voice note...',
-    transcribing: 'Menulis ulang suara...',
   }[voiceState] || 'Ceritakan transaksi atau tujuanmu...'
 
   return (
@@ -257,11 +161,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
 
         {isVoiceBusy ? (
           <div className="pointer-events-auto self-start rounded-full border border-orange-100 bg-white px-3.5 py-2 font-jakarta text-[12px] font-extrabold text-orange-700 shadow-sm">
-            {voiceState === 'transcribing'
-              ? 'Memproses suara'
-              : voiceState === 'recording'
-                ? 'Merekam. Tekan mic untuk selesai'
-                : 'Mendengarkan'}
+            Mendengarkan
           </div>
         ) : null}
 
@@ -302,13 +202,11 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               type="button"
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
-              disabled={voiceState === 'transcribing' || isTyping}
+              disabled={isTyping}
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] ${
-                voiceState === 'listening' || voiceState === 'recording'
+                voiceState === 'listening'
                   ? 'animate-pulse bg-red-50 text-red-500'
-                  : voiceState === 'transcribing'
-                    ? 'bg-orange-50 text-orange-600'
-                    : 'text-midnight hover:bg-champagne'
+                  : 'text-midnight hover:bg-champagne'
               }`}
             >
               <Mic size={22} strokeWidth={isVoiceBusy ? 2.8 : 2.2} />
@@ -330,17 +228,6 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
       </div>
     </div>
   )
-}
-
-function getSupportedAudioMimeType() {
-  const options = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/mp4',
-    'audio/mpeg',
-  ]
-
-  return options.find((type) => MediaRecorder.isTypeSupported(type)) || ''
 }
 
 function isSupportedImage(file) {

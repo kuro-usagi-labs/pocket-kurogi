@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildAIContextString } from './aiContext'
+import { buildFinancialContextString } from './financialContext'
 
 describe('buildAIContextString', () => {
-  it('keeps the AI context compact and free from raw wallet activity logs', () => {
-    const context = buildAIContextString({
+  it('keeps the financial context compact and free from raw wallet activity logs', () => {
+    const context = buildFinancialContextString({
       grandTotalBalance: 7500000,
       totalBalance: 5000000,
       totalGoalsBalance: 2500000,

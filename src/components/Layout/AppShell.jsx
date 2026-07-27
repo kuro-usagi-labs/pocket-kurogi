@@ -40,10 +40,11 @@ import {
   resolveOptionReference,
 } from '../../lib/chatEntities'
 import { buildChatQuickActions } from '../../lib/chatSuggestions'
+import { buildSmartFinanceReply } from '../../lib/smartFinance'
 
 const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
 const NO_PATTERN = /^(tidak|gak|ga|no|batal|cancel|nggak)$/i
-const loadAnalyzer = () => import('../../lib/gemini')
+const loadLocalParser = () => import('../../lib/localAssistant')
 const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
 const loadWalletsView = () => import('../Wallets/WalletsView')
@@ -324,7 +325,7 @@ export default function AppShell() {
     budgets,
   })
 
-  const { getAIContextString, grandTotalBalance } = advisor
+  const { grandTotalBalance } = advisor
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
@@ -661,6 +662,24 @@ export default function AppShell() {
               formatRupiah,
             }) ||
             'Analisa finansial tidak tersedia saat ini.',
+        }
+      }
+
+      if (
+        analysis.type === 'affordability_query' ||
+        analysis.type === 'daily_budget_query' ||
+        analysis.type === 'goal_projection_query' ||
+        analysis.type === 'recurring_expense_query'
+      ) {
+        return {
+          text: buildSmartFinanceReply({
+            query: analysis,
+            wallets: walletCatalog,
+            goals,
+            transactions,
+            totalBalance,
+            formatRupiah,
+          }),
         }
       }
 
@@ -1488,16 +1507,14 @@ export default function AppShell() {
         if (pendingAction) {
           response = await processPendingAction({ text: userMessageText })
         } else {
-          const financialContext = getAIContextString()
-
-          const { analyzeTransaction } = await loadAnalyzer()
+          const { analyzeTransaction } = await loadLocalParser()
           const analysis = await analyzeTransaction(
             text,
             imagePreview,
             walletOptions,
             goalOptions,
             categoryOptions,
-            financialContext,
+            '',
             {
               categoryRules,
               archivedWalletOptions,
@@ -1505,7 +1522,7 @@ export default function AppShell() {
           )
 
           response = await executeIntent(analysis, {
-            source: imagePreview ? 'ocr' : 'chat',
+            source: 'chat',
             rawText: userMessageText,
           })
         }
@@ -1529,7 +1546,6 @@ export default function AppShell() {
       categoryOptions,
       categoryRules,
       executeIntent,
-      getAIContextString,
       goalOptions,
       pendingAction,
       persistBotResponse,

@@ -10,6 +10,19 @@ function countLooseCategories(transactions = []) {
   return transactions.filter((transaction) => String(transaction.category || '').toLowerCase() === 'lainnya').length
 }
 
+function countRecurringExpenses(transactions = []) {
+  const signatures = new Map()
+  transactions
+    .filter((transaction) => transaction.type === 'expense' || transaction.analyticsBucket === 'expense')
+    .forEach((transaction) => {
+      const label = String(transaction.desc || transaction.title || transaction.category || '').toLowerCase().trim()
+      const key = `${label}:${Number(transaction.amount || 0)}`
+      if (label) signatures.set(key, (signatures.get(key) || 0) + 1)
+    })
+
+  return [...signatures.values()].filter((count) => count >= 2).length
+}
+
 export function buildChatQuickActions({
   wallets = [],
   archivedWallets = [],
@@ -19,6 +32,7 @@ export function buildChatQuickActions({
   const primaryWallet = wallets[0] || null
   const secondaryWallet = wallets[1] || null
   const looseCategoryCount = countLooseCategories(transactions)
+  const recurringExpenseCount = countRecurringExpenses(transactions)
   const netCashflow = Number(analytics?.netCashflow || 0)
 
   if (!primaryWallet) {
@@ -106,13 +120,21 @@ export function buildChatQuickActions({
       helper: `${looseCategoryCount} lainnya`,
       prompt: 'review transaksi kategori lainnya saya dan sarankan perbaikan kategori yang lebih rapi',
     })
+  } else if (recurringExpenseCount > 0) {
+    actions.push({
+      id: 'recurring-expenses',
+      icon: 'summary',
+      label: 'Cek rutin',
+      helper: `${recurringExpenseCount} pola`,
+      prompt: 'cek transaksi berulang saya',
+    })
   } else {
     actions.push({
-      id: 'balance',
+      id: 'daily-budget',
       icon: 'wallet',
-      label: 'Cek saldo',
+      label: 'Budget harian',
       helper: `${wallets.length} dompet`,
-      prompt: 'cek saldo saya',
+      prompt: 'budget harian saya berapa?',
     })
   }
 
