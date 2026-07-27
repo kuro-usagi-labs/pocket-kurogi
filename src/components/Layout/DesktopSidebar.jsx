@@ -1,4 +1,4 @@
-import { BarChart3, Clock3, LogOut, MessageCircle, PiggyBank } from 'lucide-react'
+import { BarChart3, Clock3, LogOut, MessageCircle, PiggyBank, Settings2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import KurogiLogo from '../shared/KurogiLogo'
 
@@ -7,6 +7,7 @@ const navItems = [
   { id: 'history', label: 'Histori', icon: Clock3 },
   { id: 'wallets', label: 'Dompet', icon: PiggyBank },
   { id: 'analytics', label: 'Analitik', icon: BarChart3 },
+  { id: 'settings', label: 'Setelan', icon: Settings2 },
 ]
 
 export default function DesktopSidebar({ activeTab, setActiveTab }) {

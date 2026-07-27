@@ -5,6 +5,7 @@ const PAGE_COPY = {
   history: ['Jejak uang', 'Semua yang masuk dan keluar, tanpa ribet.'],
   wallets: ['Ruang tabungan', 'Dompet dan tujuan yang sedang kamu kejar.'],
   analytics: ['Pola uang', 'Lihat kebiasaan, bukan sekadar angka.'],
+  settings: ['Pengaturan', 'Kelola akun dan kendali atas datamu.'],
 }
 
 export default function DesktopHeader({ activeTab = 'chat', balance = 0, formatRupiah }) {

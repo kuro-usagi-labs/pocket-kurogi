@@ -49,10 +49,12 @@ const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
 const loadWalletsView = () => import('../Wallets/WalletsView')
 const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
+const loadSettingsView = () => import('../Settings/SettingsView')
 const HistoryView = lazy(loadHistoryView)
 const EditTransactionModal = lazy(loadEditTransactionModal)
 const WalletsView = lazy(loadWalletsView)
 const AnalyticsView = lazy(loadAnalyticsView)
+const SettingsView = lazy(loadSettingsView)
 const WELCOME_MESSAGE = {
   id: 'welcome',
   sender: 'bot',
@@ -410,6 +412,7 @@ export default function AppShell() {
       loadEditTransactionModal()
       loadWalletsView()
       loadAnalyticsView()
+      loadSettingsView()
     }
 
     if ('requestIdleCallback' in window) {
@@ -1842,6 +1845,14 @@ export default function AppShell() {
                     budgets={budgets}
                     formatRupiah={formatRupiah}
                   />
+                </Suspense>
+              </div>
+            ) : null}
+
+            {activeTab === 'settings' ? (
+              <div className="absolute inset-x-0 top-0 bottom-[92px] w-full overflow-hidden animate-fade-in md:bottom-0">
+                <Suspense fallback={<ViewLoadingFallback />}>
+                  <SettingsView />
                 </Suspense>
               </div>
             ) : null}
