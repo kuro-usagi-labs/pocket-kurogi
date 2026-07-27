@@ -24,12 +24,23 @@ export function AuthProvider({ children }) {
     return { data, error }
   }
 
-  const signInWithMagicLink = async (email) => {
-    const { error } = await neon.auth.signIn.magicLink({
+  const requestPasswordReset = async (email) => {
+    const resetUrl = new URL(window.location.origin)
+    resetUrl.searchParams.set('auth', 'reset-password')
+
+    const { data, error } = await neon.auth.requestPasswordReset({
       email,
-      callbackURL: window.location.origin,
+      redirectTo: resetUrl.toString(),
     })
-    return { error }
+    return { data, error }
+  }
+
+  const resetPassword = async (newPassword, token) => {
+    const { data, error } = await neon.auth.resetPassword({
+      newPassword,
+      token,
+    })
+    return { data, error }
   }
 
   const signOut = async () => {
@@ -45,7 +56,8 @@ export function AuthProvider({ children }) {
         loading,
         signUp,
         signInWithPassword,
-        signInWithMagicLink,
+        requestPasswordReset,
+        resetPassword,
         signOut,
       }}
     >

@@ -1,17 +1,25 @@
-import { useState } from 'react'
-import { ArrowRight, Mail, MessageCircleMore, PiggyBank } from 'lucide-react'
+import { useId, useState } from 'react'
+import { ArrowLeft, ArrowRight, KeyRound, Mail, MessageCircleMore, PiggyBank } from 'lucide-react'
 import { motion as Motion, useReducedMotion } from 'motion/react'
 import { useAuth } from '../../contexts/AuthContext'
 import KurogiLogo from '../shared/KurogiLogo'
 
 export default function LoginPage() {
-  const { signInWithPassword, signUp, signInWithMagicLink } = useAuth()
+  const {
+    signInWithPassword,
+    signUp,
+    requestPasswordReset,
+    resetPassword,
+  } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState('login')
+  const [mode, setMode] = useState(getInitialAuthMode)
   const [message, setMessage] = useState(null)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(getInitialAuthError)
+  const passwordId = useId()
+  const confirmPasswordId = useId()
   const reduceMotion = useReducedMotion()
 
   const handleSubmit = async (event) => {
@@ -25,26 +33,50 @@ export default function LoginPage() {
     try {
       const normalizedEmail = email.trim().toLowerCase()
 
-      if (mode === 'magic') {
-        const result = await signInWithMagicLink(normalizedEmail)
-        if (result.error) setError(toAuthMessage(result.error))
-        else setMessage('Link masuk sudah dikirim. Periksa inbox dan folder spam.')
+      if (mode === 'reset') {
+        const resetToken = new URLSearchParams(window.location.search).get('token')
+
+        if (!resetToken) {
+          setError('Link reset tidak valid atau sudah kedaluwarsa. Minta link baru.')
+        } else if (password !== confirmPassword) {
+          setError('Konfirmasi password belum sama.')
+        } else {
+          const result = await resetPassword(password, resetToken)
+          if (result.error) {
+            setError(toAuthMessage(result.error, mode))
+          } else {
+            window.history.replaceState({}, '', window.location.pathname)
+            setPassword('')
+            setConfirmPassword('')
+            setMode('login')
+            setMessage('Password baru sudah tersimpan. Silakan masuk kembali.')
+          }
+        }
+      } else if (mode === 'forgot') {
+        const result = await requestPasswordReset(normalizedEmail)
+        if (result.error) setError(toAuthMessage(result.error, mode))
+        else setMessage('Jika email terdaftar, link reset password akan segera dikirim. Periksa inbox dan folder spam.')
       } else if (mode === 'register') {
         const result = await signUp(normalizedEmail, password)
-        if (result.error) setError(toAuthMessage(result.error))
+        if (result.error) setError(toAuthMessage(result.error, mode))
         else setMessage('Akun berhasil dibuat. Jika belum masuk otomatis, periksa emailmu.')
       } else {
         const result = await signInWithPassword(normalizedEmail, password)
-        if (result.error) setError(toAuthMessage(result.error))
+        if (result.error) setError(toAuthMessage(result.error, mode))
       }
     } catch (caughtError) {
-      setError(toAuthMessage(caughtError))
+      setError(toAuthMessage(caughtError, mode))
     } finally {
       setLoading(false)
     }
   }
 
   const selectMode = (nextMode) => {
+    if (mode === 'reset') {
+      window.history.replaceState({}, '', window.location.pathname)
+      setPassword('')
+      setConfirmPassword('')
+    }
     setMode(nextMode)
     setError(null)
     setMessage(null)
@@ -99,13 +131,14 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="mx-auto w-full max-w-[390px]">
             <div>
               <h2 className="font-jakarta text-[30px] font-bold tracking-[-0.05em] text-midnight">
-                {mode === 'register' ? 'Mulai menabung' : mode === 'magic' ? 'Masuk tanpa password' : 'Lanjutkan obrolan'}
+                {getAuthHeading(mode)}
               </h2>
               <p className="mt-2 text-[13px] font-medium leading-relaxed text-muted">
-                {mode === 'register' ? 'Buat ruang aman untuk catatan uangmu.' : 'Data dan targetmu sudah menunggu.'}
+                {getAuthDescription(mode)}
               </p>
             </div>
 
+            {mode === 'login' || mode === 'register' ? (
             <div className="mt-5 grid grid-cols-2 gap-1 rounded-[16px] bg-champagne p-1 sm:mt-7">
               {[
                 { id: 'login', label: 'Masuk' },
@@ -123,8 +156,10 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
+            ) : null}
 
             <div className="mt-5 space-y-4 sm:mt-6">
+              {mode !== 'reset' ? (
               <label className="block">
                 <span className="mb-2 block text-[12px] font-bold text-midnight">Email</span>
                 <input
@@ -136,28 +171,59 @@ export default function LoginPage() {
                   className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3.5 text-[16px] font-medium text-midnight outline-none transition-colors placeholder:text-muted/60 focus:border-orange-400 focus:bg-white"
                 />
               </label>
+              ) : null}
 
-              {mode !== 'magic' ? (
-                <label className="block">
-                  <span className="mb-2 block text-[12px] font-bold text-midnight">Password</span>
+              {mode === 'login' || mode === 'register' || mode === 'reset' ? (
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3 text-[12px] font-bold text-midnight">
+                    <label htmlFor={passwordId}>{mode === 'reset' ? 'Password baru' : 'Password'}</label>
+                    {mode === 'login' ? (
+                      <button
+                        type="button"
+                        onClick={() => selectMode('forgot')}
+                        className="text-orange-700 transition-colors hover:text-orange-600"
+                      >
+                        Lupa password?
+                      </button>
+                    ) : null}
+                  </div>
                   <input
+                    id={passwordId}
                     type="password"
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Minimal 8 karakter"
+                    placeholder={mode === 'reset' ? 'Buat minimal 8 karakter' : 'Minimal 8 karakter'}
                     minLength={8}
+                    autoComplete={mode === 'reset' ? 'new-password' : mode === 'register' ? 'new-password' : 'current-password'}
                     className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3.5 text-[16px] font-medium text-midnight outline-none transition-colors placeholder:text-muted/60 focus:border-orange-400 focus:bg-white"
                   />
-                </label>
+                </div>
+              ) : null}
+
+              {mode === 'reset' ? (
+                <div>
+                  <label htmlFor={confirmPasswordId} className="mb-2 block text-[12px] font-bold text-midnight">Ulangi password baru</label>
+                  <input
+                    id={confirmPasswordId}
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Ketik ulang password"
+                    minLength={8}
+                    autoComplete="new-password"
+                    className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3.5 text-[16px] font-medium text-midnight outline-none transition-colors placeholder:text-muted/60 focus:border-orange-400 focus:bg-white"
+                  />
+                </div>
               ) : null}
             </div>
 
             {error ? (
-              <p className="mt-4 rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-700">{error}</p>
+              <p role="alert" className="mt-4 rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-700">{error}</p>
             ) : null}
             {message ? (
-              <p className="mt-4 rounded-[16px] border border-orange-200 bg-orange-50 px-4 py-3 text-[12px] font-semibold text-orange-800">{message}</p>
+              <p role="status" className="mt-4 rounded-[16px] border border-orange-200 bg-orange-50 px-4 py-3 text-[12px] font-semibold text-orange-800">{message}</p>
             ) : null}
 
             <button
@@ -165,17 +231,19 @@ export default function LoginPage() {
               disabled={loading}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-orange-700 px-5 py-3.5 text-[14px] font-bold text-white shadow-[0_14px_32px_rgba(232,84,46,0.22)] transition-transform active:scale-[0.98] disabled:opacity-50"
             >
-              <span>{loading ? 'Memproses...' : mode === 'register' ? 'Buat akun' : mode === 'magic' ? 'Kirim link' : 'Masuk'}</span>
-              {mode === 'magic' ? <Mail size={18} /> : <ArrowRight size={18} />}
+              <span>{loading ? 'Memproses...' : getSubmitLabel(mode)}</span>
+              {mode === 'forgot' ? <Mail size={18} /> : mode === 'reset' ? <KeyRound size={18} /> : <ArrowRight size={18} />}
             </button>
 
-            <button
-              type="button"
-              onClick={() => selectMode(mode === 'magic' ? 'login' : 'magic')}
-              className="mt-4 w-full rounded-full px-4 py-2 text-[12px] font-bold text-muted transition-colors hover:text-midnight"
-            >
-              {mode === 'magic' ? 'Pakai password' : 'Masuk lewat link email'}
-            </button>
+            {mode !== 'login' && mode !== 'register' ? (
+              <button
+                type="button"
+                onClick={() => selectMode(mode === 'reset' ? 'forgot' : 'login')}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold text-muted transition-colors hover:text-midnight"
+              >
+                <ArrowLeft size={15} /> {mode === 'reset' ? 'Minta link baru' : 'Kembali ke login'}
+              </button>
+            ) : null}
           </form>
         </Motion.section>
       </div>
@@ -183,9 +251,53 @@ export default function LoginPage() {
   )
 }
 
-function toAuthMessage(error) {
+function getInitialAuthMode() {
+  if (typeof window === 'undefined') return 'login'
+  const params = new URLSearchParams(window.location.search)
+  return params.has('token') || params.get('auth') === 'reset-password' ? 'reset' : 'login'
+}
+
+function getInitialAuthError() {
+  if (typeof window === 'undefined') return null
+  const errorCode = new URLSearchParams(window.location.search).get('error')
+  return errorCode ? 'Link tidak valid atau sudah kedaluwarsa. Minta link baru.' : null
+}
+
+function getAuthHeading(mode) {
+  if (mode === 'register') return 'Mulai menabung'
+  if (mode === 'forgot') return 'Pulihkan akses'
+  if (mode === 'reset') return 'Buat password baru'
+  return 'Lanjutkan obrolan'
+}
+
+function getAuthDescription(mode) {
+  if (mode === 'register') return 'Buat ruang aman untuk catatan uangmu.'
+  if (mode === 'forgot') return 'Masukkan email untuk menerima link reset password.'
+  if (mode === 'reset') return 'Gunakan password yang kuat dan mudah kamu ingat.'
+  return 'Data dan targetmu sudah menunggu.'
+}
+
+function getSubmitLabel(mode) {
+  if (mode === 'register') return 'Buat akun'
+  if (mode === 'forgot') return 'Kirim link reset'
+  if (mode === 'reset') return 'Simpan password baru'
+  return 'Masuk'
+}
+
+function toAuthMessage(error, mode = 'login') {
   const message = String(error?.message || '').toLowerCase()
   const status = Number(error?.status || error?.statusCode || 0)
+
+  if (mode === 'reset') {
+    if (message.includes('token') || message.includes('expired') || message.includes('invalid')) {
+      return 'Link reset tidak valid atau sudah kedaluwarsa. Minta link baru.'
+    }
+    return 'Password belum bisa diperbarui. Minta link baru lalu coba lagi.'
+  }
+
+  if (mode === 'forgot') {
+    return 'Email reset belum bisa dikirim. Tunggu sebentar lalu coba lagi.'
+  }
 
   if (
     status === 401 ||
