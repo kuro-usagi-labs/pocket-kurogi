@@ -6,8 +6,8 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp'])
 
-export default function ChatInput({ onSend, isTyping, onNotify }) {
-  const [inputValue, setInputValue] = useState('')
+export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '' }) {
+  const [inputValue, setInputValue] = useState(initialValue)
   const [voiceState, setVoiceState] = useState('idle')
   const [selectedImage, setSelectedImage] = useState(null)
   const fileInputRef = useRef(null)
@@ -32,6 +32,11 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
   const handleSubmit = (e) => {
     e?.preventDefault()
     if ((!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy) return
+    if (selectedImage && !inputValue.trim()) {
+      onNotify?.('Tambahkan nominal dan keterangan agar bukti tersimpan bersama transaksi.', 'info')
+      textareaRef.current?.focus()
+      return
+    }
     onSend({
       text: inputValue.trim(),
       imageFile: selectedImage?.file || null,
@@ -77,19 +82,6 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     e.target.value = ''
   }
 
-  const sendTranscript = (transcript) => {
-    const cleanedTranscript = String(transcript || '').trim()
-    if (!cleanedTranscript || isTyping) return
-
-    onSend({
-      text: cleanedTranscript,
-      imageFile: selectedImage?.file || null,
-      imagePreview: selectedImage?.previewUrl || null,
-    })
-    setInputValue('')
-    setSelectedImage(null)
-  }
-
   const handleMicClick = () => {
     if (voiceState === 'listening' && recognitionRef.current) {
       recognitionRef.current.stop()
@@ -122,7 +114,8 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
       setInputValue(transcript)
-      sendTranscript(transcript)
+      window.requestAnimationFrame(() => textareaRef.current?.focus())
+      onNotify?.('Teks suara sudah siap. Periksa dulu, lalu tekan kirim.', 'success')
     }
 
     recognition.onerror = (event) => {
@@ -179,6 +172,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
+            title="Lampirkan bukti transaksi"
             disabled={isTyping || isVoiceBusy}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45"
           >
@@ -197,6 +191,7 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
               disabled={isVoiceBusy}
               autoComplete="off"
               enterKeyHint="send"
+              autoFocus={Boolean(initialValue)}
             />
             <button
               type="button"

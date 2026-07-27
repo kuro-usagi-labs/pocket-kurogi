@@ -55,10 +55,15 @@ const EditTransactionModal = lazy(loadEditTransactionModal)
 const WalletsView = lazy(loadWalletsView)
 const AnalyticsView = lazy(loadAnalyticsView)
 const SettingsView = lazy(loadSettingsView)
-const WELCOME_MESSAGE = {
-  id: 'welcome',
-  sender: 'bot',
-  text: 'Halo. Catat transaksi atau tanya arus kasmu.',
+function getWelcomeMessage({ balance = 0, transactionCount = 0 } = {}) {
+  return {
+    id: 'welcome',
+    sender: 'bot',
+    text:
+      transactionCount === 0 && Number(balance || 0) <= 0
+        ? 'Selamat datang. Mulai dengan isi saldo awal atau catat pemasukan pertamamu. Saya akan membantu langkah berikutnya.'
+        : 'Halo. Catat transaksi atau tanya arus kasmu.',
+  }
 }
 
 function isAffirmative(text = '') {
@@ -818,6 +823,7 @@ export default function AppShell() {
         return {
           text: buildWalletDeletionPrompt(walletToDelete, formatRupiah, { markdown: true }),
           intentStatus: 'needs_confirmation',
+          metadata: { confirmationMode: 'binary' },
         }
       }
 
@@ -839,6 +845,7 @@ export default function AppShell() {
         return {
           text: buildWalletRestorePrompt(walletToRestore, { markdown: true }),
           intentStatus: 'needs_confirmation',
+          metadata: { confirmationMode: 'binary' },
         }
       }
 
@@ -1101,14 +1108,22 @@ export default function AppShell() {
         return {
           text: analysis.prompt || 'Saya masih butuh klarifikasi sebelum memproses aksi ini.',
           intentStatus: 'needs_confirmation',
-          metadata: analysis.candidates?.length
-            ? {
+          metadata: {
+            confirmationMode:
+              analysis.reason === 'unknown_wallet' && analysis.action === 'create_wallet'
+                ? 'binary'
+                : analysis.candidates?.length
+                  ? 'choice'
+                  : 'input',
+            ...(analysis.candidates?.length
+              ? {
                 candidates: analysis.candidates.map((candidate) => ({
                   id: candidate.id,
                   name: candidate.name,
                 })),
               }
-            : undefined,
+              : {}),
+          },
         }
       }
 
@@ -1787,7 +1802,10 @@ export default function AppShell() {
                     ? messages
                     : [
                         {
-                          ...WELCOME_MESSAGE,
+                          ...getWelcomeMessage({
+                            balance: grandTotalBalance,
+                            transactionCount: transactions.length,
+                          }),
                           time: getCurrentTimeLabel(),
                         },
                       ]

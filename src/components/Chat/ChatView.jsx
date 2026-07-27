@@ -58,7 +58,9 @@ export default function ChatView({
   const isLoadingOlderRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
   const previousLastMessageIdRef = useRef(getLastMessageId(messages))
+  const composerDraftIdRef = useRef(0)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
+  const [composerDraft, setComposerDraft] = useState(null)
   const reduceMotion = useReducedMotion()
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
@@ -116,11 +118,16 @@ export default function ChatView({
     }
   }, [loadingMore])
 
-  const handleQuickAction = useCallback((item) => {
+  const handleQuickAction = (item) => {
     if (item.action === 'scroll') return handleJumpToLatest()
     if (item.navigateTo) return onNavigate?.(item.navigateTo)
+    if (item.action === 'compose' && item.prompt) {
+      composerDraftIdRef.current += 1
+      setComposerDraft({ id: `${item.id}-${composerDraftIdRef.current}`, text: item.prompt })
+      return
+    }
     if (item.prompt) onSend(item.prompt)
-  }, [handleJumpToLatest, onNavigate, onSend])
+  }
 
   return (
     <div className="absolute inset-0 h-full w-full">
@@ -206,13 +213,20 @@ export default function ChatView({
         </button>
       ) : null}
 
-      <ChatInput onSend={onSend} isTyping={isTyping} onNotify={onNotify} />
+      <ChatInput
+        key={composerDraft?.id || 'composer'}
+        onSend={onSend}
+        isTyping={isTyping}
+        onNotify={onNotify}
+        initialValue={composerDraft?.text || ''}
+      />
     </div>
   )
 }
 
 function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion }) {
   const activeGoal = goals[0] || null
+  const needsBalanceSetup = !activeGoal && Number(balance || 0) <= 0
   const current = Number(activeGoal?.current_amount || 0)
   const target = Number(activeGoal?.target_amount || 0)
   const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -227,7 +241,7 @@ function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion
       <div className="relative grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
           <p className="max-w-[17ch] font-jakarta text-[27px] font-bold leading-[1.05] tracking-[-0.05em] text-midnight sm:text-[36px]">
-            Mau nabung untuk apa hari ini?
+            {needsBalanceSetup ? 'Mulai dari saldo yang kamu punya.' : 'Mau nabung untuk apa hari ini?'}
           </p>
           <button
             type="button"
@@ -235,22 +249,28 @@ function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion
             className="mt-5 inline-flex items-center gap-2 whitespace-nowrap rounded-[13px] bg-midnight px-4 py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[0.98]"
           >
             <PiggyBank size={17} strokeWidth={2.1} />
-            Buka tabungan
+            {needsBalanceSetup ? 'Atur saldo & dompet' : 'Buka tabungan'}
           </button>
         </div>
 
         <div className="min-w-[210px] rounded-[15px] bg-midnight p-4 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.55)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold text-white/55">{activeGoal?.name || 'Saldo tersedia'}</p>
+              <p className="text-[10px] font-bold text-white/55">
+                {needsBalanceSetup ? 'Langkah pertama' : activeGoal?.name || 'Saldo tersedia'}
+              </p>
               <p className="money-number mt-1.5 text-[22px] font-bold leading-none">
-                {formatRupiah(activeGoal ? current : balance)}
+                {needsBalanceSetup ? 'Isi saldo awal' : formatRupiah(activeGoal ? current : balance)}
               </p>
             </div>
             <Target size={19} className="text-orange-300" strokeWidth={2} />
           </div>
           <p className="mt-4 text-[11px] font-medium text-white/60">
-            {activeGoal ? `${progress}% dari ${formatRupiah(target)}` : 'Siap dibagi ke tujuan baru'}
+            {needsBalanceSetup
+              ? 'Agar transaksi pertama tidak gagal'
+              : activeGoal
+                ? `${progress}% dari ${formatRupiah(target)}`
+                : 'Siap dibagi ke tujuan baru'}
           </p>
         </div>
       </div>

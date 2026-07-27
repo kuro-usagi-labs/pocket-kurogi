@@ -68,6 +68,40 @@ export function buildChatQuickActions({
     ]
   }
 
+  if (transactions.length === 0 && Number(primaryWallet.current_balance || 0) <= 0) {
+    return [
+      {
+        id: 'income',
+        icon: 'income',
+        label: 'Isi saldo awal',
+        helper: primaryWallet.name,
+        prompt: buildPrompt('pemasukan 1jt ke', primaryWallet.name),
+        action: 'compose',
+      },
+      {
+        id: 'add-wallet',
+        icon: 'wallet',
+        label: 'Tambah dompet',
+        helper: 'Bank atau e-wallet',
+        navigateTo: 'wallets',
+      },
+      {
+        id: 'help',
+        icon: 'sparkles',
+        label: 'Contoh perintah',
+        helper: 'Pelajari chat',
+        prompt: 'kamu bisa bantu apa aja?',
+      },
+      {
+        id: 'compose',
+        icon: 'compose',
+        label: 'Tulis sendiri',
+        helper: 'Mulai dari chat',
+        action: 'scroll',
+      },
+    ]
+  }
+
   const actions = [
     {
       id: 'expense',
@@ -75,6 +109,7 @@ export function buildChatQuickActions({
       label: 'Catat keluar',
       helper: primaryWallet.name,
       prompt: buildPrompt('beli makan 25rb dari', primaryWallet.name),
+      action: 'compose',
     },
   ]
 
@@ -85,6 +120,7 @@ export function buildChatQuickActions({
       label: 'Catat masuk',
       helper: primaryWallet.name,
       prompt: buildPrompt('gaji 5jt ke', primaryWallet.name),
+      action: 'compose',
     })
   } else if (secondaryWallet) {
     actions.push({
@@ -93,6 +129,7 @@ export function buildChatQuickActions({
       label: 'Transfer',
       helper: `${primaryWallet.name} ke ${secondaryWallet.name}`,
       prompt: `transfer 100rb dari ${primaryWallet.name} ke ${secondaryWallet.name}`,
+      action: 'compose',
     })
   } else {
     actions.push({
@@ -101,6 +138,7 @@ export function buildChatQuickActions({
       label: 'Catat masuk',
       helper: primaryWallet.name,
       prompt: buildPrompt('pemasukan 500rb ke', primaryWallet.name),
+      action: 'compose',
     })
   }
 

@@ -57,9 +57,19 @@ export default function LoginPage() {
         if (result.error) setError(toAuthMessage(result.error, mode))
         else setMessage('Jika email terdaftar, link reset password akan segera dikirim. Periksa inbox dan folder spam.')
       } else if (mode === 'register') {
-        const result = await signUp(normalizedEmail, password)
-        if (result.error) setError(toAuthMessage(result.error, mode))
-        else setMessage('Akun berhasil dibuat. Jika belum masuk otomatis, periksa emailmu.')
+        if (password !== confirmPassword) {
+          setError('Konfirmasi password belum sama.')
+        } else {
+          const result = await signUp(normalizedEmail, password)
+          if (result.error) {
+            setError(toAuthMessage(result.error, mode))
+          } else {
+            setPassword('')
+            setConfirmPassword('')
+            setMode('login')
+            setMessage('Akun berhasil dibuat. Jika belum masuk otomatis, periksa email lalu masuk di sini.')
+          }
+        }
       } else {
         const result = await signInWithPassword(normalizedEmail, password)
         if (result.error) setError(toAuthMessage(result.error, mode))
@@ -78,6 +88,8 @@ export default function LoginPage() {
       setConfirmPassword('')
     }
     setMode(nextMode)
+    setPassword('')
+    setConfirmPassword('')
     setError(null)
     setMessage(null)
   }
@@ -139,7 +151,7 @@ export default function LoginPage() {
             </div>
 
             {mode === 'login' || mode === 'register' ? (
-            <div className="mt-5 grid grid-cols-2 gap-1 rounded-[16px] bg-champagne p-1 sm:mt-7">
+            <div role="tablist" aria-label="Pilihan autentikasi" className="mt-5 grid grid-cols-2 gap-1 rounded-[16px] bg-champagne p-1 sm:mt-7">
               {[
                 { id: 'login', label: 'Masuk' },
                 { id: 'register', label: 'Daftar' },
@@ -147,6 +159,8 @@ export default function LoginPage() {
                 <button
                   key={tab.id}
                   type="button"
+                  role="tab"
+                  aria-selected={mode === tab.id}
                   onClick={() => selectMode(tab.id)}
                   className={`rounded-[12px] py-2.5 text-[12px] font-bold transition-colors ${
                     mode === tab.id ? 'bg-white text-midnight shadow-sm' : 'text-muted hover:text-midnight'
@@ -201,9 +215,11 @@ export default function LoginPage() {
                 </div>
               ) : null}
 
-              {mode === 'reset' ? (
+              {mode === 'register' || mode === 'reset' ? (
                 <div>
-                  <label htmlFor={confirmPasswordId} className="mb-2 block text-[12px] font-bold text-midnight">Ulangi password baru</label>
+                  <label htmlFor={confirmPasswordId} className="mb-2 block text-[12px] font-bold text-midnight">
+                    {mode === 'reset' ? 'Ulangi password baru' : 'Ulangi password'}
+                  </label>
                   <input
                     id={confirmPasswordId}
                     type="password"

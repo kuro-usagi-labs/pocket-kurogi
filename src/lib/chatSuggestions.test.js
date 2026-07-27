@@ -17,8 +17,8 @@ describe('buildChatQuickActions', () => {
   it('suggests transfer when the user already has more than one wallet', () => {
     const actions = buildChatQuickActions({
       wallets: [
-        { id: 'wallet-bca', name: 'BCA' },
-        { id: 'wallet-dana', name: 'DANA' },
+        { id: 'wallet-bca', name: 'BCA', current_balance: 1000000 },
+        { id: 'wallet-dana', name: 'DANA', current_balance: 250000 },
       ],
       transactions: [{ id: 'tx-1', category: 'Makan' }],
       analytics: { netCashflow: 250000 },
@@ -31,11 +31,30 @@ describe('buildChatQuickActions', () => {
       'summary',
     ])
     expect(actions[1].prompt).toContain('transfer 100rb dari BCA ke DANA')
+    expect(actions[1].action).toBe('compose')
+  })
+
+  it('guides a fresh account to fund its first wallet before spending', () => {
+    const actions = buildChatQuickActions({
+      wallets: [{ id: 'wallet-cash', name: 'Tunai', current_balance: 0 }],
+      transactions: [],
+    })
+
+    expect(actions.map((item) => item.id)).toEqual([
+      'income',
+      'add-wallet',
+      'help',
+      'compose',
+    ])
+    expect(actions[0]).toMatchObject({
+      label: 'Isi saldo awal',
+      action: 'compose',
+    })
   })
 
   it('surfaces repeated expense patterns when available', () => {
     const actions = buildChatQuickActions({
-      wallets: [{ id: 'wallet-bca', name: 'BCA' }],
+      wallets: [{ id: 'wallet-bca', name: 'BCA', current_balance: 100000 }],
       transactions: [
         { id: 'tx-1', type: 'expense', desc: 'Netflix', amount: 65000, category: 'Hiburan' },
         { id: 'tx-2', type: 'expense', desc: 'Netflix', amount: 65000, category: 'Hiburan' },
@@ -51,7 +70,7 @@ describe('buildChatQuickActions', () => {
 
   it('surfaces archived wallets before other secondary actions', () => {
     const actions = buildChatQuickActions({
-      wallets: [{ id: 'wallet-bca', name: 'BCA' }],
+      wallets: [{ id: 'wallet-bca', name: 'BCA', current_balance: 100000 }],
       archivedWallets: [{ id: 'wallet-arsip', name: 'Jago Lama' }],
       transactions: [{ id: 'tx-1', category: 'Lainnya' }],
       analytics: { netCashflow: 1000 },
@@ -65,7 +84,7 @@ describe('buildChatQuickActions', () => {
 
   it('switches the last shortcut to cost-saving advice when cashflow is negative', () => {
     const actions = buildChatQuickActions({
-      wallets: [{ id: 'wallet-bca', name: 'BCA' }],
+      wallets: [{ id: 'wallet-bca', name: 'BCA', current_balance: 100000 }],
       transactions: [
         { id: 'tx-1', category: 'Lainnya' },
         { id: 'tx-2', category: 'Lainnya' },

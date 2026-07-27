@@ -16,6 +16,8 @@ export default function MessageBubble({
   const displayText = isUser ? msg.text : stripSimpleFormatting(msg.text)
   const groupSpacing = isLastInGroup ? 'mb-5' : 'mb-1.5'
   const bubbleShape = getBubbleShape({ isUser, isFirstInGroup, isLastInGroup })
+  const candidates = Array.isArray(msg.metadata?.candidates) ? msg.metadata.candidates : []
+  const confirmationMode = msg.metadata?.confirmationMode || (candidates.length > 0 ? 'choice' : 'input')
 
   return (
     <div className={`${groupSpacing} flex w-full ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
@@ -41,9 +43,9 @@ export default function MessageBubble({
           )}
           <div className="whitespace-pre-wrap font-medium leading-[1.58]">{displayText}</div>
 
-          {!isUser && Array.isArray(msg.metadata?.candidates) && msg.metadata.candidates.length > 0 ? (
+          {!isUser && candidates.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {msg.metadata.candidates.slice(0, 5).map((candidate) => (
+              {candidates.slice(0, 5).map((candidate) => (
                 <button
                   key={candidate.id || candidate.name}
                   type="button"
@@ -60,10 +62,10 @@ export default function MessageBubble({
           {!isUser && msg.metadata?.intentStatus === 'needs_confirmation' ? (
             <div className="mt-3 rounded-[12px] border border-amber-100 bg-amber-50 px-3.5 py-2.5">
               <p className="font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
-                Balas dengan nama pilihan, "Ya", atau "Batal".
+                {getConfirmationHint(confirmationMode)}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {['Ya', 'Batal'].map((label) => (
+                {(confirmationMode === 'binary' ? ['Ya', 'Batal'] : ['Batal']).map((label) => (
                   <button
                     key={label}
                     type="button"
@@ -100,6 +102,12 @@ export default function MessageBubble({
       </div>
     </div>
   )
+}
+
+function getConfirmationHint(mode) {
+  if (mode === 'binary') return 'Konfirmasi aksi ini atau batalkan.'
+  if (mode === 'choice') return 'Pilih salah satu opsi di atas atau batalkan.'
+  return 'Lengkapi jawaban yang diminta, atau batalkan.'
 }
 
 function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction }) {
