@@ -192,7 +192,7 @@ export default function ChatView({
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[142px] bg-gradient-to-t from-white via-white/95 to-transparent md:h-[112px]" />
+      <div className="composer-fade pointer-events-none absolute inset-x-0 bottom-0 h-[142px] md:h-[112px]" />
 
       {showJumpToLatest ? (
         <button

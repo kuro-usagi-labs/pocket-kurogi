@@ -133,7 +133,7 @@ function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction
         </div>
       </div>
 
-      <div className="grid grid-cols-3 border-t border-orange-100 bg-white/72">
+      <div className="grid grid-cols-3 border-t border-orange-100 bg-[var(--surface-strong)]">
         <ReceiptActionButton
           icon={Pencil}
           label="Koreksi"

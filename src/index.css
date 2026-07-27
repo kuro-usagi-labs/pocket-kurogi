@@ -9,9 +9,36 @@
   --muted-ink: #666970;
   --line: #dfe0e4;
   --control: #17181b;
-  --accent: #d94b29;
+  --accent: #c64224;
+  --accent-hover: #ad351b;
   --accent-soft: #fbe9e3;
+  --accent-soft-hover: #f6d8ce;
+  --accent-border: #efb6a5;
   --accent-ink: #9b321a;
+  --danger: #c83e35;
+  --danger-hover: #af3029;
+  --danger-soft: #fcebea;
+  --danger-soft-hover: #f7d8d5;
+  --danger-border: #efb7b3;
+  --danger-ink: #9f2f29;
+  --warning: #a46112;
+  --warning-soft: #fff3d9;
+  --warning-soft-hover: #ffe9b9;
+  --warning-border: #eac985;
+  --warning-ink: #77460d;
+  --success: #27785a;
+  --success-soft: #e6f4ee;
+  --success-border: #aad9c8;
+  --success-ink: #1e644a;
+  --cool-soft: #eaf2f8;
+  --cool-border: #bfd4e3;
+  --cool-ink: #315f7d;
+  --violet-soft: #f0ecf7;
+  --violet-border: #cec2df;
+  --violet-ink: #67527f;
+  --teal-soft: #e5f2f0;
+  --teal-border: #b5d7d1;
+  --teal-ink: #356d65;
   --shadow-color: 23 24 27;
 }
 
@@ -24,9 +51,36 @@
     --muted-ink: #a5a7ad;
     --line: #30333a;
     --control: #0d0f12;
-    --accent: #f06440;
+    --accent: #c64224;
+    --accent-hover: #db4d2b;
     --accent-soft: #35211d;
+    --accent-soft-hover: #492a22;
+    --accent-border: #75402f;
     --accent-ink: #ffb19d;
+    --danger: #bd463e;
+    --danger-hover: #ce554c;
+    --danger-soft: #352020;
+    --danger-soft-hover: #492826;
+    --danger-border: #703936;
+    --danger-ink: #ffaaa3;
+    --warning: #b77828;
+    --warning-soft: #302719;
+    --warning-soft-hover: #42341f;
+    --warning-border: #67512c;
+    --warning-ink: #f2c777;
+    --success: #368467;
+    --success-soft: #182d27;
+    --success-border: #315f50;
+    --success-ink: #8ed8bb;
+    --cool-soft: #192630;
+    --cool-border: #304b5e;
+    --cool-ink: #9bc4df;
+    --violet-soft: #272130;
+    --violet-border: #514262;
+    --violet-ink: #c5addd;
+    --teal-soft: #182b2a;
+    --teal-border: #305b57;
+    --teal-ink: #93d1c9;
     --shadow-color: 0 0 0;
   }
 }
@@ -40,6 +94,65 @@
   --color-cream: var(--line);
   --color-gold: var(--accent);
   --color-muted: var(--muted-ink);
+  --color-orange-50: var(--accent-soft);
+  --color-orange-100: var(--accent-soft-hover);
+  --color-orange-200: var(--accent-border);
+  --color-orange-300: var(--accent-border);
+  --color-orange-400: var(--accent);
+  --color-orange-500: var(--accent);
+  --color-orange-600: var(--accent);
+  --color-orange-700: var(--accent);
+  --color-orange-800: var(--accent-ink);
+  --color-red-50: var(--danger-soft);
+  --color-red-100: var(--danger-soft-hover);
+  --color-red-200: var(--danger-border);
+  --color-red-400: var(--danger);
+  --color-red-500: var(--danger-hover);
+  --color-red-600: var(--danger);
+  --color-red-700: var(--danger-ink);
+  --color-rose-50: var(--danger-soft);
+  --color-rose-100: var(--danger-border);
+  --color-rose-500: var(--danger);
+  --color-rose-600: var(--danger);
+  --color-rose-700: var(--danger-ink);
+  --color-amber-50: var(--warning-soft);
+  --color-amber-100: var(--warning-soft-hover);
+  --color-amber-200: var(--warning-border);
+  --color-amber-500: var(--warning);
+  --color-amber-600: var(--warning);
+  --color-amber-700: var(--warning-ink);
+  --color-amber-800: var(--warning-ink);
+  --color-amber-900: var(--warning-ink);
+  --color-emerald-50: var(--success-soft);
+  --color-emerald-100: var(--success-border);
+  --color-emerald-600: var(--success);
+  --color-emerald-700: var(--success-ink);
+  --color-sky-50: var(--cool-soft);
+  --color-sky-100: var(--cool-border);
+  --color-sky-500: var(--cool-ink);
+  --color-sky-600: var(--cool-ink);
+  --color-sky-700: var(--cool-ink);
+  --color-blue-50: var(--cool-soft);
+  --color-blue-100: var(--cool-border);
+  --color-blue-500: var(--cool-ink);
+  --color-blue-600: var(--cool-ink);
+  --color-blue-700: var(--cool-ink);
+  --color-violet-50: var(--violet-soft);
+  --color-violet-100: var(--violet-border);
+  --color-violet-500: var(--violet-ink);
+  --color-violet-600: var(--violet-ink);
+  --color-violet-700: var(--violet-ink);
+  --color-teal-50: var(--teal-soft);
+  --color-teal-100: var(--teal-border);
+  --color-teal-500: var(--teal-ink);
+  --color-teal-600: var(--teal-ink);
+  --color-teal-700: var(--teal-ink);
+  --color-slate-50: var(--surface);
+  --color-slate-100: var(--line);
+  --color-slate-200: var(--line);
+  --color-slate-400: var(--muted-ink);
+  --color-slate-600: var(--muted-ink);
+  --color-slate-700: var(--ink);
   --shadow-premium: 0 24px 70px -36px rgb(var(--shadow-color) / 0.45);
 }
 
@@ -85,12 +198,28 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button:focus-visible,
+button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
+}
+
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
-  outline-offset: 2px;
+  border-color: transparent !important;
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 1px;
+  box-shadow: none !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink) !important;
+  caret-color: var(--ink);
+  box-shadow: 0 0 0 1000px var(--surface) inset !important;
 }
 
 ::selection {
@@ -109,7 +238,11 @@ select:focus-visible {
 }
 
 .bg-white {
-  background-color: var(--surface-strong);
+  background-color: var(--surface-strong) !important;
+}
+
+.focus\:bg-white:focus {
+  background-color: var(--surface-strong) !important;
 }
 
 .app-shell {
@@ -130,6 +263,36 @@ select:focus-visible {
 .accent-soft {
   background: var(--accent-soft);
   color: var(--accent-ink);
+}
+
+.composer-fade {
+  background: linear-gradient(to top, var(--surface-strong), color-mix(in srgb, var(--surface-strong) 95%, transparent), transparent);
+}
+
+.text-orange-300,
+.text-orange-600,
+.text-orange-700,
+.text-orange-800 {
+  color: var(--accent-ink);
+}
+
+.text-red-500,
+.text-red-600,
+.text-red-700,
+.text-rose-600,
+.text-rose-700 {
+  color: var(--danger-ink);
+}
+
+.text-amber-600,
+.text-amber-700,
+.text-amber-800,
+.text-amber-900\/80 {
+  color: var(--warning-ink);
+}
+
+.text-emerald-700 {
+  color: var(--success-ink);
 }
 
 .bottom-dock-surface {

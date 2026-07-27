@@ -124,7 +124,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
 
       <div className="hidden md:block">
         <section className="overflow-hidden rounded-[20px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
-          <div className="border-b border-midnight/[0.08] bg-[linear-gradient(135deg,rgba(255,237,213,0.95),rgba(255,255,255,0.94))] px-6 py-6">
+          <div className="border-b border-midnight/[0.08] bg-[var(--accent-soft)] px-6 py-6">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="min-w-0">
                 <p className="font-jakarta text-[11px] font-extrabold  text-muted">
@@ -148,7 +148,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
                   const Icon = item.Icon
 
                   return (
-                    <div key={item.label} className="rounded-[16px] border border-white/90 bg-white/80 p-4 backdrop-blur-sm">
+                    <div key={item.label} className="rounded-[16px] border border-midnight/[0.08] bg-white p-4">
                       <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
                         <Icon size={20} strokeWidth={2.2} />
                       </div>

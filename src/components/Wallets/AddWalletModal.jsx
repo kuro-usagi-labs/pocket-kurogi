@@ -27,7 +27,7 @@ export default function AddWalletModal({ onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-midnight/35 p-3 backdrop-blur-md transition-opacity animate-fade-in sm:items-center sm:p-4">
-      <div className="w-full max-w-[390px] rounded-[20px] border border-white/30 bg-white p-5 shadow-2xl">
+      <div className="w-full max-w-[390px] rounded-[20px] border border-midnight/10 bg-white p-5 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-jakarta text-[24px] font-extrabold tracking-tight text-midnight">
             Dompet Baru
