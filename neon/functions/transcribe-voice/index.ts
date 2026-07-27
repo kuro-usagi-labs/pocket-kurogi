@@ -28,28 +28,47 @@ export default async function handler(request) {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const requestId = crypto.randomUUID()
+  const startedAt = Date.now()
+
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed.' }, { status: 405 }, requestId)
+  }
+
   try {
     const user = await requireUser(request)
     const payload = await readPayload(request)
     const text = await transcribeWithGemini(payload)
 
+    console.info('transcribe-voice success', {
+      requestId,
+      userId: user.userId,
+      durationMs: Date.now() - startedAt,
+    })
+
     return jsonResponse({
       text,
-      userId: user.userId,
-    })
+    }, {}, requestId)
   } catch (error) {
     const status = error instanceof AuthError
       ? 401
       : error instanceof ValidationError
         ? 400
-        : 500
+        : isTimeoutError(error)
+          ? 504
+          : 500
 
-    console.error('Voice transcription failed:', error)
+    console.error('transcribe-voice failed', {
+      requestId,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
     return jsonResponse(
       {
-        error: error instanceof Error ? error.message : 'Voice note belum bisa ditranskrip.',
+        error: publicErrorMessage(error),
       },
       { status },
+      requestId,
     )
   }
 }
@@ -86,7 +105,7 @@ async function transcribeWithGemini({ audioBase64, mimeType }: Required<Transcri
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -121,7 +140,11 @@ async function transcribeWithGemini({ audioBase64, mimeType }: Required<Transcri
 
   if (!response.ok) {
     const message = await response.text().catch(() => '')
-    throw new Error(`Transcription provider error: ${response.status} ${message.slice(0, 120)}`)
+    console.error('Transcription provider rejected', {
+      status: response.status,
+      detail: message.slice(0, 160),
+    })
+    throw new Error(`Transcription provider error: ${response.status}`)
   }
 
   const data = await response.json()
@@ -138,16 +161,31 @@ async function transcribeWithGemini({ audioBase64, mimeType }: Required<Transcri
 
 function estimateBase64Bytes(value: string) {
   const normalized = value.replace(/\s/g, '')
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) {
+    return -1
+  }
   const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0
   return Math.floor((normalized.length * 3) / 4) - padding
 }
 
-function jsonResponse(body: Record<string, unknown>, init: ResponseInit = {}) {
+function publicErrorMessage(error: unknown) {
+  if (error instanceof AuthError) return 'Sesi login tidak valid. Silakan masuk kembali.'
+  if (error instanceof ValidationError) return error.message
+  if (isTimeoutError(error)) return 'Transkripsi terlalu lama. Coba rekam lebih singkat.'
+  return 'Voice note belum bisa ditranskrip. Coba lagi sebentar.'
+}
+
+function isTimeoutError(error: unknown) {
+  return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+}
+
+function jsonResponse(body: Record<string, unknown>, init: ResponseInit = {}, requestId?: string) {
   return new Response(JSON.stringify(body), {
     ...init,
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/json',
+      ...(requestId ? { 'X-AI-Request-Id': requestId } : {}),
       ...(init.headers || {}),
     },
   })

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Mic, Paperclip, Send, X } from 'lucide-react'
 import { transcribeVoiceNote } from '../../lib/voiceTranscription'
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024
-const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic'])
-const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic'])
+// Keep this aligned with Neon Function and database constraints.
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp'])
 
 export default function ChatInput({ onSend, isTyping, onNotify }) {
   const [inputValue, setInputValue] = useState('')
@@ -70,13 +71,13 @@ export default function ChatInput({ onSend, isTyping, onNotify }) {
     if (!file) return
 
     if (!isSupportedImage(file)) {
-      onNotify?.('Format gambar belum didukung. Gunakan JPG, PNG, WebP, atau HEIC.', 'error')
+      onNotify?.('Format gambar belum didukung. Gunakan JPG, PNG, atau WebP.', 'error')
       e.target.value = ''
       return
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      onNotify?.('Ukuran gambar maksimal 5 MB.', 'error')
+      onNotify?.('Ukuran gambar maksimal 4 MB.', 'error')
       e.target.value = ''
       return
     }

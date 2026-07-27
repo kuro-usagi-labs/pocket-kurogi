@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
@@ -327,6 +327,7 @@ export default function AppShell() {
 
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
+  const sendInFlightRef = useRef(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [actionDialog, setActionDialog] = useState(null)
   const [chatEditorTransaction, setChatEditorTransaction] = useState(null)
@@ -439,7 +440,10 @@ export default function AppShell() {
       extras.metadata = response.metadata
     }
 
-    await saveMessage('bot', response.text, extras)
+    const result = await saveMessage('bot', response.text, extras)
+    if (result?.error) {
+      throw result.error
+    }
   }, [saveMessage])
 
   const {
@@ -1459,11 +1463,13 @@ export default function AppShell() {
           ? payload.imagePreview || payload.image || null
           : null
 
-      if ((!text.trim() && !imageFile && !imagePreview) || isTyping) {
+      if ((!text.trim() && !imageFile && !imagePreview) || sendInFlightRef.current) {
         return
       }
 
       const userMessageText = text.trim() || 'Lampiran gambar'
+      sendInFlightRef.current = true
+      setIsTyping(true)
 
       try {
         const savedUserMessage = await saveMessage('user', userMessageText, {
@@ -1474,8 +1480,6 @@ export default function AppShell() {
         if (savedUserMessage?.error) {
           throw savedUserMessage.error
         }
-
-        setIsTyping(true)
 
         let response
 
@@ -1507,10 +1511,15 @@ export default function AppShell() {
         await persistBotResponse(response)
       } catch (error) {
         console.error('Chat Error:', error)
-        await persistBotResponse({
-          text: `Maaf, ${mapDomainError(error)}`,
-        })
+        try {
+          await persistBotResponse({
+            text: `Maaf, ${mapDomainError(error)}`,
+          })
+        } catch {
+          showNotice('Pesan gagal diproses dan balasan belum tersimpan. Coba lagi.', 'error')
+        }
       } finally {
+        sendInFlightRef.current = false
         setIsTyping(false)
       }
     },
@@ -1520,11 +1529,11 @@ export default function AppShell() {
       executeIntent,
       getAIContextString,
       goalOptions,
-      isTyping,
       pendingAction,
       persistBotResponse,
       processPendingAction,
       saveMessage,
+      showNotice,
       archivedWalletOptions,
       walletOptions,
     ]

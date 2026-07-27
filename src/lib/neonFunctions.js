@@ -5,6 +5,8 @@ const functionUrls = {
   transcribevoice: import.meta.env.VITE_NEON_TRANSCRIBE_VOICE_URL,
 }
 
+const FUNCTION_TIMEOUT_MS = 25_000
+
 export async function invokeNeonFunction(name, body) {
   const url = functionUrls[name]
   if (!url) {
@@ -30,6 +32,7 @@ export async function invokeNeonFunction(name, body) {
         Authorization: `Bearer ${tokenData.token}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(FUNCTION_TIMEOUT_MS),
       body: JSON.stringify(body),
     })
     const data = await response.json().catch(() => null)
@@ -41,8 +44,18 @@ export async function invokeNeonFunction(name, body) {
       }
     }
 
+    if (!data) {
+      return {
+        data: null,
+        error: new Error('Backend mengirim jawaban yang tidak valid.'),
+      }
+    }
+
     return { data, error: null }
   } catch (error) {
-    return { data: null, error }
+    const normalizedError = error?.name === 'TimeoutError'
+      ? new Error('Backend terlalu lama merespons. Coba kirim lagi.')
+      : error
+    return { data: null, error: normalizedError }
   }
 }

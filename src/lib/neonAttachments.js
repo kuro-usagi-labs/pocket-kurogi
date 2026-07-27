@@ -1,5 +1,8 @@
 import { neon } from './neon'
 
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 function pathToId(path) {
   const segments = String(path || '').split('/')
   return segments[segments.length - 1] || null
@@ -18,8 +21,20 @@ function blobToBase64(blob) {
 }
 
 export async function uploadChatAttachment(userId, file) {
+  if (!userId || !file) {
+    return { path: null, url: null, error: new Error('Lampiran tidak valid.') }
+  }
+
+  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+    return { path: null, url: null, error: new Error('Format gambar belum didukung.') }
+  }
+
+  if (!Number.isFinite(file.size) || file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+    return { path: null, url: null, error: new Error('Ukuran gambar harus di bawah 4 MB.') }
+  }
+
   const id = crypto.randomUUID()
-  const contentType = file.type || 'image/jpeg'
+  const contentType = file.type
   const dataBase64 = await blobToBase64(file)
   const path = `${userId}/${id}`
 

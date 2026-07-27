@@ -16,24 +16,32 @@ export default function LoginPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (loading) return
+
     setLoading(true)
     setError(null)
     setMessage(null)
 
-    if (mode === 'magic') {
-      const result = await signInWithMagicLink(email)
-      if (result.error) setError(result.error.message)
-      else setMessage('Link masuk sudah dikirim ke emailmu.')
-    } else if (mode === 'register') {
-      const result = await signUp(email, password)
-      if (result.error) setError(result.error.message)
-      else setMessage('Akun dibuat. Cek email untuk konfirmasi.')
-    } else {
-      const result = await signInWithPassword(email, password)
-      if (result.error) setError(result.error.message)
-    }
+    try {
+      const normalizedEmail = email.trim().toLowerCase()
 
-    setLoading(false)
+      if (mode === 'magic') {
+        const result = await signInWithMagicLink(normalizedEmail)
+        if (result.error) setError(toAuthMessage(result.error))
+        else setMessage('Link masuk sudah dikirim. Periksa inbox dan folder spam.')
+      } else if (mode === 'register') {
+        const result = await signUp(normalizedEmail, password)
+        if (result.error) setError(toAuthMessage(result.error))
+        else setMessage('Akun berhasil dibuat. Jika belum masuk otomatis, periksa emailmu.')
+      } else {
+        const result = await signInWithPassword(normalizedEmail, password)
+        if (result.error) setError(toAuthMessage(result.error))
+      }
+    } catch (caughtError) {
+      setError(toAuthMessage(caughtError))
+    } finally {
+      setLoading(false)
+    }
   }
 
   const selectMode = (nextMode) => {
@@ -137,8 +145,8 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Minimal 6 karakter"
-                    minLength={6}
+                    placeholder="Minimal 8 karakter"
+                    minLength={8}
                     className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3.5 text-[16px] font-medium text-midnight outline-none transition-colors placeholder:text-muted/60 focus:border-orange-400 focus:bg-white"
                   />
                 </label>
@@ -173,4 +181,29 @@ export default function LoginPage() {
       </div>
     </main>
   )
+}
+
+function toAuthMessage(error) {
+  const message = String(error?.message || '').toLowerCase()
+  const status = Number(error?.status || error?.statusCode || 0)
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    message.includes('invalid') ||
+    message.includes('password') ||
+    message.includes('credential')
+  ) {
+    return 'Email atau password tidak cocok.'
+  }
+
+  if (message.includes('already') || message.includes('exist')) {
+    return 'Email ini sudah terdaftar. Silakan masuk.'
+  }
+
+  if (message.includes('rate') || message.includes('too many')) {
+    return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.'
+  }
+
+  return 'Proses masuk belum berhasil. Periksa data lalu coba lagi.'
 }

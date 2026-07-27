@@ -10,6 +10,7 @@ const MAX_CONTEXT_LENGTH = 12_000
 const MAX_OPTIONS = 50
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 const GEMINI_TIMEOUT_MS = 15_000
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 const ALLOWED_ANALYTICS_METRICS = new Set([
   'overview',
@@ -73,6 +74,10 @@ export default async function handler(request) {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed.' }, { status: 405 }, crypto.randomUUID())
+  }
+
   const requestId = crypto.randomUUID()
   const startedAt = Date.now()
   let userId: string | null = null
@@ -81,7 +86,9 @@ export default async function handler(request) {
     const authContext = await requireAuthenticatedUser(request)
     userId = authContext.userId
 
-    const body = (await request.json()) as AnalyzePayload
+    const body = await request.json().catch(() => {
+      throw new ValidationError('Format permintaan tidak valid.')
+    }) as AnalyzePayload
     validatePayload(body)
 
     console.info('analyze-transaction request', {
@@ -100,13 +107,7 @@ export default async function handler(request) {
       durationMs: Date.now() - startedAt,
     })
 
-    return new Response(JSON.stringify(result), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'X-AI-Request-Id': requestId,
-      },
-    })
+    return jsonResponse(result, {}, requestId)
   } catch (error) {
     console.error('analyze-transaction failed', {
       requestId,
@@ -115,24 +116,15 @@ export default async function handler(request) {
       error: error instanceof Error ? error.message : 'Unknown error',
     })
 
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status:
-          error instanceof AuthError
-            ? 401
-            : error instanceof ValidationError
-              ? 400
-              : 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'X-AI-Request-Id': requestId,
-        },
-      }
-    )
+    const status = error instanceof AuthError
+      ? 401
+      : error instanceof ValidationError
+        ? 400
+        : isTimeoutError(error)
+          ? 504
+          : 500
+
+    return jsonResponse({ error: publicErrorMessage(error) }, { status }, requestId)
   }
 }
 
@@ -198,7 +190,11 @@ async function callGeminiAPI({
 
   if (!response.ok) {
     const textBody = await response.text()
-    throw new Error(`Gemini request failed with ${response.status}: ${textBody}`)
+    console.error('Gemini request rejected', {
+      status: response.status,
+      detail: textBody.slice(0, 160),
+    })
+    throw new Error(`Gemini request failed with ${response.status}`)
   }
 
   const data = await response.json()
@@ -214,7 +210,7 @@ async function callGeminiAPI({
   try {
     return JSON.parse(cleanJson)
   } catch (error) {
-    console.error('Gemini JSON parse error:', error, 'Raw text:', responseText)
+    console.error('Gemini JSON parse error:', error)
     throw new Error('Gagal memproses jawaban AI.')
   }
 }
@@ -236,6 +232,10 @@ function validatePayload({
 
   if (text.length > MAX_TEXT_LENGTH) {
     throw new ValidationError('Pesan terlalu panjang. Coba ringkas jadi maksimal 2000 karakter.')
+  }
+
+  if (!text.trim() && !imageBase64) {
+    throw new ValidationError('Pesan atau gambar wajib diisi.')
   }
 
   if (typeof financialContext !== 'string') {
@@ -275,15 +275,44 @@ function validatePayload({
     throw new ValidationError('Format gambar tidak valid.')
   }
 
-  const base64Data = imageBase64.split(',')[1]
+  const match = imageBase64.match(/^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/)
+  const mimeType = match?.[1]?.toLowerCase()
+  const base64Data = match?.[2]
   if (!base64Data) {
     throw new ValidationError('Data gambar tidak ditemukan.')
+  }
+
+  if (!mimeType || !ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+    throw new ValidationError('Format gambar belum didukung.')
   }
 
   const estimatedBytes = Math.ceil((base64Data.length * 3) / 4)
   if (estimatedBytes > MAX_IMAGE_BYTES) {
     throw new ValidationError('Ukuran gambar terlalu besar. Gunakan gambar di bawah 4MB.')
   }
+}
+
+function publicErrorMessage(error: unknown) {
+  if (error instanceof AuthError) return 'Sesi login tidak valid. Silakan masuk kembali.'
+  if (error instanceof ValidationError) return error.message
+  if (isTimeoutError(error)) return 'Analisis terlalu lama. Coba kirim lagi.'
+  return 'Analisis sedang tidak tersedia. Coba lagi sebentar.'
+}
+
+function isTimeoutError(error: unknown) {
+  return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+}
+
+function jsonResponse(body: unknown, init: ResponseInit = {}, requestId: string) {
+  return new Response(JSON.stringify(body), {
+    ...init,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'X-AI-Request-Id': requestId,
+      ...(init.headers || {}),
+    },
+  })
 }
 
 function validateEntityOptions(options: EntityOption[], label: string) {

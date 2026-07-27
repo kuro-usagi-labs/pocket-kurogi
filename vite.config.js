@@ -7,6 +7,24 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   build: {
     cssTarget: 'safari13',
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'neon',
+              test: /node_modules[\\/]@neondatabase/,
+              priority: 20,
+            },
+            {
+              name: 'vendor',
+              test: /node_modules/,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
   },
   plugins: [
     react(),
