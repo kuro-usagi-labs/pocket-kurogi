@@ -37,7 +37,7 @@ const ASSISTANT_HELP_PATTERN = /\b(bisa apa|bantu apa|fitur|cara pakai|cara guna
 /**
  * Analyze user text for transaction/advice intents.
  * Fast-path regex stays on the client for simple commands.
- * Complex prompts and OCR are delegated to a Supabase Edge Function
+ * Complex prompts and OCR are delegated to a Neon Edge Function
  * so the Gemini API key is not shipped to the browser.
  */
 export async function analyzeTransaction(
@@ -119,17 +119,15 @@ async function callAnalyzerFunction(
   categoryOptions,
   financialContext
 ) {
-  const { supabase } = await import('./supabase')
-  const { data, error } = await supabase.functions.invoke('analyze-transaction', {
-    body: {
-      text,
-      imageBase64,
-      walletOptions,
-      archivedWalletOptions,
-      goalOptions,
-      categoryOptions,
-      financialContext,
-    },
+  const { invokeNeonFunction } = await import('./neonFunctions')
+  const { data, error } = await invokeNeonFunction('analyzetransaction', {
+    text,
+    imageBase64,
+    walletOptions,
+    archivedWalletOptions,
+    goalOptions,
+    categoryOptions,
+    financialContext,
   })
 
   if (error) {

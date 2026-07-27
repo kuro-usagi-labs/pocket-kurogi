@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { invokeNeonFunction } from './neonFunctions'
 
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024
 
@@ -12,11 +12,9 @@ export async function transcribeVoiceNote(audioBlob) {
   }
 
   const audioBase64 = await blobToBase64(audioBlob)
-  const { data, error } = await supabase.functions.invoke('transcribe-voice', {
-    body: {
-      audioBase64,
-      mimeType: audioBlob.type || 'audio/webm',
-    },
+  const { data, error } = await invokeNeonFunction('transcribevoice', {
+    audioBase64,
+    mimeType: audioBlob.type || 'audio/webm',
   })
 
   if (error) {

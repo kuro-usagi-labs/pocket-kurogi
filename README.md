@@ -18,7 +18,7 @@
 |-------|-----------|
 | Frontend | React (Vite) |
 | Styling | Tailwind CSS v4 |
-| Backend | Supabase (PostgreSQL + Auth) |
+| Backend | Neon (Postgres + Auth + Data API + Functions) |
 | AI/NLP | Gemini 2.5 Flash API |
 | Icons | Lucide React |
 
@@ -32,12 +32,12 @@ npm install
 
 # Configure environment
 cp .env.local.example .env.local
-# Edit .env.local with your Supabase credentials
+# Edit .env.local with your Neon public endpoints
 
-# Configure Supabase backend
-# - apply SQL migration in supabase/migrations
-# - deploy Edge Function in supabase/functions/analyze-transaction
-# - set GEMINI_API_KEY in Supabase Edge Function secrets
+# Configure Neon backend
+# - apply SQL migrations in neon/migrations
+# - deploy functions in neon/functions
+# - set GEMINI_API_KEY in both Neon Functions
 
 # Start development
 npm run dev
@@ -47,16 +47,18 @@ npm run dev
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_SUPABASE_URL` | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/publishable key |
+| `VITE_NEON_AUTH_URL` | Neon Auth endpoint |
+| `VITE_NEON_DATA_API_URL` | Neon Data API endpoint |
+| `VITE_NEON_ANALYZE_TRANSACTION_URL` | Analyze transaction function endpoint |
+| `VITE_NEON_TRANSCRIBE_VOICE_URL` | Voice transcription function endpoint |
 
-Gemini sekarang dipanggil dari backend Supabase Edge Function, jadi API key tidak lagi disimpan di browser bundle.
+Gemini dipanggil dari Neon Functions, jadi API key tidak pernah disimpan di browser bundle.
 
 ## 📂 Project Structure
 
 ```
 src/
-├── lib/          # Supabase client & Gemini API
+├── lib/          # Neon client, Auth, Data API, dan Gemini
 ├── contexts/     # Auth context (React Context API)
 ├── hooks/        # Custom hooks (wallets, transactions, categories)
 └── components/

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { buildHistoryPresentation } from '../lib/historyPresentation'
 import { inferCategoryFromText } from '../lib/categoryCatalog'
@@ -94,7 +94,7 @@ export function useTransactions() {
       oldestCursorRef.current = null
     }
 
-    let query = supabase
+    let query = neon
       .from('transactions')
       .select(TRANSACTION_SELECT)
       .eq('user_id', user.id)
@@ -145,7 +145,7 @@ export function useTransactions() {
   }, [fetchTransactions])
 
   const fetchTransactionById = useCallback(async (id) => {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('transactions')
       .select(TRANSACTION_SELECT)
       .eq('id', id)
@@ -179,7 +179,7 @@ export function useTransactions() {
       transactionType: normalizedType,
     })
 
-    const rpcResult = await supabase.rpc('record_transaction', {
+    const rpcResult = await neon.rpc('record_transaction', {
       p_wallet_id: walletId,
       p_category_id: categoryId || null,
       p_transaction_type: normalizedType,
@@ -261,7 +261,7 @@ export function useTransactions() {
       }
     }
 
-    const rpcResult = await supabase.rpc('delete_transaction_and_revert_balance', {
+    const rpcResult = await neon.rpc('delete_transaction_and_revert_balance', {
       p_transaction_id: id,
     })
 
@@ -303,7 +303,7 @@ export function useTransactions() {
     const normalizedType = String(type || '').toLowerCase()
     const normalizedAmount = Number(amount)
 
-    const rpcResult = await supabase.rpc('replace_transaction_entry', {
+    const rpcResult = await neon.rpc('replace_transaction_entry', {
       p_transaction_id: transactionId,
       p_wallet_id: walletId,
       p_category_id: categoryId || null,
@@ -370,7 +370,7 @@ export function useTransactions() {
 
     const normalizedAmount = Number(amount)
 
-    const rpcResult = await supabase.rpc('transfer_between_wallets', {
+    const rpcResult = await neon.rpc('transfer_between_wallets', {
       p_from_wallet_id: fromWalletId,
       p_to_wallet_id: toWalletId,
       p_amount: normalizedAmount,

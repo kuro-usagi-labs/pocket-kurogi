@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
 
@@ -15,7 +15,7 @@ function isLegacyWalletDeleteBlocker(error) {
 
 function buildLegacyWalletDeleteError() {
   return new Error(
-    'Server live masih memakai aturan hapus wallet lama. Terapkan migration Supabase terbaru agar dompet bersaldo dan ber-riwayat bisa dihapus permanen.'
+    'Server live masih memakai aturan hapus wallet lama. Terapkan migration Neon terbaru agar dompet bersaldo dan ber-riwayat bisa dihapus permanen.'
   )
 }
 
@@ -60,7 +60,7 @@ export function useWallets() {
       return { data: [], error: null }
     }
 
-    return supabase
+    return neon
       .from('wallets')
       .select('*')
       .eq('user_id', user.id)
@@ -68,7 +68,7 @@ export function useWallets() {
   }, [user])
 
   const fetchWalletById = useCallback(async (id) => {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('wallets')
       .select('*')
       .eq('id', id)
@@ -82,7 +82,7 @@ export function useWallets() {
     if (!user) return { error: 'Not authenticated' }
 
     const normalizedInitialBalance = Number(initialBalance || 0)
-    const rpcResult = await supabase.rpc('create_wallet_with_opening_balance', {
+    const rpcResult = await neon.rpc('create_wallet_with_opening_balance', {
       p_name: name,
       p_initial_balance: normalizedInitialBalance,
       p_wallet_type: walletType,
@@ -142,7 +142,7 @@ export function useWallets() {
 
     setLoading(true)
     try {
-      await supabase.rpc('ensure_default_wallet')
+      await neon.rpc('ensure_default_wallet')
     } catch {
       // Ignore bootstrap wallet failures here and continue with the main wallet query.
     }
@@ -152,7 +152,7 @@ export function useWallets() {
     if (!error && data) {
       const { active } = applyWalletBuckets(data)
       if (active.length === 0) {
-        const ensureResult = await supabase.rpc('ensure_default_wallet')
+        const ensureResult = await neon.rpc('ensure_default_wallet')
         if (!ensureResult.error) {
           const { data: refreshedWallets, error: refreshError } = await queryWallets()
 
@@ -183,7 +183,7 @@ export function useWallets() {
       return { error: walletResult.error ?? new Error('Dompet tidak ditemukan.'), mode: null }
     }
 
-    const hardDeleteResult = await supabase.rpc('delete_wallet_permanently_safe', {
+    const hardDeleteResult = await neon.rpc('delete_wallet_permanently_safe', {
       p_wallet_id: id,
     })
 
@@ -204,7 +204,7 @@ export function useWallets() {
   const hardDeleteWallet = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const rpcResult = await supabase.rpc('delete_wallet_permanently_safe', {
+    const rpcResult = await neon.rpc('delete_wallet_permanently_safe', {
       p_wallet_id: id,
     })
 
@@ -224,7 +224,7 @@ export function useWallets() {
     if (!user) return { error: 'Not authenticated' }
 
     const walletToRestore = archivedWallets.find((wallet) => wallet.id === id) || null
-    const rpcResult = await supabase.rpc('restore_wallet_safely', {
+    const rpcResult = await neon.rpc('restore_wallet_safely', {
       p_wallet_id: id,
     })
 
@@ -275,7 +275,7 @@ export function useWallets() {
     const normalizedAmount = Number(amount)
     const delta = type === 'income' ? normalizedAmount : -normalizedAmount
 
-    const rpcResult = await supabase.rpc('adjust_wallet_balance', {
+    const rpcResult = await neon.rpc('adjust_wallet_balance', {
       p_wallet_id: walletId,
       p_delta: delta,
     })
@@ -301,7 +301,7 @@ export function useWallets() {
       return { error: new Error('Nama dompet wajib diisi.') }
     }
 
-    const rpcResult = await supabase.rpc('rename_wallet', {
+    const rpcResult = await neon.rpc('rename_wallet', {
       p_wallet_id: walletId,
       p_name: nextName,
     })

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 
 export function useInputLearning() {
@@ -19,13 +19,13 @@ export function useInputLearning() {
     setLoading(true)
 
     const [categoryResult, walletResult] = await Promise.all([
-      supabase
+      neon
         .from('smart_category_rules')
         .select('keyword, category_id, usage_count, updated_at')
         .eq('user_id', user.id)
         .order('usage_count', { ascending: false })
         .order('updated_at', { ascending: false }),
-      supabase
+      neon
         .from('smart_wallet_rules')
         .select('keyword, wallet_id, usage_count, updated_at')
         .eq('user_id', user.id)
@@ -63,7 +63,7 @@ export function useInputLearning() {
       return { data: null, error: null }
     }
 
-    const result = await supabase.rpc('learn_from_chat_input', {
+    const result = await neon.rpc('learn_from_chat_input', {
       p_raw_text: rawText,
       p_wallet_id: walletId,
       p_category_id: categoryId,

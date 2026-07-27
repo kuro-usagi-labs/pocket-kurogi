@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 
 export function useBudgets() {
@@ -15,7 +15,7 @@ export function useBudgets() {
     }
 
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('budgets')
       .select(`
         *,
@@ -41,7 +41,7 @@ export function useBudgets() {
   const setBudget = useCallback(async (categoryId, monthlyLimit) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('budgets')
       .upsert(
         {
@@ -64,7 +64,7 @@ export function useBudgets() {
   const deleteBudget = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
+    const { error } = await neon
       .from('budgets')
       .delete()
       .eq('id', id)

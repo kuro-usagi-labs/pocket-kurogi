@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
+import {
+  getChatAttachmentUrls,
+  removeChatAttachments,
+  uploadChatAttachment,
+} from '../lib/neonAttachments'
 import { useAuth } from '../contexts/AuthContext'
 
 const CHAT_BUCKET = 'chat-attachments'
 const PAGE_SIZE = 40
-
-function generateAttachmentToken() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-
-  return Math.random().toString(36).slice(2, 12)
-}
 
 export function useChat() {
   const { user } = useAuth()
@@ -26,7 +23,7 @@ export function useChat() {
       return
     }
 
-    await supabase.storage.from(CHAT_BUCKET).remove([path])
+    await removeChatAttachments([path])
   }, [])
 
   const hydrateMessages = useCallback(async (rows) => {
@@ -56,15 +53,7 @@ export function useChat() {
     let signedMap = new Map()
 
     if (imagePaths.length > 0) {
-      const { data } = await supabase.storage
-        .from(CHAT_BUCKET)
-        .createSignedUrls(imagePaths, 60 * 60)
-
-      signedMap = new Map(
-        (data || [])
-          .filter((entry) => entry?.path && entry?.signedUrl)
-          .map((entry) => [entry.path, entry.signedUrl])
-      )
+      signedMap = await getChatAttachmentUrls(imagePaths)
     }
 
     return hydrated.map((message) => ({
@@ -97,7 +86,7 @@ export function useChat() {
       oldestCursorRef.current = null
     }
 
-    let query = supabase
+    let query = neon
       .from('chat_messages')
       .select('*')
       .eq('user_id', user.id)
@@ -151,35 +140,13 @@ export function useChat() {
       return { path: null, signedUrl: null, error: null }
     }
 
-    const extension = file.name?.includes('.') ? file.name.split('.').pop() : 'jpg'
-    const objectName = `${Date.now()}-${generateAttachmentToken()}.${extension}`
-    const objectPath = `${user.id}/${objectName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(CHAT_BUCKET)
-      .upload(objectPath, file, {
-        cacheControl: '3600',
-        upsert: false,
-      })
-
-    if (uploadError) {
-      return { path: null, signedUrl: null, error: uploadError }
-    }
-
-    const { data: signedData, error: signedError } = await supabase.storage
-      .from(CHAT_BUCKET)
-      .createSignedUrl(objectPath, 60 * 60)
-
-    if (signedError) {
-      await removeAttachment(objectPath)
-    }
-
+    const uploadResult = await uploadChatAttachment(user.id, file)
     return {
-      path: objectPath,
-      signedUrl: signedData?.signedUrl || null,
-      error: signedError,
+      path: uploadResult.path,
+      signedUrl: uploadResult.url,
+      error: uploadResult.error,
     }
-  }, [removeAttachment, user])
+  }, [user])
 
   const saveMessage = useCallback(async (sender, text, extras = {}) => {
     if (!user) return { error: 'Not authenticated' }
@@ -206,7 +173,7 @@ export function useChat() {
       ...(extras.intentStatus ? { intentStatus: extras.intentStatus } : {}),
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('chat_messages')
       .insert({
         user_id: user.id,
@@ -245,7 +212,7 @@ export function useChat() {
   const clearMessages = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { data: storedMessages, error: fetchError } = await supabase
+    const { data: storedMessages, error: fetchError } = await neon
       .from('chat_messages')
       .select('metadata')
       .eq('user_id', user.id)
@@ -265,16 +232,16 @@ export function useChat() {
       .filter(Boolean)
 
     if (attachments.length > 0) {
-      const { error: storageError } = await supabase.storage
-        .from(CHAT_BUCKET)
-        .remove([...new Set(attachments)])
+      const { error: storageError } = await removeChatAttachments(
+        [...new Set(attachments)],
+      )
 
       if (storageError) {
         return { error: storageError }
       }
     }
 
-    const { error } = await supabase
+    const { error } = await neon
       .from('chat_messages')
       .delete()
       .eq('user_id', user.id)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
 import {
@@ -23,7 +23,7 @@ export function useCategories() {
       return
     }
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('categories')
       .select('*')
       .eq('user_id', user.id)
@@ -39,7 +39,7 @@ export function useCategories() {
       )
 
       if (missingDefaults.length > 0) {
-        const { error: seedError } = await supabase
+        const { error: seedError } = await neon
           .from('categories')
           .insert(
             missingDefaults.map((category) => ({
@@ -54,7 +54,7 @@ export function useCategories() {
         if (seedError) {
           console.warn('Default category sync failed:', seedError)
         } else {
-          const { data: refreshedCategories, error: refreshError } = await supabase
+          const { data: refreshedCategories, error: refreshError } = await neon
             .from('categories')
             .select('*')
             .eq('user_id', user.id)
@@ -140,7 +140,7 @@ export function useCategories() {
       }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('categories')
       .insert({
         user_id: user.id,
@@ -153,7 +153,7 @@ export function useCategories() {
       .single()
 
     if (error || !data) {
-      const { data: refreshedCategories } = await supabase
+      const { data: refreshedCategories } = await neon
         .from('categories')
         .select('*')
         .eq('user_id', user.id)

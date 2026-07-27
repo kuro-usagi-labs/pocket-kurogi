@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 
 const AuthContext = createContext(null)
 
@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
       applySession(null)
     }, 2500)
 
-    supabase.auth
+    neon.auth
       .getSession()
       .then(({ data: { session: currentSession } }) => {
         window.clearTimeout(timeoutId)
@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+    } = neon.auth.onAuthStateChange(async (_event, currentSession) => {
       window.clearTimeout(timeoutId)
       applySession(currentSession)
     })
@@ -54,22 +54,22 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signUp = async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await neon.auth.signUp({ email, password })
     return { data, error }
   }
 
   const signInWithPassword = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await neon.auth.signInWithPassword({ email, password })
     return { data, error }
   }
 
   const signInWithMagicLink = async (email) => {
-    const { error } = await supabase.auth.signInWithOtp({ email })
+    const { error } = await neon.auth.signInWithOtp({ email })
     return { error }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
+    const { error } = await neon.auth.signOut()
     return { error }
   }
 

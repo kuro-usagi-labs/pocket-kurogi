@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
 
@@ -18,7 +18,7 @@ export function useGoals() {
     }
 
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from('goals')
       .select('*')
       .eq('user_id', user.id)
@@ -42,7 +42,7 @@ export function useGoals() {
   const addGoal = useCallback(async ({ name, targetAmount, deadline, icon, initialAmount = 0 }) => {
     if (!user) return { data: null, error: 'Not authenticated' }
 
-    const rpcResult = await supabase.rpc('create_goal_with_contribution', {
+    const rpcResult = await neon.rpc('create_goal_with_contribution', {
       p_name: name,
       p_target_amount: Number(targetAmount),
       p_deadline: deadline || null,
@@ -71,7 +71,7 @@ export function useGoals() {
   const contributeToGoal = useCallback(async ({ goalId, amount, walletId }) => {
     if (!user) return { data: null, error: 'Not authenticated', walletHandled: false }
 
-    const rpcResult = await supabase.rpc('contribute_to_goal', {
+    const rpcResult = await neon.rpc('contribute_to_goal', {
       p_goal_id: goalId,
       p_amount: Number(amount),
       p_wallet_id: walletId,
@@ -90,7 +90,7 @@ export function useGoals() {
       return { data: null, error: 'Not authenticated', walletHandled: false, ledgerHandled: false }
     }
 
-    const rpcResult = await supabase.rpc('withdraw_from_goal', {
+    const rpcResult = await neon.rpc('withdraw_from_goal', {
       p_goal_id: goalId,
       p_amount: Number(amount),
       p_wallet_id: walletId,
@@ -109,7 +109,7 @@ export function useGoals() {
     async ({ name, targetAmount, deadline, icon, initialAmount = 0, walletId = null }) => {
       if (!user) return { data: null, error: 'Not authenticated', walletHandled: false }
 
-      const rpcResult = await supabase.rpc('create_goal_with_contribution', {
+      const rpcResult = await neon.rpc('create_goal_with_contribution', {
         p_name: name,
         p_target_amount: Number(targetAmount),
         p_deadline: deadline || null,
@@ -133,7 +133,7 @@ export function useGoals() {
       return { data: null, error: 'Not authenticated', walletHandled: false, ledgerHandled: false }
     }
 
-    const rpcResult = await supabase.rpc('delete_goal_and_restore_funds', {
+    const rpcResult = await neon.rpc('delete_goal_and_restore_funds', {
       p_goal_id: goalId,
       p_wallet_id: walletId,
     })
@@ -159,7 +159,7 @@ export function useGoals() {
       return { error: new Error('Nama target wajib diisi.') }
     }
 
-    const rpcResult = await supabase.rpc('rename_goal', {
+    const rpcResult = await neon.rpc('rename_goal', {
       p_goal_id: goalId,
       p_name: nextName,
     })

@@ -1,8 +1,19 @@
-const { execSync } = require('child_process')
+const { spawnSync } = require('child_process')
+const path = require('path')
+
+const npxCli = path.join(
+  path.dirname(process.execPath),
+  'node_modules',
+  'npm',
+  'bin',
+  'npx-cli.js',
+)
 
 const frontendEnvKeys = [
-  'VITE_SUPABASE_URL',
-  'VITE_SUPABASE_ANON_KEY',
+  'VITE_NEON_AUTH_URL',
+  'VITE_NEON_DATA_API_URL',
+  'VITE_NEON_ANALYZE_TRANSACTION_URL',
+  'VITE_NEON_TRANSCRIBE_VOICE_URL',
 ]
 
 for (const key of frontendEnvKeys) {
@@ -16,20 +27,32 @@ for (const key of frontendEnvKeys) {
 
   console.log(`Syncing ${key} to Vercel environments...`)
 
-  try {
-    execSync(`npx vercel env rm ${key} production preview development --yes`, {
-      stdio: 'ignore',
-    })
-  } catch (_error) {
-    // Ignore when the variable does not exist yet.
-  }
-
   for (const target of ['production', 'preview', 'development']) {
-    try {
-      execSync(`npx vercel env add ${key} ${target}`, { input: value })
+    const targetArgs = target === 'preview' ? [target, ''] : [target]
+    const result = spawnSync(
+      process.execPath,
+      [
+        npxCli,
+        'vercel',
+        'env',
+        'add',
+        key,
+        ...targetArgs,
+        '--value',
+        value,
+        '--force',
+        '--yes',
+      ],
+      { encoding: 'utf8' },
+    )
+
+    if (result.status === 0) {
       console.log(`Added ${key} to ${target}`)
-    } catch (error) {
-      console.error(`Failed to add ${key} to ${target}:`, error.message)
+    } else {
+      console.error(
+        `Failed to add ${key} to ${target}:`,
+        result.error?.message || result.stderr?.trim() || `exit code ${result.status}`,
+      )
       process.exitCode = 1
     }
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 
 const EMPTY_ANALYTICS = {
@@ -22,7 +22,7 @@ export function useAnalytics() {
       return { data: EMPTY_ANALYTICS, error: null }
     }
 
-    const { data, error } = await supabase.rpc('get_analytics_snapshot', {
+    const { data, error } = await neon.rpc('get_analytics_snapshot', {
       p_start_at: startAt,
       p_end_at: endAt,
     })

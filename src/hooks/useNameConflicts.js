@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 
 const EMPTY_CONFLICTS = {
@@ -20,7 +20,7 @@ export function useNameConflicts() {
     }
 
     setLoading(true)
-    const { data, error } = await supabase.rpc('get_name_conflicts')
+    const { data, error } = await neon.rpc('get_name_conflicts')
 
     if (!error && data) {
       setConflicts({
