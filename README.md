@@ -10,6 +10,7 @@ Dokumentasi mesin percakapan finansial lokal: [Local Finance Assistant](docs/LOC
 
 - **Smart Chat Input** — Cukup ketik "Makan siang 85k tunai" untuk mengekstrak nominal, kategori, dan dompet tanpa layanan AI
 - **Local Financial Assistant** — Cek kemampuan membeli, budget harian, proyeksi target, pengeluaran rutin, dan ringkasan arus kas tanpa API key
+- **Indonesian Grammar Guard** — Memahami angka-kata dan slang umum, lalu meminta klarifikasi untuk negasi, rencana, pilihan, nominal perkiraan, kepemilikan pihak lain, atau referensi ambigu sebelum ledger ditulis
 - **Multi-Wallet Management** — Kelola berbagai akun: Bank, E-Wallet, Tunai
 - **Transaction History** — Riwayat transaksi dengan kategorisasi otomatis
 - **Analytics Dashboard** — Ringkasan arus kas dan kategori pengeluaran terbesar
@@ -21,8 +22,8 @@ Dokumentasi mesin percakapan finansial lokal: [Local Finance Assistant](docs/LOC
 |-------|-----------|
 | Frontend | React (Vite) |
 | Styling | Tailwind CSS v4 |
-| Backend | Neon (Postgres + Auth + Data API + Functions) |
-| Smart parser | Aturan deterministik lokal + pembelajaran preferensi user |
+| Backend | Vercel Functions + Neon Postgres/Auth |
+| Smart parser | Aturan deterministik, intent scoring, slot filling, dan dialogue state |
 | Icons | Lucide React |
 
 ## 🚀 Getting Started
@@ -50,8 +51,13 @@ npm run dev
 |----------|-------------|
 | `VITE_NEON_AUTH_URL` | Neon Auth endpoint |
 | `VITE_NEON_DATA_API_URL` | Neon Data API endpoint |
+| `DATABASE_URL` | Koneksi owner/server Neon; hanya untuk Vercel Function |
+| `NEON_AUTH_JWKS_URL` | JWKS Neon Auth untuk verifikasi signature JWT |
+| `NEON_AUTH_ISSUER` | Issuer JWT yang diharapkan (opsional, direkomendasikan) |
+| `NEON_AUTH_AUDIENCE` | Audience JWT yang diharapkan (opsional, direkomendasikan) |
+| `ASSISTANT_ALLOWED_ORIGINS` | Allowlist origin production, dipisahkan koma |
 
-Tidak diperlukan API key AI. Pemahaman chat dan perhitungan finansial berjalan secara lokal; Neon hanya dipakai untuk autentikasi dan penyimpanan data.
+Tidak diperlukan API key AI. Interpretasi bahasa berjalan deterministik di aplikasi, sedangkan query, pending action, otorisasi, idempotensi, dan mutation dijalankan oleh Vercel Function dengan Neon sebagai sumber kebenaran.
 
 ## Neon migrations and RLS tests
 
@@ -90,5 +96,8 @@ src/
 ```
 
 ## 📄 License
+
+Audit refactor dan keputusan reuse modul lama tersedia di
+[Deterministic Assistant Audit](docs/DETERMINISTIC_ASSISTANT_AUDIT.md).
 
 Private — Kuro Usagi Labs

@@ -1,3 +1,5 @@
+import { normalizeIndonesianFinanceText } from './indonesianFinanceLanguage'
+
 const TRAINING_CORPUS = {
   calculate_change: [
     'bayar 50rb kembali 36rb jadi habis berapa',
@@ -28,6 +30,8 @@ const TRAINING_CORPUS = {
     'catet dua transaksi bensin 50k sama tol 15k',
     'gaji 5jt dan bonus 500rb masukkan sebagai pemasukan',
     'tadi beli obat 40rb terus vitamin 35rb',
+    'aku tidak cuma beli kopi 20rb tapi juga makan 30rb tolong catat',
+    'bayar bensin dua puluh ribu dan parkir lima ribu catat',
   ],
   record_single: [
     'catat beli makan 25rb',
@@ -38,6 +42,8 @@ const TRAINING_CORPUS = {
     'bayar tagihan listrik 200rb',
     'pengeluaran parkir 10 ribu',
     'dapat bonus 300rb catat pemasukan',
+    'jangan lupa catat kopi ceban dari tunai',
+    'tadi bayar makan dua puluh ribu tolong catat',
   ],
   advice_low_balance: [
     'uang tinggal 200rb untuk sebulan sebaiknya bagaimana',
@@ -68,6 +74,13 @@ const TRAINING_CORPUS = {
     'saya dapat kembalian 36rb',
     'jangan catat kopi 20rb',
     'tanggal 20 saya masuk kerja jam 8',
+    'besok beli kopi 20rb tolong catat',
+    'mungkin tadi beli kopi sekitar 20rb catat',
+    'beli kopi atau makan 20rb catat',
+    'cara catat beli kopi 20rb',
+    'kata teman catat kopi 20rb',
+    'kopi 20rb belum dibayar catat',
+    'beli game usd 20 catat',
   ],
 }
 
@@ -82,7 +95,7 @@ const NORMALIZATION_RULES = [
 ]
 
 function normalizeClassifierText(value = '') {
-  let normalized = String(value || '').toLowerCase()
+  let normalized = normalizeIndonesianFinanceText(value)
 
   for (const [pattern, replacement] of NORMALIZATION_RULES) {
     normalized = normalized.replace(pattern, replacement)

@@ -125,7 +125,7 @@ describe('conversational finance parser', () => {
     expect(result.reply).toContain('BCA')
   })
 
-  it('resumes a wallet clarification after reload-style context recovery', () => {
+  it('selects a wallet after context recovery and requires one final explicit commit', () => {
     const pendingDraft = {
       id: '55555555-5555-4555-8555-555555555555',
       requestId: '55555555-5555-4555-8555-555555555555',
@@ -133,16 +133,36 @@ describe('conversational finance parser', () => {
       missingSlots: ['wallet'],
       items: [{ transactionType: 'expense', amount: 14000, desc: 'Jajan', category: 'Jajan' }],
     }
-    const result = analyzeConversationalFinance({
+    const selection = analyzeConversationalFinance({
       text: 'Tunai',
       walletOptions: [cashWallet, bankWallet],
       context: pendingDraft,
     })
 
-    expect(result).toMatchObject({
+    expect(selection).toMatchObject({
+      type: 'finance_draft_revision',
+      draft: {
+        walletId: cashWallet.id,
+        status: 'proposed',
+      },
+    })
+
+    const selectedDraft = {
+      ...selection.draft,
+      id: '56565656-5656-4565-8565-565656565656',
+      requestId: '56565656-5656-4565-8565-565656565656',
+    }
+    const commit = analyzeConversationalFinance({
+      text: 'catat transaksi tadi',
+      walletOptions: [cashWallet, bankWallet],
+      context: selectedDraft,
+    })
+
+    expect(commit).toMatchObject({
       type: 'transaction_batch',
       walletId: cashWallet.id,
-      requestId: pendingDraft.requestId,
+      requestId: selectedDraft.requestId,
+      writeDecision: 'commit',
     })
   })
 
@@ -315,7 +335,16 @@ describe('finance conversation memory', () => {
       { sender: 'user', metadata: {} },
     ], new Date('2026-07-29T12:00:00.000Z'))
 
-    expect(recovered).toEqual(draft)
+    expect(recovered).toMatchObject({
+      ...draft,
+      version: 2,
+      status: 'needs_confirmation',
+      missingSlots: ['semantic_confirmation'],
+      understanding: {
+        writeDecision: 'review',
+        legacyDraft: true,
+      },
+    })
   })
 
   it('drops resolved, cancelled, and expired drafts', () => {

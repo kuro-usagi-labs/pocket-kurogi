@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { History, Pencil, Undo2 } from 'lucide-react'
+import { BarChart3, Check, History, Pencil, Undo2, X } from 'lucide-react'
 import { CategoryIcon } from '../shared/CategoryIcon'
 import KurogiLogo from '../shared/KurogiLogo'
 
@@ -18,6 +18,7 @@ export default function MessageBubble({
   const bubbleShape = getBubbleShape({ isUser, isFirstInGroup, isLastInGroup })
   const candidates = Array.isArray(msg.metadata?.candidates) ? msg.metadata.candidates : []
   const confirmationMode = msg.metadata?.confirmationMode || (candidates.length > 0 ? 'choice' : 'input')
+  const confirmationHint = msg.metadata?.confirmationHint || getConfirmationHint(confirmationMode)
 
   return (
     <div className={`${groupSpacing} flex w-full ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
@@ -62,7 +63,7 @@ export default function MessageBubble({
           {!isUser && msg.metadata?.intentStatus === 'needs_confirmation' ? (
             <div className="mt-3 rounded-[12px] border border-amber-100 bg-amber-50 px-3.5 py-2.5">
               <p className="font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
-                {getConfirmationHint(confirmationMode)}
+                {confirmationHint}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(confirmationMode === 'binary' ? ['Ya', 'Batal'] : ['Batal']).map((label) => (
@@ -85,7 +86,16 @@ export default function MessageBubble({
           ) : null}
 
           {msg.card ? (
-            msg.card.batch && Array.isArray(msg.card.items) ? (
+            msg.card.type === 'pending_action' ? (
+              <PendingActionCard
+                card={msg.card}
+                disabled={disabled}
+                formatRupiah={formatRupiah}
+                onAction={onCardAction}
+              />
+            ) : msg.card.type === 'financial_insight' ? (
+              <FinancialInsightCard card={msg.card} />
+            ) : msg.card.batch && Array.isArray(msg.card.items) ? (
               <BatchReceiptCard
                 card={msg.card}
                 disabled={disabled}
@@ -172,6 +182,119 @@ function TransactionReceiptCard({ card, disabled = false, formatRupiah, onAction
         />
       </div>
     </div>
+  )
+}
+
+function FinancialInsightCard({ card }) {
+  const details = Array.isArray(card.details) ? card.details : []
+
+  return (
+    <section
+      className="mt-3 overflow-hidden rounded-[16px] border border-sky-200 bg-sky-50 text-midnight"
+      aria-label="Insight keuangan dari data tersimpan"
+    >
+      <div className="flex items-center gap-2.5 border-b border-sky-100 px-3.5 py-3">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-midnight text-white">
+          <BarChart3 size={16} aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-[10px] font-bold text-sky-700">
+            {card.available === false ? 'Data belum cukup' : 'Berdasarkan data Neon'}
+          </p>
+          <p className="text-[13px] font-extrabold">{card.title || 'Insight keuangan'}</p>
+        </div>
+      </div>
+      {details.length > 0 ? (
+        <ul className="divide-y divide-sky-100 bg-white/70">
+          {details.map((detail, index) => (
+            <li key={`${index}-${detail}`} className="px-3.5 py-2.5 text-[11px] font-bold leading-relaxed">
+              {detail}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  )
+}
+
+function PendingActionCard({ card, disabled = false, formatRupiah, onAction }) {
+  const items = Array.isArray(card.items) ? card.items : []
+
+  return (
+    <section
+      className="mt-3 overflow-hidden rounded-[16px] border border-amber-200 bg-amber-50 text-midnight"
+      aria-label="Aksi keuangan menunggu konfirmasi"
+    >
+      <div className="border-b border-amber-200/70 px-3.5 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold text-amber-700">Menunggu konfirmasi</p>
+            <p className="mt-0.5 text-[13px] font-extrabold">{card.title}</p>
+          </div>
+          {Number(card.amount || 0) > 0 ? (
+            <p className="shrink-0 text-[13px] font-extrabold text-amber-800">
+              {formatRupiah(card.amount)}
+            </p>
+          ) : null}
+        </div>
+
+        {card.sourceWallet ? (
+          <p className="mt-2 text-[11px] font-bold text-muted">
+            {card.destinationWallet
+              ? `${card.sourceWallet} → ${card.destinationWallet}`
+              : `Dompet: ${card.sourceWallet}`}
+          </p>
+        ) : null}
+      </div>
+
+      {items.length > 0 ? (
+        <div className="divide-y divide-amber-100 bg-white/70">
+          {items.map((item, index) => (
+            <div key={item.id || index} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-extrabold">
+                  {item.description || `Transaksi ${index + 1}`}
+                </p>
+                {item.category ? (
+                  <p className="mt-0.5 text-[10px] font-bold text-muted">{item.category}</p>
+                ) : null}
+              </div>
+              <p className="shrink-0 text-[11px] font-extrabold text-midnight">
+                {formatRupiah(item.amount)}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {Array.isArray(card.missingFields) && card.missingFields.length > 0 ? (
+        <div className="border-t border-amber-100 px-3.5 py-2.5 text-[10px] font-bold text-amber-800">
+          Data yang masih kurang: {card.missingFields.join(', ')}
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-3 border-t border-amber-200 bg-white">
+        <ReceiptActionButton
+          icon={Check}
+          label="Konfirmasi"
+          disabled={disabled}
+          onClick={() => onAction?.('assistant-confirm', card)}
+        />
+        <ReceiptActionButton
+          icon={Pencil}
+          label="Ubah"
+          disabled={disabled}
+          onClick={() => onAction?.('assistant-edit', card)}
+        />
+        <ReceiptActionButton
+          icon={X}
+          label="Batal"
+          danger
+          disabled={disabled}
+          onClick={() => onAction?.('assistant-cancel', card)}
+        />
+      </div>
+    </section>
   )
 }
 

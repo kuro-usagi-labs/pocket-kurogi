@@ -1,0 +1,256 @@
+import { ASSISTANT_INTENTS } from './intentDefinitions'
+import { clampNumber } from './formatters'
+
+const SIGNALS = Object.freeze({
+  recordVerb: /\b(?:catat|simpan|rekam|input|masukkan|tambahkan)\b/iu,
+  expenseVerb: /\b(?:beli|bayar|belanja|jajan|makan|minum|habis|keluar)\b/iu,
+  incomeVerb: /\b(?:terima|menerima|dapat|gaji|bonus|pemasukan|pendapatan|cashback|refund|komisi)\b/iu,
+  transferVerb: /\b(?:transfer|trf|tf|pindah|pindahkan|kirim|geser)\b/iu,
+  change: /\b(?:kembalian|kembali|susuk|bayar pakai|uangnya)\b/iu,
+  balance: /\b(?:saldo|uang tersisa|sisa uang|total uang|uangku|uang saya)\b/iu,
+  transaction: /\b(?:transaksi|riwayat|catatan)\b/iu,
+  income: /\b(?:pemasukan|pendapatan|income|gaji|bonus)\b/iu,
+  expense: /\b(?:pengeluaran|spending|belanja|boros|habis)\b/iu,
+  summary: /\b(?:ringkasan|rekap|total|analisis|analisa|bagaimana|gimana)\b/iu,
+  category: /\b(?:kategori|pos|paling besar|terbesar|terbanyak)\b/iu,
+  wallet: /\b(?:dompet|rekening|wallet)\b/iu,
+  budget: /\b(?:budget|anggaran|jatah|batas)\b/iu,
+  savingGoal: /\b(?:target|goal|tabungan|menabung|nabung)\b/iu,
+  create: /\b(?:buat|bikin|tambahkan|tambah|pasang)\b/iu,
+  update: /\b(?:ubah|ganti|update|naikkan|turunkan|revisi)\b/iu,
+  advice: /\b(?:saran|strategi|rekomendasi|sebaiknya|menurutmu|aman|cukup|atur|hemat|prioritas)\b/iu,
+  correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
+  confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi)(?:\s+(?:catat|lanjut|saja|aja|sekarang))?$/iu,
+  cancel: /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu,
+  greeting: /^(?:halo|hai|hi|pagi|siang|sore|malam|apa kabar)\b/iu,
+  emotional: /\b(?:stres|stress|khawatir|cemas|takut|menyesal|nyesel|bingung|pusing|bangga|senang|semangat|panik|tertekan|boros banget|uang menipis|saldo tinggal|sisa uang)\b/iu,
+})
+
+export function routeAssistantIntent({
+  text = '',
+  entities = {},
+  dialogueState = null,
+} = {}) {
+  const normalizedText = entities.normalizedText || String(text || '').toLowerCase()
+  const scores = new Map()
+
+  for (const intent of ASSISTANT_INTENTS) {
+    scores.set(intent, createScoreEntry(intent))
+  }
+
+  scoreDialogueActs(scores, normalizedText, entities, dialogueState)
+  scoreMutations(scores, normalizedText, entities)
+  scoreQueries(scores, normalizedText, entities)
+  scoreSupport(scores, normalizedText, entities)
+
+  if (entities.question || entities.hypothetical) {
+    penalizeMutationIntents(scores, entities)
+  }
+
+  if (entities.thirdParty) {
+    addConflict(scores, ['record_expense', 'record_income', 'record_multiple_transactions'], 'third_party_ownership', 0.48)
+  }
+
+  if (entities.negated && !entities.cancellation) {
+    addConflict(scores, ['record_expense', 'record_income', 'record_multiple_transactions', 'transfer_money'], 'negated_action', 0.32)
+  }
+
+  const ranked = Array.from(scores.values())
+    .map(finalizeScore)
+    .sort((left, right) => right.score - left.score)
+  const best = ranked[0]
+  const runnerUp = ranked[1]
+  const margin = best.score - runnerUp.score
+  const ambiguous = best.score < 0.46 || (runnerUp.score >= 0.42 && margin < 0.12)
+
+  if (best.score <= 0.12) {
+    return {
+      intent: 'unknown',
+      score: 0,
+      margin: 0,
+      evidence: [],
+      conflictingEvidence: [],
+      ambiguous: true,
+      alternatives: ranked.slice(0, 3),
+    }
+  }
+
+  return {
+    intent: ambiguous ? 'unknown' : best.intent,
+    score: best.score,
+    margin,
+    evidence: best.evidence,
+    conflictingEvidence: best.conflictingEvidence,
+    ambiguous,
+    alternatives: ranked.slice(0, 3),
+  }
+}
+
+function scoreDialogueActs(scores, text, entities, state) {
+  if (state?.activeIntent && (entities.cancellation || SIGNALS.cancel.test(text))) {
+    add(scores, 'cancel_pending_action', 0.98, 'dialogue_state:cancellation')
+  }
+  if (state?.pendingActionId || state?.pendingAction?.id) {
+    if (entities.confirmation || SIGNALS.confirm.test(text)) {
+      add(scores, 'confirm_pending_action', 0.96, 'pending_action:affirmative')
+    }
+    if (entities.cancellation || SIGNALS.cancel.test(text)) {
+      add(scores, 'cancel_pending_action', 0.98, 'pending_action:cancellation')
+    }
+    if (SIGNALS.correction.test(text)) {
+      add(scores, 'correct_pending_action', 0.86, 'pending_action:correction')
+    }
+    if (state.missingSlots?.includes('wallet') && entities.wallets?.[0]?.id) {
+      add(scores, 'select_wallet', 0.9, 'pending_slot:wallet')
+    }
+  }
+}
+
+function scoreMutations(scores, text, entities) {
+  const amountCount = entities.amounts?.length || 0
+  const hasRecordVerb = SIGNALS.recordVerb.test(text)
+
+  if (SIGNALS.expenseVerb.test(text)) {
+    add(scores, 'record_expense', 0.28, 'expense_verb')
+  }
+  if (SIGNALS.incomeVerb.test(text)) {
+    add(scores, 'record_income', 0.3, 'income_verb')
+  }
+  if (hasRecordVerb) {
+    add(scores, 'record_expense', 0.25, 'record_verb')
+    add(scores, 'record_income', 0.2, 'record_verb')
+  }
+  if (amountCount === 1) {
+    add(scores, 'record_expense', 0.18, 'money:single')
+    add(scores, 'record_income', 0.18, 'money:single')
+  }
+  if (amountCount > 1 && /(?:,|\bdan\b|\blalu\b|\bterus\b)/iu.test(text)) {
+    add(scores, 'record_multiple_transactions', 0.5, `money:multiple:${amountCount}`)
+    if (hasRecordVerb) add(scores, 'record_multiple_transactions', 0.25, 'record_verb')
+  }
+
+  if (SIGNALS.transferVerb.test(text)) {
+    add(scores, 'transfer_money', 0.48, 'transfer_verb')
+    if (entities.transferWallets?.source) add(scores, 'transfer_money', 0.2, 'source_wallet')
+    if (entities.transferWallets?.destination) add(scores, 'transfer_money', 0.2, 'destination_wallet')
+    if (amountCount === 1) add(scores, 'transfer_money', 0.16, 'money:single')
+  }
+
+  if (SIGNALS.change.test(text) && amountCount >= 2) {
+    add(scores, 'calculate_change', 0.75, 'change_arithmetic')
+  }
+
+  if (SIGNALS.budget.test(text) && SIGNALS.create.test(text)) {
+    add(scores, 'create_budget', 0.64, 'create_budget')
+  }
+  if (SIGNALS.budget.test(text) && SIGNALS.update.test(text)) {
+    add(scores, 'update_budget', 0.64, 'update_budget')
+  }
+  if (SIGNALS.savingGoal.test(text) && SIGNALS.create.test(text)) {
+    add(scores, 'create_saving_goal', 0.66, 'create_saving_goal')
+  }
+  if (SIGNALS.savingGoal.test(text) && SIGNALS.update.test(text)) {
+    add(scores, 'update_saving_goal', 0.66, 'update_saving_goal')
+  }
+}
+
+function scoreQueries(scores, text, entities) {
+  if (!entities.question && !SIGNALS.summary.test(text) && !SIGNALS.advice.test(text)) return
+
+  if (SIGNALS.balance.test(text)) add(scores, 'query_balance', 0.78, 'balance_question')
+  if (SIGNALS.transaction.test(text)) add(scores, 'query_transactions', 0.7, 'transaction_query')
+  if (SIGNALS.income.test(text)) add(scores, 'query_income', 0.62, 'income_query')
+  if (SIGNALS.expense.test(text)) add(scores, 'query_expenses', 0.62, 'expense_query')
+  if (SIGNALS.summary.test(text) && SIGNALS.expense.test(text)) {
+    add(scores, 'query_spending_summary', 0.72, 'spending_summary_query')
+  }
+  if (SIGNALS.category.test(text)) add(scores, 'query_category_summary', 0.68, 'category_query')
+  if (SIGNALS.wallet.test(text) && entities.wallets?.[0]?.id) {
+    add(scores, 'query_wallet', 0.72, 'wallet_query')
+  }
+  if (SIGNALS.budget.test(text) && !SIGNALS.create.test(text) && !SIGNALS.update.test(text)) {
+    add(scores, 'query_budget', 0.76, 'budget_query')
+  }
+  if (SIGNALS.savingGoal.test(text) && !SIGNALS.create.test(text) && !SIGNALS.update.test(text)) {
+    add(scores, 'query_saving_goal', 0.72, 'saving_goal_query')
+  }
+}
+
+function scoreSupport(scores, text, entities) {
+  if (SIGNALS.advice.test(text)) {
+    add(scores, 'financial_advice', 0.68, 'advice_request')
+  }
+  if (SIGNALS.emotional.test(text)) {
+    add(scores, 'emotional_support', 0.72, 'emotional_cue')
+    if (SIGNALS.expense.test(text) || SIGNALS.balance.test(text)) {
+      add(scores, 'emotional_support', 0.15, 'financial_concern')
+    }
+  }
+  if (SIGNALS.greeting.test(text)) {
+    add(scores, 'general_chat', 0.78, 'greeting')
+  }
+  if (
+    !entities.amounts?.length &&
+    !entities.wallets?.length &&
+    !SIGNALS.transaction.test(text) &&
+    !SIGNALS.balance.test(text) &&
+    !SIGNALS.budget.test(text) &&
+    !SIGNALS.savingGoal.test(text) &&
+    text.length > 0
+  ) {
+    add(scores, 'general_chat', 0.18, 'non_financial_text')
+  }
+}
+
+function penalizeMutationIntents(scores, entities) {
+  const reason = entities.hypothetical ? 'hypothetical_or_future' : 'question_form'
+  const penalty = entities.hypothetical ? 0.5 : 0.34
+  addConflict(
+    scores,
+    [
+      'record_expense',
+      'record_income',
+      'record_multiple_transactions',
+      'transfer_money',
+      'create_budget',
+      'update_budget',
+      'create_saving_goal',
+      'update_saving_goal',
+    ],
+    reason,
+    penalty
+  )
+}
+
+function createScoreEntry(intent) {
+  return {
+    intent,
+    positive: 0,
+    negative: 0,
+    evidence: [],
+    conflictingEvidence: [],
+  }
+}
+
+function add(scores, intent, amount, evidence) {
+  const entry = scores.get(intent)
+  entry.positive += amount
+  entry.evidence.push(evidence)
+}
+
+function addConflict(scores, intents, evidence, amount) {
+  for (const intent of intents) {
+    const entry = scores.get(intent)
+    entry.negative += amount
+    entry.conflictingEvidence.push(evidence)
+  }
+}
+
+function finalizeScore(entry) {
+  return {
+    intent: entry.intent,
+    score: clampNumber(entry.positive - entry.negative),
+    evidence: [...new Set(entry.evidence)],
+    conflictingEvidence: [...new Set(entry.conflictingEvidence)],
+  }
+}

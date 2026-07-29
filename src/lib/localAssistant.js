@@ -9,21 +9,13 @@ import {
   resolveOptionReference,
 } from './chatEntities'
 import { inferCategoryFromText, normalizeCategoryLookup } from './categoryCatalog'
-import { analyzeConversationalFinance } from './conversationalFinance'
+import { getChatWriteCandidate, isChatWriteIntentType } from './chatWriteSafety'
+import { analyzeConversationalFinance, extractMoneyMentions } from './conversationalFinance'
+import {
+  assessIndonesianFinanceUtterance,
+  normalizeIndonesianFinanceText,
+} from './indonesianFinanceLanguage'
 import { detectSmartFinanceQuery } from './smartFinance'
-
-const TRANSACTION_CATEGORIES = [
-  'makan',
-  'minum',
-  'kopi',
-  'bensin',
-  'transport',
-  'belanja',
-  'gaji',
-  'bonus',
-  'jajan',
-  'listrik',
-]
 
 const LEDGER_AMOUNT_REQUIRED_REPLY =
   'Saya perlu nominal yang jelas. Contoh: "Beli kopi 50k tunai".'
@@ -56,6 +48,26 @@ export async function analyzeTransaction(
     return knownSmartFinanceQuery
   }
 
+  if (!learningContext?.financeDraft) {
+    const earlyCorrection = detectLastTransactionCorrection(
+      normalizedPreview,
+      walletOptions,
+      categoryOptions
+    )
+    const hasConcreteCorrection =
+      Boolean(earlyCorrection?.amount) ||
+      /\b(?:koreksi|revisi|ubah|ganti)\b/iu.test(normalizedPreview)
+
+    if (earlyCorrection && hasConcreteCorrection) {
+      return finalizeChatFinanceAnalysis({
+        text: text || '',
+        result: earlyCorrection,
+        walletOptions,
+        context: null,
+      })
+    }
+  }
+
   const conversationalResult = analyzeConversationalFinance({
     text: text || '',
     walletOptions,
@@ -65,7 +77,12 @@ export async function analyzeTransaction(
   })
 
   if (conversationalResult) {
-    return conversationalResult
+    return finalizeChatFinanceAnalysis({
+      text: text || '',
+      result: conversationalResult,
+      walletOptions,
+      context: learningContext?.financeDraft || null,
+    })
   }
 
   const localResult = analyzeWithRegex(
@@ -83,7 +100,202 @@ export async function analyzeTransaction(
     }
   }
 
-  return localResult
+  return finalizeChatFinanceAnalysis({
+    text: text || '',
+    result: localResult,
+    walletOptions,
+    context: learningContext?.financeDraft || null,
+  })
+}
+
+export function assessPendingFinanceReply(text, { allowImplicitUnit = false } = {}) {
+  const normalizedText = normalizeIndonesianFinanceText(text)
+  const mentions = extractMoneyMentions(normalizedText)
+  const assessment = assessIndonesianFinanceUtterance({
+    text: normalizedText,
+    hasContext: true,
+    mentions,
+  })
+  const ignoredCodes = new Set(['NO_EXPLICIT_WRITE_REQUEST'])
+  if (allowImplicitUnit) ignoredCodes.add('IMPLICIT_CURRENCY_UNIT')
+  const blockingAmbiguities = assessment.ambiguities.filter(
+    (ambiguity) => !ignoredCodes.has(ambiguity.code)
+  )
+
+  return {
+    safe: blockingAmbiguities.length === 0,
+    normalizedText,
+    mentions,
+    ambiguities: blockingAmbiguities,
+    reply: blockingAmbiguities[0]?.message || '',
+  }
+}
+
+function finalizeChatFinanceAnalysis({ text, result, walletOptions = [], context = null }) {
+  if (!result || typeof result !== 'object') return result
+
+  const normalizedText = normalizeIndonesianFinanceText(text)
+  const mentions = extractMoneyMentions(normalizedText)
+  const assessment = assessIndonesianFinanceUtterance({
+    text: normalizedText,
+    hasContext: Boolean(context),
+    mentions,
+  })
+
+  if (result.type === 'transaction_batch') {
+    const isReviewedShortConfirmation =
+      Boolean(result.derivedFromDraft && result.understanding?.confirmedByUser) &&
+      /^(?:ya|iya|yup|betul|benar|oke|ok|sip)$/iu.test(normalizedText)
+
+    if (
+      result.writeDecision !== 'commit' ||
+      assessment.blocksWrite && !isReviewedShortConfirmation
+    ) {
+      const detail = assessment.ambiguities[0]?.message ||
+        'Hasil parser belum memiliki bukti struktur yang cukup untuk menulis ledger.'
+      return {
+        type: 'unknown',
+        reply: `Saya belum mencatat apa pun. ${detail}`,
+      }
+    }
+
+    return result
+  }
+
+  const transactionCandidate = result.type === 'transaction'
+    ? result
+    : result.type === 'needs_confirmation' && result.intent?.type === 'transaction'
+      ? result.intent
+      : null
+
+  if (!transactionCandidate) {
+    const mutationCandidate = getChatWriteCandidate(result)
+    if (!isChatWriteIntentType(mutationCandidate?.type)) return result
+
+    if (assessment.blocksWrite) {
+      const detail = assessment.ambiguities[0]?.message ||
+        'Struktur pesan belum membuktikan adanya instruksi aksi yang final.'
+      return {
+        type: 'unknown',
+        reply: `Saya belum menjalankan aksi apa pun. ${detail}`,
+      }
+    }
+
+    const safeMutationCandidate = {
+      ...mutationCandidate,
+      writeDecision: 'commit',
+      understanding: {
+        writeDecision: 'commit',
+        ambiguities: [],
+        evidence: assessment.evidence,
+      },
+    }
+
+    if (result.type === 'needs_confirmation') {
+      return {
+        ...result,
+        intent: safeMutationCandidate,
+      }
+    }
+
+    return safeMutationCandidate
+  }
+
+  const ambiguityCodes = new Set(assessment.ambiguities.map((ambiguity) => ambiguity.code))
+  const onlyMissingWriteRequest = ambiguityCodes.size === 1 &&
+    ambiguityCodes.has('NO_EXPLICIT_WRITE_REQUEST')
+  const candidateAmount = Number(transactionCandidate.amount || 0)
+  if (
+    candidateAmount > 0 &&
+    (
+      mentions.length !== 1 ||
+      Number(mentions[0]?.value || 0) !== candidateAmount
+    )
+  ) {
+    return {
+      type: 'unknown',
+      reply: 'Saya belum mencatat apa pun. Ada lebih dari satu nominal atau nominal hasil parser tidak sama dengan bukti teks. Tulis ulang satu transaksi dengan satu nominal final.',
+    }
+  }
+
+  const category = String(transactionCandidate.category || '').toLowerCase()
+  const vagueItem = category === 'lainnya' &&
+    !/\b(?:beli|bayar|belanja|jajan|makan|minum|gaji|bonus|terima|dapat|pengeluaran|pemasukan)\b/iu.test(normalizedText)
+
+  if (vagueItem) {
+    return {
+      type: 'unknown',
+      reply: 'Saya belum mencatat apa pun. Nominalnya terbaca, tetapi belum jelas ini pemasukan atau pengeluaran untuk item apa. Tulis contoh seperti "catat pengeluaran servis Rp50.000 dari Tunai".',
+    }
+  }
+
+  if (assessment.blocksWrite && !onlyMissingWriteRequest) {
+    const detail = assessment.ambiguities[0]?.message ||
+      'Struktur pesan masih ambigu dan perlu ditulis ulang.'
+    return {
+      type: 'unknown',
+      reply: `Saya belum mencatat apa pun. ${detail}`,
+    }
+  }
+
+  if (!assessment.evidence.explicitWriteRequested || onlyMissingWriteRequest) {
+    const wallet = walletOptions.find((option) => option.id === transactionCandidate.walletId) || null
+    const direction = transactionCandidate.transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'
+    return {
+      type: 'finance_calculation',
+      draft: {
+        version: 2,
+        status: wallet ? 'proposed' : 'needs_wallet',
+        items: [{
+          clientItemId: 'item-1',
+          transactionType: transactionCandidate.transactionType || 'expense',
+          amount: transactionCandidate.amount,
+          desc: transactionCandidate.desc,
+          category: transactionCandidate.category,
+          walletId: wallet?.id || null,
+          wallet: wallet?.name || null,
+          rawText: normalizedText,
+        }],
+        walletId: wallet?.id || null,
+        wallet: wallet?.name || null,
+        missingSlots: wallet ? [] : ['wallet'],
+        understanding: {
+          writeDecision: 'review',
+          ambiguities: ['Belum ada instruksi pencatatan eksplisit.'],
+          evidence: assessment.evidence,
+        },
+      },
+      reply: `Saya memahami ini sebagai ${direction.toLowerCase()} ${formatRupiahLocal(transactionCandidate.amount)} untuk ${transactionCandidate.desc || transactionCandidate.category || 'transaksi'}${wallet ? ` dari dompet ${wallet.name}` : ''}. Saya belum mencatat apa pun. Jika rangkuman ini benar, bilang "catat transaksi tadi".`,
+    }
+  }
+
+  const safeCandidate = {
+    ...transactionCandidate,
+    writeDecision: 'commit',
+    understanding: {
+      writeDecision: 'commit',
+      ambiguities: [],
+      evidence: assessment.evidence,
+    },
+  }
+
+  if (result.type === 'needs_confirmation') {
+    return {
+      ...result,
+      intent: safeCandidate,
+    }
+  }
+
+  return safeCandidate
+}
+
+function formatRupiahLocal(value) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0))
 }
 
 export function analyzeWithRegex(
@@ -93,7 +305,9 @@ export function analyzeWithRegex(
   archivedWalletOptions = [],
   categoryOptions = []
 ) {
-  let normalizedText = normalizeIntentText(normalizeNumericText(text.toLowerCase().trim()))
+  let normalizedText = normalizeIntentText(
+    normalizeNumericText(normalizeIndonesianFinanceText(text))
+  )
   const helpQuery = detectAssistantHelpQuery(normalizedText)
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
@@ -129,6 +343,11 @@ export function analyzeWithRegex(
   const goalContribution = detectGoalContributionIntent(normalizedText, walletOptions, goalOptions)
   if (goalContribution) {
     return goalContribution
+  }
+
+  const incomingTransfer = detectIncomingTransferIntent(normalizedText, walletOptions)
+  if (incomingTransfer) {
+    return incomingTransfer
   }
 
   const walletTransfer = detectWalletTransferIntent(normalizedText, walletOptions)
@@ -747,6 +966,55 @@ function detectGoalWithdrawalIntent(normalizedText, walletOptions = [], goalOpti
   }
 }
 
+function detectIncomingTransferIntent(normalizedText, walletOptions = []) {
+  const incomingMatch = normalizedText.match(
+    /\b(teman(?:ku|nya)?|temen(?:ku|nya)?|ibu|ayah|mama|papa|istri(?:ku|nya)?|suami(?:ku|nya)?|adik(?:ku|nya)?|kakak(?:ku|nya)?|pacar(?:ku|nya)?|saudara(?:ku|nya)?|anak(?:ku|nya)?|bos|kantor|perusahaan|dia|doi|mereka)\b[^.!?]{0,50}\b(?:transfer|kirim(?:kan)?)\b[^.!?]{0,60}\bke\s+(?:saya|aku|gue)\b/iu
+  )
+  if (!incomingMatch) return null
+
+  const amountMatch = matchMoney(normalizedText)
+  if (!amountMatch) {
+    return createNeedsConfirmation({
+      reason: 'missing_amount',
+      prompt: 'Nominal transfer masuknya berapa? Tulis contoh: "ibu transfer 100rb ke saya, catat ke BCA".',
+      intent: {
+        type: 'transaction',
+        transactionType: 'income',
+        desc: `Transfer dari ${toTitleCase(incomingMatch[1])}`,
+        category: 'Pemasukan',
+      },
+    })
+  }
+
+  const walletResolution = resolveOptionReference({
+    input: normalizedText,
+    options: walletOptions,
+  })
+  const wallet = walletResolution.match || (walletOptions.length === 1 ? walletOptions[0] : null)
+  const transaction = {
+    type: 'transaction',
+    transactionType: 'income',
+    amount: parseMoneyMatch(amountMatch),
+    desc: `Transfer dari ${toTitleCase(incomingMatch[1])}`,
+    category: 'Pemasukan',
+    walletId: wallet?.id || null,
+    wallet: wallet?.name || null,
+  }
+
+  if (wallet) return transaction
+
+  return createNeedsConfirmation({
+    reason: walletResolution.candidates.length > 0 ? 'ambiguous_wallet' : 'missing_wallet',
+    prompt: walletResolution.candidates.length > 0
+      ? `Dompet penerima transfer masih ambigu. Pilih salah satu: ${formatCandidateNames(walletResolution.candidates)}.`
+      : `Transfer masuknya diterima di dompet mana? Pilih salah satu: ${formatCandidateNames(walletOptions)}.`,
+    candidates: walletResolution.candidates.length > 0
+      ? walletResolution.candidates
+      : walletOptions,
+    intent: transaction,
+  })
+}
+
 function detectWalletTransferIntent(normalizedText, walletOptions = []) {
   if (!TRANSFER_INTENT_PATTERN.test(normalizedText)) {
     return null
@@ -886,8 +1154,7 @@ function resolveWalletForTransaction(normalizedText, walletOptions) {
   }
 
   let rawWalletName =
-    extractRawReferenceAfterKeyword(normalizedText, ['dari', 'pakai', 'pake', 'via', 'bank']) ||
-    extractPotentialTrailingWalletName(normalizedText)
+    extractRawReferenceAfterKeyword(normalizedText, ['dari', 'pakai', 'pake', 'via', 'bank'])
 
   if (rawWalletName && GENERIC_WALLET_REFERENCE_PATTERN.test(rawWalletName)) {
     const cashWallets = walletOptions.filter((wallet) =>
@@ -1240,25 +1507,6 @@ function extractRawReferenceAfterKeyword(text, keywords = []) {
       if (candidate) {
         return candidate
       }
-    }
-  }
-
-  return null
-}
-
-function extractPotentialTrailingWalletName(text) {
-  const words = normalizeEntityName(text).split(/\s+/)
-  const lastTwo = words.slice(-2).join(' ').trim()
-  const lastOne = words.slice(-1).join(' ').trim()
-  const candidates = [lastTwo, lastOne]
-
-  for (const candidate of candidates) {
-    if (
-      candidate &&
-      !TRANSACTION_CATEGORIES.includes(candidate) &&
-      !/\d/.test(candidate)
-    ) {
-      return candidate
     }
   }
 

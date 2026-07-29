@@ -37,7 +37,38 @@ export function buildGoalOptions(goals = []) {
 }
 
 export function matchMoney(text = '') {
-  return normalizeNumericText(text).match(/(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i)
+  const normalizedText = normalizeNumericText(text)
+  const moneyPattern =
+    /(^|[^\p{L}\p{N}])(rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|miliar|m|rupiah|perak)?(?![\p{L}\p{N}])/giu
+
+  for (const candidate of normalizedText.matchAll(moneyPattern)) {
+    const leadingBoundary = candidate[1] || ''
+    const start = (candidate.index || 0) + leadingBoundary.length
+    const rawMoney = candidate[0].slice(leadingBoundary.length)
+    const currencyPrefix = String(candidate[2] || '').trim().toLowerCase() || null
+    const explicitUnit = String(candidate[4] || '').toLowerCase() || null
+    const prefix = normalizedText.slice(Math.max(0, start - 30), start)
+    const suffix = normalizedText.slice(start + rawMoney.length, start + rawMoney.length + 20)
+
+    if (
+      !currencyPrefix &&
+      !explicitUnit &&
+      (
+        /\b(?:tanggal|tgl|jam|pukul|umur|usia|nomor|no|jumlah|qty)\s*$/iu.test(prefix) ||
+        /^\s*(?:kali|liter|kg|kilogram|gram|gr|ml|buah|pcs|orang|km|hari|minggu|bulan|tahun|botol|bungkus|porsi|pack|lusin|persen|%)(?:\b|$)/iu.test(suffix)
+      )
+    ) {
+      continue
+    }
+
+    const match = [rawMoney, candidate[3], explicitUnit]
+    match.index = start
+    match.input = normalizedText
+    match.currencyPrefix = currencyPrefix
+    return match
+  }
+
+  return null
 }
 
 export function parseMoneyMatch(match) {
@@ -47,11 +78,15 @@ export function parseMoneyMatch(match) {
 
   let amount = parseFloat(String(match[1] || '').replace(',', '.'))
   const multiplier = String(match[2] || '').toLowerCase()
+  const hasCurrencyPrefix = Boolean(match.currencyPrefix) ||
+    /^\s*rp\b/iu.test(String(match[0] || ''))
 
   if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
   else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-  else if (multiplier === 'm') amount *= 1000000000
-  else if (amount > 0 && amount < 1000) amount *= 1000
+  else if (['m', 'miliar'].includes(multiplier)) amount *= 1000000000
+  else if (!['rupiah', 'perak'].includes(multiplier) && !hasCurrencyPrefix && amount > 0 && amount < 1000) {
+    amount *= 1000
+  }
 
   return amount
 }

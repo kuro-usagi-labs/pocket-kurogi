@@ -1,0 +1,104 @@
+import { normalizeIndonesianFinanceText } from '../indonesianFinanceLanguage'
+import { resolveCategoryEntities } from './categoryResolver'
+import { resolveDateEntities } from './dateResolver'
+import {
+  extractForeignCurrencyEntities,
+  extractMoneyEntities,
+} from './moneyExtractor'
+import { resolveGoalEntities } from './goalResolver'
+import {
+  resolveTransferWallets,
+  resolveWalletEntities,
+  resolveWalletMentions,
+} from './walletResolver'
+
+const CONFIRMATION_PATTERN = /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi)(?:\s+(?:catat|lanjut|saja|aja|sekarang))?$/iu
+const CANCELLATION_PATTERN = /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu
+const HYPOTHETICAL_PATTERN = /\b(?:kalau|andaikan|misal(?:nya)?|seandainya|rencana|mau|ingin|pengen|akan|besok|nanti)\b/iu
+const QUESTION_PATTERN = /[?？]\s*$|\b(?:berapa|apakah|gimana|bagaimana|menurutmu|boleh|aman|cukup|kenapa|mengapa)\b/iu
+const THIRD_PARTY_PATTERN = /\b(?:teman|temen|istri|suami|adik|kakak|ibu|ayah|mama|papa|pacar|anak|saudara|rekan|dia|mereka|bos)(?:ku|nya)?\b/iu
+const NEGATION_PATTERN = /\b(?:tidak|bukan|belum|jangan|tanpa|gagal)\b/iu
+const INCOME_PATTERN = /\b(?:gaji|bonus|pendapatan|pemasukan|terima|menerima|dapat|masuk|cashback|refund|komisi)\b/iu
+const EXPENSE_PATTERN = /\b(?:beli|bayar|belanja|jajan|makan|minum|pengeluaran|habis|keluar)\b/iu
+const QUANTITY_PATTERN = /\b(\d+(?:[.,]\d+)?)\s*(meter|cm|mm|km|botol|buah|orang|kali|lembar|pcs|unit|kg|gram|liter|ml)\b/giu
+const MERCHANT_PATTERN = /\b(?:di|ke)\s+([\p{L}\p{N}][\p{L}\p{N}\s.&'-]{1,40}?)(?=\s+(?:pakai|pake|dari|sebesar|senilai|rp|\d)|[,.;!?]|$)/giu
+
+export function extractAssistantEntities({
+  text = '',
+  wallets = [],
+  categories = [],
+  goals = [],
+  memory = [],
+  now = new Date(),
+} = {}) {
+  const normalizedText = normalizeIndonesianFinanceText(text)
+  const transactionType = inferTransactionType(normalizedText)
+  const amounts = extractMoneyEntities(normalizedText)
+  const foreignCurrencies = extractForeignCurrencyEntities(normalizedText)
+  const walletEntities = resolveWalletEntities({
+    text: normalizedText,
+    wallets,
+    memory,
+  })
+  const transferWallets = resolveTransferWallets({
+    text: normalizedText,
+    wallets,
+  })
+
+  return {
+    normalizedText,
+    amounts,
+    foreignCurrencies,
+    wallets: walletEntities,
+    walletMentions: resolveWalletMentions({
+      text: normalizedText,
+      wallets,
+    }),
+    transferWallets,
+    categories: resolveCategoryEntities({
+      text: normalizedText,
+      categories,
+      transactionType,
+    }),
+    goals: resolveGoalEntities({
+      text: normalizedText,
+      goals,
+    }),
+    merchants: extractMerchants(normalizedText),
+    dates: resolveDateEntities(normalizedText, now),
+    transactionTypes: transactionType
+      ? [{ value: transactionType, confidence: 0.92 }]
+      : [],
+    quantities: Array.from(normalizedText.matchAll(QUANTITY_PATTERN), (match) => ({
+      raw: match[0],
+      value: Number(String(match[1]).replace(',', '.')),
+      unit: match[2].toLowerCase(),
+      start: match.index ?? 0,
+      end: (match.index ?? 0) + match[0].length,
+    })),
+    confirmation: CONFIRMATION_PATTERN.test(normalizedText) ? true : null,
+    cancellation: CANCELLATION_PATTERN.test(normalizedText),
+    hypothetical: HYPOTHETICAL_PATTERN.test(normalizedText),
+    question: QUESTION_PATTERN.test(normalizedText),
+    thirdParty: THIRD_PARTY_PATTERN.test(normalizedText),
+    negated: NEGATION_PATTERN.test(normalizedText),
+  }
+}
+
+function inferTransactionType(text) {
+  const income = INCOME_PATTERN.test(text)
+  const expense = EXPENSE_PATTERN.test(text)
+  if (income && !expense) return 'income'
+  if (expense && !income) return 'expense'
+  return null
+}
+
+function extractMerchants(text) {
+  return Array.from(text.matchAll(MERCHANT_PATTERN), (match) => ({
+    raw: match[0],
+    name: match[1].trim(),
+    confidence: 0.72,
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  }))
+}

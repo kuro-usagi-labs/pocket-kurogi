@@ -1,28 +1,36 @@
 import { inferCategoryFromText } from './categoryCatalog'
 import { normalizeEntityName, resolveOptionReference } from './chatEntities'
 import { classifyFinanceIntent } from './financeIntentClassifier'
+import {
+  assessIndonesianFinanceUtterance,
+  normalizeIndonesianFinanceText,
+} from './indonesianFinanceLanguage'
 
-const MONEY_PATTERN = /(^|[^\p{L}\p{N}])(?:rp\s*)?(\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?)\s*(ribu|rb|k|juta|jt|m)?(?![\p{L}\p{N}])/giu
-const RECORD_PATTERN = /\b(catat|catet|simpan|rekam|input|masuk(?:kan)?|tambah(?:kan)?)\b/iu
-const RECORD_REFERENCE_PATTERN = /\b(tadi|itu|tersebut|barusan|sebelumnya|hasil(?:nya)?|yang sama)\b/iu
-const CANCEL_DRAFT_PATTERN = /\b(batal|cancel|lupakan|hapus draft|tidak jadi|ga jadi|gak jadi|jangan catat|tidak usah dicatat)\b/iu
-const HYPOTHETICAL_PATTERN = /\b(kalau|jika|misal|seandainya|rencana|berencana|nanti|besok|akan|mau beli|ingin beli)\b/iu
-const QUESTION_PATTERN = /\b(berapa|berarti|jadi berapa|hitung|apakah|cukup|bisa nggak|bisa gak|bisa ga|gimana|bagaimana)\b|\?\s*$/iu
-const PERMISSION_QUESTION_PATTERN = /\b(boleh(?:kah)?|apakah|bisakah|bisa\s+(?:tidak|nggak|gak|ga))\b/iu
-const TRANSACTION_VERB_PATTERN = /\b(beli|bayar|belanja|jajan|makan|minum|isi|topup|terima|gaji|bonus|pengeluaran|pemasukan)\b/iu
-const CHANGE_PATTERN = /\b(kembalian|kembali|susuk|uang balik|baliknya)\b/iu
+const MONEY_PATTERN = /(^|[^\p{L}\p{N}])(rp\s*)?(\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?)\s*(ribu|rb|k|juta|jt|miliar|m|rupiah|perak)?(?![\p{L}\p{N}])/giu
+const RECORD_PATTERN = /\b((?:di|men)?catat|simpan|rekam|input|masuk(?:kan)?|tambah(?:kan)?|bukukan|entri|entry)\b/iu
+const RECORD_REFERENCE_PATTERN = /\b(tadi|itu|tersebut|barusan|sebelumnya|hasil(?:nya)?|yang sama|keduanya|semuanya|semua)\b/iu
+const CANCEL_DRAFT_PATTERN = /\b(batal|cancel|lupakan|hapus draft|tidak jadi|jangan\s+(?:(?:di|men)?catat|simpan|rekam)|tidak\s+(?:usah|perlu)\s+(?:(?:di|men)?catat|simpan|rekam))\b/iu
+const TRAILING_CANCEL_PATTERN = /\b(?:eh\s+)?(?:jangan|batal|tidak(?:\s+jadi)?|skip)(?:\s+(?:deh|aja|saja|dulu|ya))?[.!?]*$/iu
+const HYPOTHETICAL_PATTERN = /\b(kalau|jika|misal|misalnya|seandainya|andaikan|seumpama|rencana|berencana|nanti|besok|lusa|akan|bakal|mau beli|ingin beli|pengen beli|pingin beli)\b/iu
+const QUESTION_PATTERN = /\b(berapa|berarti|jadi berapa|hitung|apakah|cukup|bisa tidak|gimana|bagaimana|kenapa|mengapa|cara|maksudnya)\b|\?\s*$/iu
+const PERMISSION_QUESTION_PATTERN = /\b(boleh(?:kah)?|apakah|bisakah|bisa\s+tidak)\b/iu
+const TRANSACTION_VERB_PATTERN = /\b(beli|membeli|belikan|membelikan|bayar|membayar|dibayar|belanja|jajan|makan|minum|isi|topup|terima|menerima|diterima|dapat|gaji|bonus|pengeluaran|pemasukan)\b/iu
+const CHANGE_PATTERN = /\b(kembalian|kembali|susuk|uang balik|baliknya|sisa(?: pembayaran)?)\b/iu
 const TENDER_TAIL_PATTERN = /\b(?:pakai|pake|bayar|kasih|bawa|serahkan)(?:\s+(?:dengan|sebesar))?(?:\s+uang)?\s*$/iu
 const NEGATED_ALTERNATIVE_PATTERN = /\bbukan\b.+\b(?:tapi|melainkan)\b/iu
 const NON_MONEY_PREFIX_PATTERN = /\b(tanggal|tgl|jam|pukul|umur|usia|nomor|no|sebanyak|jumlah|qty)\s*$/iu
 const QUANTITY_PREFIX_PATTERN = /\b(beli|pesan|ambil|butuh|mau)\s*$/iu
 const NON_MONEY_SUFFIX_PATTERN = /^\s*(?:(liter|kg|kilogram|gram|gr|ml|buah|pcs|orang|km|hari|bulan|tahun|kali|botol|bungkus|porsi|pack|lusin|persen)\b|%)/iu
 const LOW_BALANCE_PATTERN = /(?:\b(?:uang|saldo|dompet|rekening)\b.{0,35}\b(?:tinggal|sisa|cuma|hanya|menipis|hampir habis)\b|\b(?:tinggal|sisa|cuma|hanya)\b.{0,20}\b(?:rp\s*)?\d).{0,55}\b(?:sebulan|akhir bulan|sampai gajian|buat bulan|untuk bulan|prioritas|hemat|cukup|gimana|bagaimana)\b/iu
-const NON_OCCURRENCE_PATTERN = /(?:\b(?:jangan|tidak|belum|hampir)\s+(?:jadi\s+)?(?:beli|bayar|belanja|jajan|terima|dapat|masuk|keluar|catat)\b|\b(?:gaji|bonus|uang)\b.{0,18}\bbelum\s+masuk\b)/iu
-const META_EXAMPLE_PATTERN = /\b(contoh(?:\s+kalimat)?|sekadar contoh|cuma contoh|abaikan(?:\s+pesan)?|jangan ikuti|simulasi)\b/iu
-const THIRD_PARTY_TRANSACTION_PATTERN = /\b(teman|istri|suami|adik|kakak|ibu|ayah|dia|mereka)\b.{0,18}\b(beli|bayar|belanja|jajan|terima)\b/iu
-const PRICE_CHECK_PATTERN = /\b(?:cek|lihat|bandingkan|tanya)\s+(?:harga|biaya)\b|\bharga\b.{0,30}\b(?:berapa|saja)\b/iu
+const NON_OCCURRENCE_PATTERN = /(?:\b(?:jangan|tidak|belum|hampir|bukan)\b.{0,45}\b(?:beli|membeli|bayar|membayar|dibayar|belanja|jajan|terima|menerima|diterima|dapat|cair|masuk|keluar|catat|mencatat|dicatat)\b|\b(?:beli|bayar|tagihan|gaji|bonus|refund|uang)\b.{0,35}\b(?:belum|tidak)\b.{0,20}\b(?:dibayar|diterima|cair|masuk|dicatat)\b|\bbukan\s+(?:milik|pengeluaran|transaksi)\s+(?:saya|aku|gue)\b)/iu
+const POSITIVE_REMINDER_PATTERN = /\bjangan\s+lupa\s+(?:untuk\s+)?(?:catat|simpan|rekam|masukkan)\b/iu
+const ADDITIVE_NEGATION_PATTERN = /\btidak\s+(?:cuma|hanya)\b.+\b(?:tapi|melainkan)\s+(?:juga\s+)?\b/iu
+const META_EXAMPLE_PATTERN = /\b(contoh(?:nya|\s+kalimat)?|sekadar contoh|cuma contoh|abaikan(?:\s+pesan)?|jangan ikuti|simulasi|cara mencatat|cara catat|jelaskan cara|kalau saya ketik)\b/iu
+const THIRD_PARTY_TRANSACTION_PATTERN = /\b(teman|pacar|istri|suami|adik|kakak|ibu|ayah|bos|kantor|dia|mereka)\b.{0,28}\b(beli|membeli|bayar|membayar|belanja|jajan|terima|menerima|traktir|membelikan)\b|\b(dibayari|dibayarin|ditraktir)\b.{0,18}\b(teman|pacar|kantor|bos|dia|mereka)\b/iu
+const PRICE_CHECK_PATTERN = /\b(?:cek|lihat|bandingkan|tanya)\s+(?:harga|biaya)\b|\bharga\b/iu
 const EXPLICIT_DATE_PATTERN = /\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/u
 const CASH_WORD_PATTERN = /\b(tunai|cash|uang kontan)\b/iu
+const AFFIRMATIVE_DRAFT_PATTERN = /^(?:ya|iya|yup|betul|benar|oke|ok|sip)(?:\s+(?:catat|simpan|rekam)(?:\s+(?:ya|saja|aja))?)?$/iu
 const GENERIC_WALLET_WORDS = new Set(['uang', 'saldo', 'cash', 'tunai', 'dompet', 'rekening', 'wallet'])
 
 const CATEGORY_PRIORITY = [
@@ -49,18 +57,10 @@ const ESSENTIAL_CATEGORIES = new Set([
 ])
 
 function normalizeFinanceText(value = '') {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/\b(pke|pake|pk)\b/giu, 'pakai')
-    .replace(/\b(catetin|catet|catatkan|inputin)\b/giu, 'catat')
-    .replace(/\b(kembaliannya|susuk)\b/giu, 'kembalian')
-    .replace(/\b(dapet)\b/giu, 'dapat')
-    .replace(/\b(gak|ga|nggak|enggak)\b/giu, 'tidak')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return normalizeIndonesianFinanceText(value)
 }
 
-function parseMoneyValue(rawNumber, unit = '') {
+function parseMoneyValue(rawNumber, unit = '', { hasCurrencyPrefix = false } = {}) {
   const normalizedNumber = String(rawNumber || '')
   const numeric = normalizedNumber.includes('.') && /^\d{1,3}(?:\.\d{3})+$/.test(normalizedNumber)
     ? Number(normalizedNumber.replace(/\./g, ''))
@@ -70,7 +70,8 @@ function parseMoneyValue(rawNumber, unit = '') {
   if (!Number.isFinite(numeric) || numeric <= 0) return 0
   if (['k', 'rb', 'ribu'].includes(normalizedUnit)) return numeric * 1000
   if (['jt', 'juta'].includes(normalizedUnit)) return numeric * 1000000
-  if (normalizedUnit === 'm') return numeric * 1000000000
+  if (['m', 'miliar'].includes(normalizedUnit)) return numeric * 1000000000
+  if (['rupiah', 'perak'].includes(normalizedUnit) || hasCurrencyPrefix) return numeric
   return numeric < 1000 ? numeric * 1000 : numeric
 }
 
@@ -84,7 +85,8 @@ export function extractMoneyMentions(text = '') {
     const start = (match.index || 0) + leadingBoundary.length
     const rawMoney = match[0].slice(leadingBoundary.length)
     const end = start + rawMoney.length
-    const explicitUnit = String(match[3] || '').toLowerCase() || null
+    const currencyPrefix = String(match[2] || '').trim().toLowerCase() || null
+    const explicitUnit = String(match[4] || '').toLowerCase() || null
     const prefix = normalizedText.slice(Math.max(0, start - 45), start)
     const suffix = normalizedText.slice(end, Math.min(normalizedText.length, end + 20))
     const previousCharacter = normalizedText[start - 1] || ''
@@ -102,28 +104,35 @@ export function extractMoneyMentions(text = '') {
     }
 
     let role = 'item'
-    if (CHANGE_PATTERN.test(clausePrefix)) {
+    const tenderBeforeChange =
+      (TENDER_TAIL_PATTERN.test(clausePrefix) || /\buang\s*$/iu.test(clausePrefix)) ||
+      /\bdari(?:\s+uang)?\s*$/iu.test(clausePrefix) && CHANGE_PATTERN.test(suffix)
+
+    if (tenderBeforeChange) {
+      role = 'tender'
+    } else if (CHANGE_PATTERN.test(clausePrefix)) {
       const lastChangeIndex = Math.max(
         clausePrefix.lastIndexOf('kembalian'),
         clausePrefix.lastIndexOf('kembali'),
         clausePrefix.lastIndexOf('susuk'),
-        clausePrefix.lastIndexOf('uang balik')
+        clausePrefix.lastIndexOf('uang balik'),
+        clausePrefix.lastIndexOf('sisa')
       )
       const tailAfterChange = lastChangeIndex >= 0 ? clausePrefix.slice(lastChangeIndex) : clausePrefix
       if (!/[,;]/u.test(tailAfterChange)) role = 'change'
     }
 
-    if (role === 'item' && (TENDER_TAIL_PATTERN.test(clausePrefix) || /\buang\s*$/iu.test(clausePrefix))) {
-      role = 'tender'
-    }
-
     mentions.push({
       raw: rawMoney,
-      number: match[2],
+      number: match[3],
       unit: explicitUnit,
-      explicitUnit: Boolean(explicitUnit),
-      inferredUnit: !explicitUnit && Number(String(match[2]).replace(',', '.')) < 1000 ? 'ribu' : null,
-      value: parseMoneyValue(match[2], explicitUnit),
+      currencyPrefix,
+      explicitUnit: Boolean(explicitUnit || currencyPrefix),
+      inferredUnit:
+        !explicitUnit && !currencyPrefix && Number(String(match[3]).replace(',', '.')) < 1000
+          ? 'ribu'
+          : null,
+      value: parseMoneyValue(match[3], explicitUnit, { hasCurrencyPrefix: Boolean(currencyPrefix) }),
       role,
       start,
       end,
@@ -397,30 +406,180 @@ function attachWallet(items, wallet) {
   }))
 }
 
-function createDraft({ items, wallet = null, arithmetic = null, status = 'proposed', missingSlots = [] }) {
+function createDraft({
+  items,
+  wallet = null,
+  arithmetic = null,
+  status = 'proposed',
+  missingSlots = [],
+  understanding = null,
+}) {
   return {
-    version: 1,
+    version: 2,
     status,
     items: attachWallet(items, wallet),
     walletId: wallet?.id || null,
     wallet: wallet?.name || null,
     arithmetic,
     missingSlots,
+    understanding,
   }
 }
 
-function buildWalletPrompt(walletOptions = [], total = 0) {
+function formatDraftInterpretation(draft = {}) {
+  const items = Array.isArray(draft.items) ? draft.items : []
+  const itemLines = items.map((item, index) => {
+    const direction = item.transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'
+    const walletLabel = item.wallet || draft.wallet || 'belum dipilih'
+    const occurredAtLabel = formatDraftDate(item.occurredAt)
+    return `${index + 1}. ${direction} ${formatRupiahDefault(item.amount)} - ${item.desc || item.category || 'Tanpa keterangan'} - kategori ${item.category || 'Lainnya'} - dompet ${walletLabel} - waktu ${occurredAtLabel}`
+  })
+
+  return itemLines.length > 0 ? itemLines.join('\n') : 'Rincian transaksi belum lengkap.'
+}
+
+function formatDraftDate(value) {
+  if (!value) return 'hari ini'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'belum pasti'
+  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(date)
+}
+
+function buildSemanticReview({ draft, reason, ambiguityCode = 'IMPLICIT_CURRENCY_UNIT' }) {
+  const missingSlots = new Set(draft.missingSlots || [])
+  missingSlots.add('semantic_confirmation')
+
+  return {
+    type: 'finance_draft',
+    draft: {
+      ...draft,
+      version: 2,
+      status: 'needs_confirmation',
+      missingSlots: [...missingSlots],
+      understanding: {
+        ...(draft.understanding || {}),
+        writeDecision: 'review',
+        ambiguities: [reason],
+        confirmableAmbiguityCodes: [ambiguityCode],
+      },
+    },
+    reply: [
+      'Saya belum mencatat apa pun karena ada bagian yang bisa ditafsirkan lebih dari satu cara.',
+      reason,
+      '',
+      'Pemahaman sementara saya:',
+      formatDraftInterpretation(draft),
+      '',
+      'Jika rangkuman itu tepat, balas "Ya". Jika tidak, tulis ulang nominal, jenis transaksi, dan item yang benar.',
+    ].join('\n'),
+  }
+}
+
+function getSemanticConfirmationBlocker(context) {
+  if (context?.understanding?.legacyDraft) {
+    return 'Draft ini berasal dari parser lama dan tidak aman dikonfirmasi hanya dengan "Ya". Tulis ulang transaksi finalnya.'
+  }
+
+  const rawText = (context?.items || [])
+    .map((item) => String(item?.rawText || '').trim())
+    .filter(Boolean)
+    .join(' dan ')
+  if (!rawText) {
+    return 'Bukti teks asli draft tidak lengkap. Tulis ulang transaksi final agar mata uang dan nominalnya dapat diperiksa.'
+  }
+
+  const mentions = extractMoneyMentions(rawText)
+  const assessment = assessIndonesianFinanceUtterance({
+    text: rawText,
+    hasContext: true,
+    mentions,
+  })
+  const nonConfirmableAmbiguity = assessment.ambiguities.find(
+    (ambiguity) =>
+      !['IMPLICIT_CURRENCY_UNIT', 'NO_EXPLICIT_WRITE_REQUEST'].includes(ambiguity.code)
+  )
+  if (nonConfirmableAmbiguity) return nonConfirmableAmbiguity.message
+
+  const declaredCodes = context?.understanding?.confirmableAmbiguityCodes
+  const declaresOnlyUnitInference =
+    Array.isArray(declaredCodes) &&
+    declaredCodes.length === 1 &&
+    declaredCodes[0] === 'IMPLICIT_CURRENCY_UNIT'
+  const safelyMigratableUnitReview =
+    !Array.isArray(declaredCodes) &&
+    assessment.ambiguities.some((ambiguity) => ambiguity.code === 'IMPLICIT_CURRENCY_UNIT')
+
+  if (!declaresOnlyUnitInference && !safelyMigratableUnitReview) {
+    return 'Jenis ambiguitas draft ini tidak boleh disetujui dengan jawaban singkat. Tulis ulang transaksi finalnya.'
+  }
+
+  return null
+}
+
+function buildAmbiguityReply(assessment, fallback = '') {
+  const ambiguity = assessment?.ambiguities?.[0]
+  const detail = ambiguity?.question || ambiguity?.message || fallback ||
+    'Tolong tulis ulang satu transaksi final dengan item, nominal, jenis pemasukan/pengeluaran, waktu, dan dompet yang jelas.'
+
+  return `Saya belum mencatat apa pun. ${detail}`
+}
+
+function hasSafelyAnchoredInferredUnits(mentions = []) {
+  const inferredMentions = mentions.filter((mention) => mention.inferredUnit)
+  if (inferredMentions.length === 0) return true
+
+  const explicitAnchor = mentions.some(
+    (mention) => mention.explicitUnit && ['tender', 'change'].includes(mention.role)
+  )
+  return explicitAnchor && mentions.length > inferredMentions.length
+}
+
+function detectItemScopeAmbiguity(text, mentions, itemFrames) {
+  const itemMentions = mentions.filter((mention) => mention.role === 'item')
+  const matchedCategories = CATEGORY_PRIORITY
+    .filter(({ pattern }) => pattern.test(text))
+    .map(({ category }) => category)
+
+  if (matchedCategories.length > itemFrames.length && /\b(?:dan|sama|masing-masing|kecuali)\b/iu.test(text)) {
+    return 'Ada item yang belum memiliki nominal sendiri, atau satu nominal bisa berlaku untuk beberapa item. Sebutkan harga final untuk setiap item.'
+  }
+
+  const lastItemMention = itemMentions.at(-1)
+  if (lastItemMention) {
+    const trailingClause = text.slice(lastItemMention.end)
+    if (
+      /\b(?:dan|sama|serta)\b/iu.test(trailingClause) &&
+      CATEGORY_PRIORITY.some(({ pattern }) => pattern.test(trailingClause))
+    ) {
+      return 'Item setelah kata penghubung belum memiliki nominal. Sebutkan harga final untuk setiap item agar tidak ada yang hilang.'
+    }
+  }
+
+  return null
+}
+
+function buildWalletPrompt(walletOptions = [], total = 0, draft = null) {
   const names = walletOptions.map((wallet) => wallet.name).filter(Boolean).slice(0, 5)
   const totalLabel = formatRupiahDefault(total)
+  const interpretation = draft?.items?.length
+    ? `Pemahaman saya:\n${formatDraftInterpretation(draft)}\n\n`
+    : ''
   return names.length
-    ? `Total **${totalLabel}** siap dicatat. Uangnya keluar dari dompet mana? Pilih: ${names.join(', ')}.`
-    : `Total **${totalLabel}** siap dicatat, tetapi belum ada dompet aktif. Buat dompet terlebih dahulu.`
+    ? `${interpretation}Total **${totalLabel}** belum dicatat. Pilih dompet yang digunakan: ${names.join(', ')}.`
+    : `${interpretation}Total **${totalLabel}** belum dapat dicatat karena belum ada dompet aktif. Buat dompet terlebih dahulu.`
 }
 
 function resumeDraftFromContext({ text, context, walletOptions }) {
   if (!context?.items?.length) return null
 
-  if (CANCEL_DRAFT_PATTERN.test(text) || /^(tidak|no|nggak|gak|ga)$/iu.test(text.trim())) {
+  const normalizedDraftText = normalizeFinanceText(text)
+  const draftMentions = extractMoneyMentions(normalizedDraftText)
+
+  if (
+    CANCEL_DRAFT_PATTERN.test(normalizedDraftText) ||
+    TRAILING_CANCEL_PATTERN.test(normalizedDraftText) ||
+    /^(tidak|no)$/iu.test(normalizedDraftText.trim())
+  ) {
     return {
       type: 'finance_draft_cancel',
       draftId: context.id || context.requestId || null,
@@ -428,13 +587,132 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
     }
   }
 
+  const needsSemanticConfirmation = context.missingSlots?.includes('semantic_confirmation')
+  if (needsSemanticConfirmation && AFFIRMATIVE_DRAFT_PATTERN.test(normalizedDraftText)) {
+    const confirmationBlocker = getSemanticConfirmationBlocker(context)
+    if (confirmationBlocker) {
+      return {
+        type: 'finance_draft',
+        draft: context,
+        reply: `Saya belum mencatat apa pun. ${confirmationBlocker}`,
+      }
+    }
+
+    const remainingMissingSlots = (context.missingSlots || [])
+      .filter((slot) => slot !== 'semantic_confirmation')
+    const wallet = walletOptions.find((option) => option.id === context.walletId) || null
+
+    if (!wallet) {
+      const total = context.items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      return {
+        type: 'finance_draft',
+        draft: {
+          ...context,
+          status: 'needs_wallet',
+          missingSlots: [...new Set([...remainingMissingSlots, 'wallet'])],
+          understanding: {
+            ...(context.understanding || {}),
+            writeDecision: 'review',
+            ambiguities: [],
+          },
+        },
+        reply: buildWalletPrompt(walletOptions, total, context),
+      }
+    }
+
+    return {
+      type: 'transaction_batch',
+      items: attachWallet(context.items, wallet),
+      walletId: wallet.id,
+      wallet: wallet.name,
+      requestId: context.requestId || context.id,
+      draftId: context.id || context.requestId,
+      arithmetic: context.arithmetic || null,
+      derivedFromDraft: true,
+      writeDecision: 'commit',
+      understanding: {
+        ...(context.understanding || {}),
+        writeDecision: 'commit',
+        ambiguities: [],
+        confirmedByUser: true,
+      },
+    }
+  }
+
+  const draftAssessment = assessIndonesianFinanceUtterance({
+    text: normalizedDraftText,
+    hasContext: true,
+    mentions: draftMentions,
+  })
+  const hasDraftMutationLanguage =
+    RECORD_PATTERN.test(normalizedDraftText) ||
+    /\b(harusnya|seharusnya|ternyata|ubah|ganti|jadi|koreksi)\b/iu.test(normalizedDraftText)
+
+  const blockingDraftAmbiguities = draftAssessment.ambiguities.filter(
+    (ambiguity) =>
+      !['NO_EXPLICIT_WRITE_REQUEST', 'IMPLICIT_CURRENCY_UNIT'].includes(ambiguity.code) &&
+      !(ambiguity.code === 'DRAFT_SUBSET_AMBIGUITY' && context.items.length === 1)
+  )
+  if (blockingDraftAmbiguities.length > 0 && hasDraftMutationLanguage) {
+    return {
+      type: 'unknown',
+      reply: buildAmbiguityReply({ ...draftAssessment, ambiguities: blockingDraftAmbiguities }),
+    }
+  }
+
+  const semanticCategoryMatch = CATEGORY_PRIORITY.find(({ pattern }) => pattern.test(normalizedDraftText))
+  const semanticIncome = /\b(?:sebagai|jadi|menjadi|itu)\s+pemasukan\b|\b(?:ubah|ganti)\b.{0,20}\bpemasukan\b/iu.test(normalizedDraftText)
+  const semanticExpense = /\b(?:sebagai|jadi|menjadi|itu)\s+pengeluaran\b|\b(?:ubah|ganti)\b.{0,20}\bpengeluaran\b/iu.test(normalizedDraftText)
   if (
-    /\b(tadi|barusan|draft|hasil)\b/iu.test(text) &&
-    /\b(harusnya|seharusnya|ternyata|ubah|ganti|jadi)\b/iu.test(text) ||
-    RECORD_PATTERN.test(text) && RECORD_REFERENCE_PATTERN.test(text) && extractMoneyMentions(text).length > 0
+    context.items.length === 1 &&
+    draftMentions.length === 0 &&
+    RECORD_PATTERN.test(normalizedDraftText) &&
+    RECORD_REFERENCE_PATTERN.test(normalizedDraftText) &&
+    (semanticCategoryMatch || semanticIncome || semanticExpense)
   ) {
-    const correctionMentions = extractMoneyMentions(text)
-    const normalizedReference = normalizeFinanceText(text)
+    const currentItem = context.items[0]
+    const transactionType = semanticIncome
+      ? 'income'
+      : semanticExpense
+        ? 'expense'
+        : inferTransactionTypeForCategory(semanticCategoryMatch.category, currentItem.transactionType)
+    const category = semanticCategoryMatch?.category ||
+      (transactionType === 'income' ? 'Pemasukan' : 'Lainnya')
+    const revisedItem = {
+      ...currentItem,
+      transactionType,
+      category,
+      desc: semanticCategoryMatch?.category ||
+        (transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'),
+      rawText: semanticCategoryMatch?.category ||
+        (transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'),
+    }
+
+    return {
+      type: 'finance_draft_revision',
+      previousDraftId: context.id || context.requestId || null,
+      draft: {
+        ...context,
+        id: undefined,
+        requestId: undefined,
+        createdAt: undefined,
+        expiresAt: undefined,
+        version: 2,
+        status: 'proposed',
+        arithmetic: null,
+        items: [revisedItem],
+      },
+      reply: `Saya memahami ini sebagai revisi menjadi ${transactionType === 'income' ? 'pemasukan' : 'pengeluaran'} kategori ${category} sebesar ${formatRupiahDefault(revisedItem.amount)}. Belum saya catat; periksa rangkuman ini dahulu.`,
+    }
+  }
+
+  if (
+    /\b(tadi|barusan|draft|hasil)\b/iu.test(normalizedDraftText) &&
+    /\b(harusnya|seharusnya|ternyata|ubah|ganti|jadi)\b/iu.test(normalizedDraftText) ||
+    RECORD_PATTERN.test(normalizedDraftText) && RECORD_REFERENCE_PATTERN.test(normalizedDraftText) && draftMentions.length > 0
+  ) {
+    const correctionMentions = draftMentions
+    const normalizedReference = normalizedDraftText
     const explicitCategoryMatch = CATEGORY_PRIORITY.find(({ pattern }) => pattern.test(normalizedReference))
     const hasRevisionWalletCue = hasRevisionWalletReference(normalizedReference, walletOptions)
     const revisionWalletResolution = hasRevisionWalletCue
@@ -516,6 +794,10 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
         : needsWallet
           ? ' (dompet masih perlu dipilih)'
           : ''
+      const needsAmountUnitConfirmation = Boolean(correctionMentions[0].inferredUnit)
+      const revisionMissingSlots = needsAmountUnitConfirmation
+        ? [...new Set([...nextMissingSlots, 'semantic_confirmation'])]
+        : nextMissingSlots
       return {
         type: 'finance_draft_revision',
         previousDraftId: context.id || context.requestId || null,
@@ -525,14 +807,28 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
           requestId: undefined,
           createdAt: undefined,
           expiresAt: undefined,
-          status: needsWallet ? 'needs_wallet' : 'proposed',
+          version: 2,
+          status: needsAmountUnitConfirmation
+            ? 'needs_confirmation'
+            : needsWallet
+              ? 'needs_wallet'
+              : 'proposed',
           walletId: hasRevisionWalletCue ? nextWallet?.id || null : context.walletId || null,
           wallet: hasRevisionWalletCue ? nextWallet?.name || null : context.wallet || null,
-          missingSlots: nextMissingSlots,
+          missingSlots: revisionMissingSlots,
           arithmetic: null,
           items: nextItems,
+          understanding: needsAmountUnitConfirmation
+            ? {
+                writeDecision: 'review',
+                ambiguities: ['Nominal tanpa satuan saya baca sebagai ribuan.'],
+                confirmableAmbiguityCodes: ['IMPLICIT_CURRENCY_UNIT'],
+              }
+            : context.understanding || null,
         },
-        reply: `Baik, draft saya ubah menjadi ${nextTypeLabel} ${formatRupiahDefault(correctionMentions[0].value)} untuk ${nextItems[targetIndex].desc || nextItems[targetIndex].category}${nextWalletLabel}. Belum ada saldo yang diubah.`,
+        reply: needsAmountUnitConfirmation
+          ? `Angka "${correctionMentions[0].raw}" tidak memiliki satuan. Saya membacanya sebagai ${formatRupiahDefault(correctionMentions[0].value)} untuk ${nextItems[targetIndex].desc || nextItems[targetIndex].category}${nextWalletLabel}. Belum ada saldo yang diubah; balas "Ya" hanya jika tafsir ini benar.`
+          : `Baik, draft saya ubah menjadi ${nextTypeLabel} ${formatRupiahDefault(correctionMentions[0].value)} untuk ${nextItems[targetIndex].desc || nextItems[targetIndex].category}${nextWalletLabel}. Belum ada saldo yang diubah.`,
       }
     }
 
@@ -542,23 +838,45 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
     }
   }
 
-  const walletResolution = resolveWalletFromText(text, walletOptions)
+  const walletResolution = resolveWalletFromText(normalizedDraftText, walletOptions)
   const selectsWallet = context.status === 'needs_wallet' &&
     walletResolution.wallet &&
-    isDirectWalletChoice(text, walletResolution.wallet)
-  const commitsPrevious = RECORD_PATTERN.test(text) && (
-    RECORD_REFERENCE_PATTERN.test(text) ||
-    /^(?:ok\s+|oke\s+)?(?:catat|simpan|rekam|masukkan)(?:\s+(?:ya|saja|aja))?$/iu.test(text.trim())
+    isDirectWalletChoice(normalizedDraftText, walletResolution.wallet)
+  const commitsPrevious = RECORD_PATTERN.test(normalizedDraftText) && (
+    RECORD_REFERENCE_PATTERN.test(normalizedDraftText) ||
+    /^(?:(?:ok|oke|sip|ya sudah|sudah)\s+)?(?:catat|simpan|rekam|masukkan)(?:\s+(?:ya|saja|aja))?$/iu.test(normalizedDraftText.trim())
   )
   const confirmsWithWallet = context.status === 'needs_wallet' &&
     walletResolution.wallet &&
-    RECORD_PATTERN.test(text)
+    RECORD_PATTERN.test(normalizedDraftText)
+
+  if (selectsWallet && !commitsPrevious && !confirmsWithWallet) {
+    const selectedWallet = walletResolution.wallet
+    return {
+      type: 'finance_draft_revision',
+      previousDraftId: context.id || context.requestId || null,
+      draft: {
+        ...context,
+        id: undefined,
+        requestId: undefined,
+        createdAt: undefined,
+        expiresAt: undefined,
+        version: 2,
+        status: 'proposed',
+        walletId: selectedWallet.id,
+        wallet: selectedWallet.name,
+        missingSlots: (context.missingSlots || []).filter((slot) => slot !== 'wallet'),
+        items: attachWallet(context.items, selectedWallet),
+      },
+      reply: `Dompet dipilih: ${selectedWallet.name}. Saya belum mencatat apa pun. Periksa lagi rincian transaksi, lalu bilang "catat transaksi tadi" jika sudah benar.`,
+    }
+  }
 
   if (
     context.status === 'needs_wallet' &&
     !walletResolution.wallet &&
     walletResolution.candidates.length > 0 &&
-    normalizeEntityName(text).split(/\s+/).length <= 2
+    normalizeEntityName(normalizedDraftText).split(/\s+/).length <= 2
   ) {
     return {
       type: 'finance_draft',
@@ -569,7 +887,7 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
 
   if (!selectsWallet && !commitsPrevious && !confirmsWithWallet) return null
 
-  if (hasExplicitWalletCue(text) && !walletResolution.wallet) {
+  if (hasExplicitWalletCue(normalizedDraftText) && !walletResolution.wallet) {
     return {
       type: 'finance_draft',
       draft: {
@@ -599,7 +917,7 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
         status: 'needs_wallet',
         missingSlots: ['wallet'],
       },
-      reply: buildWalletPrompt(walletOptions, total),
+      reply: buildWalletPrompt(walletOptions, total, context),
     }
   }
 
@@ -612,6 +930,13 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
     draftId: context.id || context.requestId,
     arithmetic: context.arithmetic || null,
     derivedFromDraft: true,
+    writeDecision: 'commit',
+    understanding: {
+      ...(context.understanding || {}),
+      writeDecision: 'commit',
+      ambiguities: [],
+      confirmedByUser: true,
+    },
   }
 }
 
@@ -636,14 +961,16 @@ export function analyzeConversationalFinance({
   }
 
   if (
-    NON_OCCURRENCE_PATTERN.test(normalizedText) ||
+    NON_OCCURRENCE_PATTERN.test(normalizedText) &&
+      !POSITIVE_REMINDER_PATTERN.test(normalizedText) &&
+      !ADDITIVE_NEGATION_PATTERN.test(normalizedText) ||
     META_EXAMPLE_PATTERN.test(normalizedText) ||
     PRICE_CHECK_PATTERN.test(normalizedText) ||
-    THIRD_PARTY_TRANSACTION_PATTERN.test(normalizedText) && !RECORD_PATTERN.test(normalizedText)
+    THIRD_PARTY_TRANSACTION_PATTERN.test(normalizedText)
   ) {
     return {
       type: 'unknown',
-      reply: 'Pesan itu terdengar seperti transaksi yang tidak terjadi, contoh, pengecekan, atau aktivitas orang lain. Saya tidak mencatat apa pun. Jika memang milikmu dan sudah terjadi, tulis ulang nominal final lalu tambahkan “tolong catat”.',
+      reply: 'Saya tidak mencatat apa pun. Pesan itu terdengar seperti transaksi yang belum terjadi, contoh atau pertanyaan harga, atau aktivitas yang dibayar orang lain. Jika uangmu sendiri memang sudah bergerak, tulis ulang kejadian final, nominal IDR, waktu, dan dompet lalu tambahkan "tolong catat".',
     }
   }
 
@@ -670,6 +997,24 @@ export function analyzeConversationalFinance({
   const isQuestion = QUESTION_PATTERN.test(normalizedText)
   const isPermissionQuestion = PERMISSION_QUESTION_PATTERN.test(normalizedText)
   const occurredAt = resolveOccurredAt(normalizedText, now)
+  const languageAssessment = assessIndonesianFinanceUtterance({
+    text: normalizedText,
+    hasContext: false,
+    mentions,
+  })
+
+  const blockingLanguageAmbiguities = languageAssessment.ambiguities.filter(
+    (ambiguity) => ambiguity.code !== 'IMPLICIT_CURRENCY_UNIT'
+  )
+  if (blockingLanguageAmbiguities.length > 0 && commitRequested) {
+    return {
+      type: 'unknown',
+      reply: buildAmbiguityReply({
+        ...languageAssessment,
+        ambiguities: blockingLanguageAmbiguities,
+      }),
+    }
+  }
 
   if (EXPLICIT_DATE_PATTERN.test(normalizedText) && commitRequested) {
     return {
@@ -742,14 +1087,26 @@ export function analyzeConversationalFinance({
       items: derivedItems,
       wallet: walletResolution.wallet,
       arithmetic,
+      understanding: {
+        writeDecision: 'review',
+        ambiguities: [],
+        evidence: languageAssessment.evidence || [],
+      },
     })
+
+    if (!hasSafelyAnchoredInferredUnits(mentions)) {
+      return buildSemanticReview({
+        draft,
+        reason: 'Satu atau beberapa angka tidak memiliki satuan. Saya sementara membacanya sebagai ribuan rupiah.',
+      })
+    }
 
     if (!commitRequested || isQuestion || isPermissionQuestion) {
       const purchaseLabel = derivedItems[0]?.category === 'Jajan' ? 'jajan' : 'belanja'
       return {
         type: 'finance_calculation',
         draft,
-        reply: `${formatRupiahDefault(tender.value)} dikurangi kembalian ${formatRupiahDefault(change.value)} = **${formatRupiahDefault(spent)}**. Berarti tadi kamu ${purchaseLabel} sebesar **${formatRupiahDefault(spent)}**. Kalau mau, bilang “catat pengeluaran tadi”.`,
+        reply: `${formatRupiahDefault(tender.value)} dikurangi kembalian ${formatRupiahDefault(change.value)} = **${formatRupiahDefault(spent)}**. Berarti tadi kamu ${purchaseLabel} sebesar **${formatRupiahDefault(spent)}**. Kalau rangkuman ini benar, bilang "catat transaksi tadi".`,
       }
     }
 
@@ -757,7 +1114,7 @@ export function analyzeConversationalFinance({
       return {
         type: 'finance_draft',
         draft: { ...draft, status: 'needs_wallet', missingSlots: ['wallet'] },
-        reply: buildWalletPrompt(walletOptions, spent),
+        reply: buildWalletPrompt(walletOptions, spent, draft),
       }
     }
 
@@ -768,6 +1125,12 @@ export function analyzeConversationalFinance({
       wallet: walletResolution.wallet.name,
       arithmetic,
       classifier,
+      writeDecision: 'commit',
+      understanding: {
+        writeDecision: 'commit',
+        ambiguities: [],
+        evidence: languageAssessment.evidence || [],
+      },
     }
   }
 
@@ -775,6 +1138,21 @@ export function analyzeConversationalFinance({
   const tender = mentions.find((mention) => mention.role === 'tender')
   const itemMentionCount = mentions.filter((mention) => mention.role === 'item').length
   const explicitWallets = findExplicitWallets(normalizedText, walletOptions)
+  const itemScopeAmbiguity = detectItemScopeAmbiguity(normalizedText, mentions, itemFrames)
+
+  if (itemScopeAmbiguity) {
+    return {
+      type: 'unknown',
+      reply: `Saya belum mencatat apa pun. ${itemScopeAmbiguity}`,
+    }
+  }
+
+  if (HYPOTHETICAL_PATTERN.test(normalizedText) && mentions.length > 0 && (commitRequested || !isQuestion)) {
+    return {
+      type: 'unknown',
+      reply: 'Saya belum mencatat apa pun karena pesan ini berbentuk rencana, syarat, atau kejadian masa depan. Setelah transaksi benar-benar terjadi, tulis nominal final dan waktunya.',
+    }
+  }
 
   if (itemFrames.length > 0 && itemFrames.length !== itemMentionCount) {
     return {
@@ -807,13 +1185,29 @@ export function analyzeConversationalFinance({
           spentAmount: total,
         }
       : { spentAmount: total }
-    const draft = createDraft({ items: itemFrames, wallet: walletResolution.wallet, arithmetic })
+    const draft = createDraft({
+      items: itemFrames,
+      wallet: walletResolution.wallet,
+      arithmetic,
+      understanding: {
+        writeDecision: 'review',
+        ambiguities: [],
+        evidence: languageAssessment.evidence || [],
+      },
+    })
 
-    if (isPermissionQuestion || isQuestion && !commitRequested) {
+    if (!hasSafelyAnchoredInferredUnits(mentions)) {
+      return buildSemanticReview({
+        draft,
+        reason: 'Satu atau beberapa angka tidak memiliki satuan. Saya sementara membacanya sebagai ribuan rupiah.',
+      })
+    }
+
+    if (isPermissionQuestion || isQuestion) {
       return {
         type: 'finance_calculation',
         draft,
-        reply: `Total rincian tadi **${formatRupiahDefault(total)}**. Belum saya catat; bilang “catat pengeluaran tadi” kalau sudah benar.`,
+        reply: `Pemahaman saya:\n${formatDraftInterpretation(draft)}\n\nTotalnya **${formatRupiahDefault(total)}**. Belum saya catat; bilang "catat transaksi tadi" kalau semua rincian sudah benar.`,
       }
     }
 
@@ -821,7 +1215,7 @@ export function analyzeConversationalFinance({
       return {
         type: 'finance_calculation',
         draft,
-        reply: `Saya menemukan ${itemFrames.length} rincian dengan total **${formatRupiahDefault(total)}**, tetapi belum mencatatnya karena belum ada perintah yang pasti. Jika benar, bilang “catat pengeluaran tadi”.`,
+        reply: `Pemahaman saya:\n${formatDraftInterpretation(draft)}\n\nTotalnya **${formatRupiahDefault(total)}**. Saya belum mencatat apa pun karena belum ada perintah yang pasti. Jika semua rincian benar, bilang "catat transaksi tadi".`,
       }
     }
 
@@ -829,7 +1223,7 @@ export function analyzeConversationalFinance({
       return {
         type: 'finance_draft',
         draft: { ...draft, status: 'needs_wallet', missingSlots: ['wallet'] },
-        reply: buildWalletPrompt(walletOptions, total),
+        reply: buildWalletPrompt(walletOptions, total, draft),
       }
     }
 
@@ -840,6 +1234,12 @@ export function analyzeConversationalFinance({
       wallet: walletResolution.wallet.name,
       arithmetic,
       classifier,
+      writeDecision: 'commit',
+      understanding: {
+        writeDecision: 'commit',
+        ambiguities: [],
+        evidence: languageAssessment.evidence || [],
+      },
     }
   }
 
@@ -867,11 +1267,22 @@ export function analyzeConversationalFinance({
       items: itemFrames,
       wallet: walletResolution.wallet,
       arithmetic: { spentAmount: itemFrames[0].amount },
+      understanding: {
+        writeDecision: 'review',
+        ambiguities: [],
+        evidence: languageAssessment.evidence || [],
+      },
     })
+    if (!hasSafelyAnchoredInferredUnits(mentions)) {
+      return buildSemanticReview({
+        draft,
+        reason: `Angka "${mentions[0]?.raw || ''}" tidak memiliki satuan. Saya sementara membacanya sebagai ${formatRupiahDefault(itemFrames[0].amount)}.`,
+      })
+    }
     return {
       type: 'finance_calculation',
       draft,
-      reply: `Saya menangkap pengeluaran **${formatRupiahDefault(itemFrames[0].amount)}**, tetapi belum mencatatnya. Jika sudah benar, bilang “catat pengeluaran tadi”.`,
+      reply: `Pemahaman saya:\n${formatDraftInterpretation(draft)}\n\nSaya belum mencatat apa pun. Jika rangkuman ini benar, bilang "catat transaksi tadi".`,
     }
   }
 
@@ -886,7 +1297,7 @@ export function analyzeConversationalFinance({
     }
   }
 
-  if (mentions.length > 0 && (isPermissionQuestion || isQuestion && !commitRequested)) {
+  if (mentions.length > 0 && (isPermissionQuestion || isQuestion)) {
     return {
       type: 'unknown',
       reply: 'Saya menangkap ini sebagai pertanyaan, jadi belum mencatat transaksi apa pun. Jika ingin dicatat, sebutkan nominal, dompet, lalu tambahkan “tolong catat”.',
@@ -910,7 +1321,7 @@ export function derivePendingFinanceDraft(messages = [], now = new Date()) {
     const metadata = message?.metadata && typeof message.metadata === 'object' ? message.metadata : {}
     const draft = metadata.financeDraft
     if (draft?.id && Array.isArray(draft.items)) {
-      latestDraft = draft
+      latestDraft = migratePersistedFinanceDraft(draft)
     }
 
     const closedId = metadata.financeDraftResolved || metadata.financeDraftCancelled
@@ -921,6 +1332,22 @@ export function derivePendingFinanceDraft(messages = [], now = new Date()) {
   if (!latestDraft) return null
   if (latestDraft.expiresAt && new Date(latestDraft.expiresAt).getTime() <= currentTime) return null
   return latestDraft
+}
+
+function migratePersistedFinanceDraft(draft) {
+  if (Number(draft?.version || 0) >= 2) return draft
+
+  return {
+    ...draft,
+    version: 2,
+    status: 'needs_confirmation',
+    missingSlots: [...new Set([...(draft.missingSlots || []), 'semantic_confirmation'])],
+    understanding: {
+      writeDecision: 'review',
+      ambiguities: ['Draft dibuat oleh parser versi lama dan perlu dikonfirmasi ulang.'],
+      legacyDraft: true,
+    },
+  }
 }
 
 export function buildLiquidityAdvice({
