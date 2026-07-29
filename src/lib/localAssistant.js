@@ -9,6 +9,7 @@ import {
   resolveOptionReference,
 } from './chatEntities'
 import { inferCategoryFromText, normalizeCategoryLookup } from './categoryCatalog'
+import { analyzeConversationalFinance } from './conversationalFinance'
 import { detectSmartFinanceQuery } from './smartFinance'
 
 const TRANSACTION_CATEGORIES = [
@@ -34,6 +35,7 @@ const HELP_REPLY = [
 ].join('\n')
 const TRANSFER_INTENT_PATTERN = /\b(transfer|trf|tf|trasfer|tranfer|pindah|pindahin|geser|kirim|kirimkan|oper|mutasi|move)\b/i
 const ASSISTANT_HELP_PATTERN = /\b(bisa apa|bantu apa|fitur|cara pakai|cara gunakan|contoh perintah|command|help|panduan|instruksi)\b/i
+const GENERIC_WALLET_REFERENCE_PATTERN = /^(uang|saldo|cash|tunai|dompet|rekening|wallet|uang tunai)$/i
 
 /** Analyze text locally with deterministic rules and learned user preferences. */
 export async function analyzeTransaction(
@@ -47,6 +49,25 @@ export async function analyzeTransaction(
 ) {
   void financialContext
   const archivedWalletOptions = learningContext?.archivedWalletOptions || []
+  const normalizedPreview = normalizeIntentText(normalizeNumericText(String(text || '').toLowerCase().trim()))
+  const knownSmartFinanceQuery = detectSmartFinanceQuery(normalizedPreview, walletOptions, goalOptions)
+
+  if (knownSmartFinanceQuery) {
+    return knownSmartFinanceQuery
+  }
+
+  const conversationalResult = analyzeConversationalFinance({
+    text: text || '',
+    walletOptions,
+    context: learningContext?.financeDraft || null,
+    financialState: learningContext?.financialState || {},
+    now: learningContext?.now || new Date(),
+  })
+
+  if (conversationalResult) {
+    return conversationalResult
+  }
+
   const localResult = analyzeWithRegex(
     text || '',
     walletOptions,
@@ -864,9 +885,25 @@ function resolveWalletForTransaction(normalizedText, walletOptions) {
     })
   }
 
-  const rawWalletName =
+  let rawWalletName =
     extractRawReferenceAfterKeyword(normalizedText, ['dari', 'pakai', 'pake', 'via', 'bank']) ||
     extractPotentialTrailingWalletName(normalizedText)
+
+  if (rawWalletName && GENERIC_WALLET_REFERENCE_PATTERN.test(rawWalletName)) {
+    const cashWallets = walletOptions.filter((wallet) =>
+      wallet.walletType === 'cash' || /^(tunai|cash)$/i.test(wallet.name)
+    )
+
+    if (cashWallets.length === 1 && /\b(pakai uang|uang tunai|cash|tunai)\b/i.test(normalizedText)) {
+      return {
+        match: cashWallets[0],
+        candidates: cashWallets,
+        reason: 'cash_semantic',
+      }
+    }
+
+    rawWalletName = null
+  }
 
   if (rawWalletName) {
     return createNeedsConfirmation({

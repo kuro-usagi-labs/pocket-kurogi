@@ -1,5 +1,7 @@
 # Pocket Kurogi
 
+Dokumentasi mesin percakapan finansial lokal: [Local Finance Assistant](docs/LOCAL_FINANCE_ASSISTANT.md).
+
 > Your private financial analyst. Intelligent. Minimal. Elegant.
 
 **Pocket Kurogi** adalah aplikasi pencatatan keuangan pribadi berbasis percakapan dengan mesin aturan lokal yang privat dan dapat diprediksi.

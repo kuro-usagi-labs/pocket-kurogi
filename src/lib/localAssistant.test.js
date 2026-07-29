@@ -22,6 +22,65 @@ const categoryOptions = buildCategoryOptions([
 ])
 
 describe('analyzeWithRegex', () => {
+  it('routes multi-item natural language through the conversational batch parser', async () => {
+    const result = await analyzeTransaction(
+      'tadi beli bensin 20 dan makanan 10 pakai uang 50rb, tolong catat',
+      null,
+      walletOptions.slice(0, 1),
+      goalOptions,
+      categoryOptions
+    )
+
+    expect(result.type).toBe('transaction_batch')
+    expect(result.items.map((item) => item.amount)).toEqual([20000, 10000])
+    expect(result.arithmetic.tenderAmount).toBe(50000)
+  })
+
+  it('keeps change arithmetic as a draft instead of misclassifying it as income', async () => {
+    const result = await analyzeTransaction(
+      'di alfamart jajan pakai uang 50rb, dapat kembalian 36rb, berarti habis berapa?',
+      null,
+      walletOptions.slice(0, 1),
+      goalOptions,
+      categoryOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'finance_calculation',
+      draft: {
+        arithmetic: { spentAmount: 14000 },
+      },
+    })
+    expect(result.draft.items[0].transactionType).toBe('expense')
+  })
+
+  it('uses structured balance context for low-liquidity advice', async () => {
+    const result = await analyzeTransaction(
+      'dompet tinggal 200rb buat sebulan, sebaiknya gimana?',
+      null,
+      walletOptions,
+      goalOptions,
+      categoryOptions,
+      '',
+      {
+        financialState: { totalBalance: 200000 },
+        now: new Date('2026-07-29T08:00:00.000Z'),
+      }
+    )
+
+    expect(result.type).toBe('liquidity_advice')
+    expect(result.reply).toContain('30 hari')
+    expect(result.reply).toContain('Jajan')
+  })
+
+  it('never proposes creating a generic wallet named uang', () => {
+    const result = analyzeWithRegex('beli kopi 20rb pakai uang', walletOptions, goalOptions)
+
+    expect(result.type).toBe('needs_confirmation')
+    expect(result.walletName).not.toBe('uang')
+    expect(result.action).not.toBe('create_wallet')
+  })
+
   it('routes affordability questions to the local financial calculator', () => {
     const result = analyzeWithRegex(
       'saldo BCA cukup untuk beli sepatu 750rb?',
@@ -33,6 +92,38 @@ describe('analyzeWithRegex', () => {
       type: 'affordability_query',
       amount: 750000,
       walletId: 'wallet-bca',
+    })
+  })
+
+  it('keeps affordability routing ahead of the generic conversational question guard', async () => {
+    const result = await analyzeTransaction(
+      'saldo BCA cukup untuk beli sepatu 750rb?',
+      null,
+      walletOptions,
+      goalOptions,
+      categoryOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'affordability_query',
+      amount: 750000,
+      walletId: 'wallet-bca',
+    })
+  })
+
+  it('keeps goal projections ahead of hypothetical transaction guards', async () => {
+    const result = await analyzeTransaction(
+      'berapa lama target Tabungan Bibit tercapai kalau nabung 500rb per bulan?',
+      null,
+      walletOptions,
+      goalOptions,
+      categoryOptions
+    )
+
+    expect(result).toMatchObject({
+      type: 'goal_projection_query',
+      goalId: 'goal-bibit',
+      monthlyContribution: 500000,
     })
   })
 

@@ -40,6 +40,7 @@ import {
   resolveOptionReference,
 } from '../../lib/chatEntities'
 import { buildChatQuickActions } from '../../lib/chatSuggestions'
+import { derivePendingFinanceDraft } from '../../lib/conversationalFinance'
 import { buildSmartFinanceReply } from '../../lib/smartFinance'
 
 const YES_PATTERN = /^(ya|iyaa?|iy|yes|ok(?:e+)?|siap|betul|benar)$/i
@@ -79,6 +80,20 @@ function getCurrentTimeLabel() {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function materializeFinanceDraft(draft, requestId) {
+  const id = draft?.id || draft?.requestId || requestId || globalThis.crypto?.randomUUID?.()
+  const createdAt = draft?.createdAt || new Date().toISOString()
+  const expiresAt = draft?.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+  return {
+    ...draft,
+    id,
+    requestId: draft?.requestId || id,
+    createdAt,
+    expiresAt,
+  }
 }
 
 function ViewLoadingFallback() {
@@ -284,6 +299,7 @@ export default function AppShell() {
   const {
     transactions,
     addTransaction,
+    addTransactionsBatch,
     replaceTransaction,
     deleteTransaction,
     transferBetweenWallets,
@@ -313,6 +329,7 @@ export default function AppShell() {
   const { categoryRules, learnFromInput } = useInputLearning()
   const {
     messages,
+    loading: chatLoading,
     saveMessage,
     hasMore: hasMoreMessages,
     loadingMore: loadingMoreMessages,
@@ -354,6 +371,7 @@ export default function AppShell() {
       }),
     [analytics, archivedWallets, transactions, wallets]
   )
+  const financeDraft = useMemo(() => derivePendingFinanceDraft(messages), [messages])
 
   const formatRupiah = useCallback((number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -472,7 +490,7 @@ export default function AppShell() {
   })
 
   const resolveTransactionCategory = useCallback(
-    async ({ analysis, rawText }) => {
+    async ({ analysis, rawText, allowCreate = true }) => {
       const transactionType = analysis.transactionType || 'expense'
       const categoryResolution = resolveCategoryForMessage({
         text: rawText,
@@ -485,7 +503,7 @@ export default function AppShell() {
       let category = categoryResolution.category
       let created = false
 
-      if (!category && categoryResolution.createCategory) {
+      if (allowCreate && !category && categoryResolution.createCategory) {
         const ensureResult = await ensureCategory({
           name: categoryResolution.createCategory.name,
           transactionType,
@@ -526,6 +544,7 @@ export default function AppShell() {
       {
         source = 'chat',
         rawText = '',
+        requestId = null,
         walletCatalog = wallets,
         archivedWalletCatalog = archivedWallets,
       } = {}
@@ -533,6 +552,211 @@ export default function AppShell() {
       if (!analysis || typeof analysis !== 'object') {
         return {
           text: 'Maaf, permintaan tersebut belum bisa saya pahami.',
+        }
+      }
+
+      if (analysis.type === 'finance_draft_revision') {
+        const draft = materializeFinanceDraft(analysis.draft, requestId)
+        return {
+          text: `${analysis.reply || 'Draft transaksi sudah diperbarui.'}\n\nJika sudah benar, bilang “catat pengeluaran tadi”.`,
+          ...(draft.status === 'needs_wallet' ? { intentStatus: 'needs_confirmation' } : {}),
+          metadata: {
+            financeDraft: draft,
+            ...(analysis.previousDraftId
+              ? { financeDraftCancelled: analysis.previousDraftId }
+              : {}),
+            ...(draft.status === 'needs_wallet'
+              ? {
+                  confirmationMode: 'choice',
+                  candidates: walletCatalog.slice(0, 5).map((wallet) => ({
+                    id: wallet.id,
+                    name: wallet.name,
+                  })),
+                }
+              : {}),
+          },
+        }
+      }
+
+      if (analysis.type === 'finance_calculation' || analysis.type === 'finance_draft') {
+        const draft = materializeFinanceDraft(analysis.draft, analysis.requestId || requestId)
+        return {
+          text: analysis.reply || 'Rincian transaksi sudah saya siapkan, tetapi belum saya catat.',
+          ...(analysis.type === 'finance_draft'
+            ? { intentStatus: 'needs_confirmation' }
+            : {}),
+          metadata: {
+            financeDraft: draft,
+            ...(analysis.type === 'finance_draft'
+              ? {
+                  confirmationMode: draft.missingSlots?.includes('wallet') ? 'choice' : 'input',
+                  candidates: draft.missingSlots?.includes('wallet')
+                    ? walletCatalog.slice(0, 5).map((wallet) => ({ id: wallet.id, name: wallet.name }))
+                    : [],
+                }
+              : {}),
+          },
+        }
+      }
+
+      if (analysis.type === 'finance_draft_cancel') {
+        return {
+          text: analysis.reply || 'Baik, draft transaksi sebelumnya saya batalkan.',
+          metadata: analysis.draftId
+            ? { financeDraftCancelled: analysis.draftId }
+            : undefined,
+        }
+      }
+
+      if (analysis.type === 'liquidity_advice') {
+        return {
+          text: analysis.reply || 'Saya belum memiliki data saldo yang cukup untuk membuat saran.',
+        }
+      }
+
+      if (analysis.type === 'transaction_batch') {
+        const rawItems = Array.isArray(analysis.items) ? analysis.items : []
+        if (rawItems.length === 0) {
+          return {
+            text: 'Rincian transaksi batch masih kosong, jadi belum ada saldo yang saya ubah.',
+          }
+        }
+
+        const defaultWallet = walletCatalog.find((wallet) => wallet.id === analysis.walletId) ||
+          (walletCatalog.length === 1 ? walletCatalog[0] : null)
+        const unresolvedWallet = rawItems.some((item) => {
+          const walletId = item.walletId || defaultWallet?.id
+          return !walletId || !walletCatalog.some((wallet) => wallet.id === walletId)
+        })
+        const totalAmount = rawItems.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+
+        if (unresolvedWallet) {
+          const draft = materializeFinanceDraft({
+            ...analysis,
+            type: undefined,
+            status: 'needs_wallet',
+            missingSlots: ['wallet'],
+            items: rawItems,
+          }, analysis.requestId || requestId)
+
+          return {
+            text: `Total **${formatRupiah(totalAmount)}** siap dicatat. Uangnya keluar dari dompet mana? Pilih: ${formatCandidateNames(walletOptions)}.`,
+            intentStatus: 'needs_confirmation',
+            metadata: {
+              financeDraft: draft,
+              confirmationMode: 'choice',
+              candidates: walletOptions.slice(0, 5).map((wallet) => ({
+                id: wallet.id,
+                name: wallet.name,
+              })),
+            },
+          }
+        }
+
+        const preparedItems = []
+        for (const item of rawItems) {
+          const resolvedWalletId = item.walletId || defaultWallet.id
+          const resolvedWallet = walletCatalog.find((wallet) => wallet.id === resolvedWalletId)
+          const normalizedRawText = String(item.rawText || item.desc || analysis.rawText || rawText || '').trim()
+          const categoryResolution = await resolveTransactionCategory({
+            analysis: {
+              ...item,
+              transactionType: item.transactionType || 'expense',
+            },
+            rawText: normalizedRawText,
+            allowCreate: false,
+          })
+          const category = categoryResolution.category
+          const categoryName = categoryResolution.categoryName
+
+          preparedItems.push({
+            ...item,
+            clientItemId: item.clientItemId || `item-${preparedItems.length + 1}`,
+            type: item.transactionType || 'expense',
+            desc: item.desc || categoryName,
+            walletId: resolvedWalletId,
+            wallet: resolvedWallet.name,
+            categoryId: category?.id || null,
+            category: categoryName,
+            categoryResolution,
+            rawText: normalizedRawText,
+          })
+        }
+
+        const batchRequestId = analysis.requestId || analysis.draftId || requestId
+        const batchResult = await addTransactionsBatch({
+          items: preparedItems,
+          requestId: batchRequestId,
+        })
+
+        if (batchResult.error) {
+          throw batchResult.error
+        }
+
+        await syncFinancialViews({
+          wallets: true,
+          analytics: true,
+        })
+
+        if (!batchResult.data?.replayed) {
+          for (const item of preparedItems) {
+            if (!item.rawText) continue
+            learnFromInput({
+              rawText: item.rawText,
+              walletId: item.walletId,
+              categoryId: shouldLearnCategory(item.categoryResolution) ? item.categoryId : null,
+              categoryKeywords: collectCategoryLearningKeywords(item, item.categoryResolution),
+            }).catch((error) => {
+              console.warn('Batch learning update failed:', error)
+            })
+          }
+        }
+
+        const transactionResults = Array.isArray(batchResult.data?.transactions)
+          ? batchResult.data.transactions
+          : []
+        const transactionIdByClientItem = new Map(
+          transactionResults.map((item) => [item.client_item_id, item.transaction_id])
+        )
+        const expenseTotal = preparedItems
+          .filter((item) => item.type !== 'income')
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+        const incomeTotal = preparedItems
+          .filter((item) => item.type === 'income')
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+        const summary = preparedItems.map((item) =>
+          `- ${item.desc}: **${formatRupiah(item.amount)}** (${item.category})`
+        )
+        const arithmeticNote = Number(analysis.arithmetic?.changeAmount || 0) > 0
+          ? `\nKembalian tunai: **${formatRupiah(analysis.arithmetic.changeAmount)}**.`
+          : ''
+        const headline = preparedItems.length === 1
+          ? `${preparedItems[0].type === 'income' ? 'Pemasukan' : 'Pengeluaran'} **${formatRupiah(preparedItems[0].amount)}** berhasil dicatat.`
+          : `Berhasil mencatat **${preparedItems.length} transaksi** sekaligus.`
+        const replayNote = batchResult.data?.replayed
+          ? '\nPermintaan ini sudah pernah diproses, jadi saldo tidak didebit dua kali.'
+          : ''
+
+        return {
+          text: [headline, ...summary].join('\n') + arithmeticNote + replayNote,
+          card: {
+            batch: true,
+            amount: expenseTotal || incomeTotal,
+            wallet: preparedItems[0]?.wallet || analysis.wallet,
+            items: preparedItems.map((item) => ({
+              transactionId: transactionIdByClientItem.get(item.clientItemId) || null,
+              type: item.type,
+              amount: item.amount,
+              category: item.category,
+              wallet: item.wallet,
+              desc: item.desc,
+              canEdit: true,
+              canDelete: true,
+            })),
+          },
+          metadata: analysis.draftId
+            ? { financeDraftResolved: analysis.draftId }
+            : undefined,
         }
       }
 
@@ -1145,6 +1369,7 @@ export default function AppShell() {
     },
     [
       addTransaction,
+      addTransactionsBatch,
       addWallet,
       analytics,
       budgets,
@@ -1499,7 +1724,7 @@ export default function AppShell() {
           ? payload.imagePreview || payload.image || null
           : null
 
-      if ((!text.trim() && !imageFile && !imagePreview) || sendInFlightRef.current) {
+      if ((!text.trim() && !imageFile && !imagePreview) || sendInFlightRef.current || chatLoading) {
         return
       }
 
@@ -1517,6 +1742,8 @@ export default function AppShell() {
           throw savedUserMessage.error
         }
 
+        const messageRequestId = savedUserMessage.data?.id || null
+
         let response
 
         if (pendingAction) {
@@ -1533,12 +1760,18 @@ export default function AppShell() {
             {
               categoryRules,
               archivedWalletOptions,
+              financeDraft,
+              financialState: {
+                totalBalance,
+                budgets,
+              },
             }
           )
 
           response = await executeIntent(analysis, {
             source: 'chat',
             rawText: userMessageText,
+            requestId: messageRequestId,
           })
         }
 
@@ -1560,7 +1793,10 @@ export default function AppShell() {
     [
       categoryOptions,
       categoryRules,
+      budgets,
+      chatLoading,
       executeIntent,
+      financeDraft,
       goalOptions,
       pendingAction,
       persistBotResponse,
@@ -1568,6 +1804,7 @@ export default function AppShell() {
       saveMessage,
       showNotice,
       archivedWalletOptions,
+      totalBalance,
       walletOptions,
     ]
   )
@@ -1810,7 +2047,7 @@ export default function AppShell() {
                         },
                       ]
                 }
-                isTyping={isTyping}
+                isTyping={isTyping || chatLoading}
                 onSend={handleSend}
                 onNotify={showNotice}
                 formatRupiah={formatRupiah}
