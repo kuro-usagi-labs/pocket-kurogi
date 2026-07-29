@@ -1,14 +1,13 @@
 import fs from 'node:fs/promises'
-import crypto from 'node:crypto'
 import pg from 'pg'
+import {
+  migrationChecksum,
+  migrationChecksumStatus,
+} from './migration-checksum.mjs'
 
 const { Client } = pg
 const MIGRATIONS_DIR = new URL('../neon/migrations/', import.meta.url)
 const LEGACY_BASELINE_CUTOFF = '20260727170000_create_chat_attachments.sql'
-
-function checksum(value) {
-  return crypto.createHash('sha256').update(value).digest('hex')
-}
 
 async function main() {
   if (!process.env.TARGET_DATABASE_URL) {
@@ -53,26 +52,35 @@ async function main() {
           (name) => name <= LEGACY_BASELINE_CUTOFF
         )) {
           const sql = await fs.readFile(new URL(migrationName, MIGRATIONS_DIR), 'utf8')
-          const migrationChecksum = checksum(sql)
+          const repositoryChecksum = migrationChecksum(sql)
           await client.query(
             'insert into public.schema_migrations (name, checksum) values ($1, $2)',
-            [migrationName, migrationChecksum]
+            [migrationName, repositoryChecksum]
           )
-          appliedMigrations.set(migrationName, migrationChecksum)
+          appliedMigrations.set(migrationName, repositoryChecksum)
         }
       }
     }
 
     const migrationsApplied = []
+    const legacyChecksumsAccepted = []
 
     for (const migrationName of migrationNames) {
       const sql = await fs.readFile(new URL(migrationName, MIGRATIONS_DIR), 'utf8')
-      const migrationChecksum = checksum(sql)
+      const repositoryChecksum = migrationChecksum(sql)
       const appliedChecksum = appliedMigrations.get(migrationName)
 
       if (appliedChecksum) {
-        if (appliedChecksum !== migrationChecksum) {
+        const checksumStatus = migrationChecksumStatus(
+          migrationName,
+          appliedChecksum,
+          repositoryChecksum,
+        )
+        if (checksumStatus === 'mismatch') {
           throw new Error(`${migrationName}: checksum changed after it was applied`)
+        }
+        if (checksumStatus === 'legacy-compatible') {
+          legacyChecksumsAccepted.push(migrationName)
         }
         continue
       }
@@ -82,7 +90,7 @@ async function main() {
         await client.query(sql)
         await client.query(
           'insert into public.schema_migrations (name, checksum) values ($1, $2)',
-          [migrationName, migrationChecksum]
+          [migrationName, repositoryChecksum]
         )
         await client.query('commit')
         migrationsApplied.push(migrationName)
@@ -92,7 +100,10 @@ async function main() {
       }
     }
 
-    process.stdout.write(`${JSON.stringify({ migrationsApplied }, null, 2)}\n`)
+    process.stdout.write(`${JSON.stringify({
+      migrationsApplied,
+      legacyChecksumsAccepted,
+    }, null, 2)}\n`)
   } catch (error) {
     throw error
   } finally {

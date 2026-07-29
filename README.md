@@ -51,6 +51,25 @@ npm run dev
 
 Tidak diperlukan API key AI. Pemahaman chat dan perhitungan finansial berjalan secara lokal; Neon hanya dipakai untuk autentikasi dan penyimpanan data.
 
+## Neon migrations and RLS tests
+
+Jalankan seluruh migration secara berurutan menggunakan koneksi database owner:
+
+```bash
+TARGET_DATABASE_URL="postgresql://..." node scripts/apply-neon-schema.mjs
+```
+
+Checksum migration dinormalisasi ke line ending LF agar identik di Windows dan Linux. Migration yang sudah diterapkan tidak boleh diedit. Baseline production lama memakai satu pasangan checksum kompatibilitas yang dipin di `scripts/migration-checksum.mjs`; perubahan pada salah satu sisi pasangan tersebut akan tetap ditolak.
+
+Audit dan integration test backend membutuhkan koneksi owner agar test dapat melakukan `SET LOCAL ROLE` di dalam transaction yang selalu di-rollback:
+
+```bash
+TARGET_DATABASE_URL="postgresql://..." npm run audit:backend
+TARGET_DATABASE_URL="postgresql://..." npm run test:db
+```
+
+Integration test memverifikasi visibility sebagai `authenticated`, isolasi JWT subject lain, penolakan role `anonymous`, dan tidak adanya akses aplikasi ke `public.schema_migrations`.
+
 ## 📂 Project Structure
 
 ```

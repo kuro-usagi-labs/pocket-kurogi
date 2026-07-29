@@ -1,6 +1,9 @@
-import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import pg from 'pg'
+import {
+  migrationChecksum,
+  migrationChecksumStatus,
+} from './migration-checksum.mjs'
 
 const { Client } = pg
 const MIGRATIONS_DIR = new URL('../neon/migrations/', import.meta.url)
@@ -16,8 +19,6 @@ const USER_TABLES = [
   'chat_messages',
   'chat_attachments',
 ]
-
-const checksum = (value) => crypto.createHash('sha256').update(value).digest('hex')
 
 async function main() {
   if (!process.env.TARGET_DATABASE_URL) {
@@ -109,6 +110,19 @@ async function main() {
       addFinding('warning', 'anonymous_write_grant', `${row.grantee}:${row.table_name}:${row.privileges}`)
     }
 
+    const { rows: migrationGrantRows } = await client.query(`
+      select grantee, string_agg(privilege_type, ',' order by privilege_type) as privileges
+      from information_schema.role_table_grants
+      where table_schema = 'public'
+        and table_name = 'schema_migrations'
+        and grantee in ('PUBLIC', 'anon', 'anonymous', 'authenticated', 'service_role')
+      group by grantee
+      order by grantee
+    `)
+    for (const row of migrationGrantRows) {
+      addFinding('critical', 'untrusted_migration_tracking_grant', `${row.grantee}:${row.privileges}`)
+    }
+
     const { rows: schemaCreateRows } = await client.query(`
       select coalesce(r.rolname, 'PUBLIC') as role_name
       from pg_catalog.pg_namespace n
@@ -130,7 +144,10 @@ async function main() {
       .sort()
     const localMigrations = new Map()
     for (const name of migrationFiles) {
-      localMigrations.set(name, checksum(await fs.readFile(new URL(name, MIGRATIONS_DIR), 'utf8')))
+      localMigrations.set(
+        name,
+        migrationChecksum(await fs.readFile(new URL(name, MIGRATIONS_DIR), 'utf8')),
+      )
     }
 
     let appliedMigrations = []
@@ -139,7 +156,18 @@ async function main() {
       appliedMigrations = rows
       for (const row of rows) {
         if (!localMigrations.has(row.name)) addFinding('warning', 'database_only_migration', row.name)
-        else if (localMigrations.get(row.name) !== row.checksum) addFinding('critical', 'migration_checksum_mismatch', row.name)
+        else {
+          const checksumStatus = migrationChecksumStatus(
+            row.name,
+            row.checksum,
+            localMigrations.get(row.name),
+          )
+          if (checksumStatus === 'mismatch') {
+            addFinding('critical', 'migration_checksum_mismatch', row.name)
+          } else if (checksumStatus === 'legacy-compatible') {
+            addFinding('warning', 'legacy_migration_checksum_accepted', row.name)
+          }
+        }
       }
       for (const name of migrationFiles) {
         if (!rows.some((row) => row.name === name)) addFinding('warning', 'pending_migration', name)
