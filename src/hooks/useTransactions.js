@@ -247,6 +247,66 @@ export function useTransactions() {
     }
   }, [fetchTransactionById, fetchTransactions, user])
 
+  const addTransactionsBatch = useCallback(async ({ items = [], requestId }) => {
+    if (!user) return { data: null, error: 'Not authenticated', balanceUpdated: false }
+
+    if (!requestId || !Array.isArray(items) || items.length === 0) {
+      return {
+        data: null,
+        error: new Error('Batch transaksi belum memiliki request ID atau rincian yang valid.'),
+        balanceUpdated: false,
+      }
+    }
+
+    const normalizedItems = items.map((item, index) => ({
+      client_item_id: String(item.clientItemId || `item-${index + 1}`),
+      wallet_id: item.walletId,
+      category_id: item.categoryId || null,
+      transaction_type: String(item.type || item.transactionType || '').toLowerCase(),
+      amount: Number(item.amount),
+      merchant: item.desc || item.merchant || null,
+      notes: item.notes || null,
+      occurred_at: item.occurredAt || null,
+    }))
+
+    const invalidItem = normalizedItems.find((item) =>
+      !item.wallet_id ||
+      !['income', 'expense'].includes(item.transaction_type) ||
+      !Number.isFinite(item.amount) ||
+      item.amount <= 0 ||
+      item.amount > 9999999999999.99 ||
+      Math.abs(item.amount * 100 - Math.round(item.amount * 100)) > 1e-8
+    )
+
+    if (invalidItem) {
+      return {
+        data: null,
+        error: new Error('Salah satu rincian batch memiliki dompet, jenis, atau nominal yang tidak valid.'),
+        balanceUpdated: false,
+      }
+    }
+
+    const rpcResult = await neon.rpc('record_transactions_batch', {
+      p_request_id: requestId,
+      p_items: normalizedItems,
+    })
+
+    if (rpcResult.error) {
+      return {
+        data: null,
+        error: rpcResult.error ?? new Error('Batch transaksi tidak bisa disimpan saat ini.'),
+        balanceUpdated: false,
+      }
+    }
+
+    await fetchTransactions()
+    return {
+      data: rpcResult.data,
+      error: null,
+      balanceUpdated: rpcResult.data?.replayed !== true,
+    }
+  }, [fetchTransactions, user])
+
   const deleteTransaction = useCallback(async (id) => {
     if (!user) return { error: 'Not authenticated', balanceUpdated: false }
 
@@ -399,6 +459,7 @@ export function useTransactions() {
     totalIncome,
     totalExpense,
     addTransaction,
+    addTransactionsBatch,
     replaceTransaction,
     deleteTransaction,
     clearTransactionsInRange,

@@ -85,12 +85,21 @@ export default function MessageBubble({
           ) : null}
 
           {msg.card ? (
-            <TransactionReceiptCard
-              card={msg.card}
-              disabled={disabled}
-              formatRupiah={formatRupiah}
-              onAction={onCardAction}
-            />
+            msg.card.batch && Array.isArray(msg.card.items) ? (
+              <BatchReceiptCard
+                card={msg.card}
+                disabled={disabled}
+                formatRupiah={formatRupiah}
+                onAction={onCardAction}
+              />
+            ) : (
+              <TransactionReceiptCard
+                card={msg.card}
+                disabled={disabled}
+                formatRupiah={formatRupiah}
+                onAction={onCardAction}
+              />
+            )
           ) : null}
         </div>
         {isLastInGroup ? (
@@ -181,6 +190,90 @@ function ReceiptActionButton({ icon, label, disabled = false, danger = false, on
       {createElement(icon, { size: 14, strokeWidth: 2.3 })}
       {label}
     </button>
+  )
+}
+
+function BatchReceiptCard({ card, disabled = false, formatRupiah, onAction }) {
+  const items = Array.isArray(card.items) ? card.items : []
+  const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  const incomeTotal = items
+    .filter((item) => item.type === 'income')
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  const expenseTotal = total - incomeTotal
+  const isIncomeOnly = incomeTotal > 0 && expenseTotal === 0
+  const isMixed = incomeTotal > 0 && expenseTotal > 0
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-[16px] border border-orange-200 bg-orange-50 text-midnight">
+      <div className="flex items-center justify-between gap-3 border-b border-orange-100 px-3.5 py-3">
+        <div>
+          <p className="text-[10px] font-bold text-muted">Batch transaksi</p>
+          <p className="mt-0.5 text-[13px] font-extrabold">{items.length} catatan tersimpan</p>
+        </div>
+        <p className={`text-right text-[13px] font-extrabold ${isIncomeOnly ? 'text-orange-600' : isMixed ? 'text-midnight' : 'text-rose-600'}`}>
+          {isMixed
+            ? `+${formatRupiah(incomeTotal)} / -${formatRupiah(expenseTotal)}`
+            : `${isIncomeOnly ? '+' : '-'}${formatRupiah(total)}`}
+        </p>
+      </div>
+
+      <div className="divide-y divide-orange-100">
+        {items.map((item, index) => {
+          const isIncome = item.type === 'income'
+          const canUseAction = Boolean(item.transactionId)
+
+          return (
+            <div key={item.transactionId || `${item.category}-${index}`} className="bg-white/75 px-3.5 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-midnight text-white">
+                  <CategoryIcon category={item.category} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-extrabold">{item.desc || item.category}</p>
+                  <p className="mt-0.5 truncate text-[10px] font-bold text-muted">
+                    {item.wallet} · {item.category}
+                  </p>
+                </div>
+                <p className={`shrink-0 text-[12px] font-extrabold ${isIncome ? 'text-orange-600' : 'text-rose-600'}`}>
+                  {isIncome ? '+' : '-'}{formatRupiah(item.amount)}
+                </p>
+              </div>
+
+              <div className="mt-2.5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={disabled || !canUseAction || item.canEdit === false}
+                  onClick={() => onAction?.('edit', item)}
+                  className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-white px-2.5 py-1 text-[10px] font-extrabold text-midnight disabled:opacity-40"
+                >
+                  <Pencil size={12} strokeWidth={2.3} />
+                  Koreksi
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled || !canUseAction || item.canDelete === false}
+                  onClick={() => onAction?.('undo', item)}
+                  className="inline-flex items-center gap-1 rounded-full border border-rose-100 bg-white px-2.5 py-1 text-[10px] font-extrabold text-rose-600 disabled:opacity-40"
+                >
+                  <Undo2 size={12} strokeWidth={2.3} />
+                  Undo
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onAction?.('history', card)}
+        className="inline-flex min-h-[42px] w-full items-center justify-center gap-1.5 border-t border-orange-100 bg-[var(--surface-strong)] px-3 font-jakarta text-[11px] font-extrabold text-midnight disabled:opacity-45"
+      >
+        <History size={14} strokeWidth={2.3} />
+        Buka histori
+      </button>
+    </div>
   )
 }
 
