@@ -291,6 +291,37 @@ describe('deterministic assistant modules', () => {
     })
   })
 
+  it.each([
+    ['Cek saldo', 'query_balance'],
+    ['Lihat transaksi', 'query_transactions'],
+    ['Cek budget', 'query_budget'],
+    ['Lihat target tabungan', 'query_saving_goal'],
+  ])('routes Indonesian imperative queries: %s', (text, intent) => {
+    const result = runAssistantEngine({
+      text,
+      userId: 'user-1',
+      wallets,
+      categories,
+      goals,
+      now,
+    })
+    expect(result.route.intent).toBe(intent)
+    expect(result.dialogue.status).toBe('query')
+  })
+
+  it('creates a clean saving-goal name before review', () => {
+    const result = runAssistantEngine({
+      text: 'Buat target liburan 5 juta',
+      userId: 'user-1',
+      wallets,
+      categories,
+      goals,
+      now,
+    })
+    expect(result.route.intent).toBe('create_saving_goal')
+    expect(result.pendingAction.payload.description).toBe('liburan')
+  })
+
   it('keeps pending actions idempotent and owner-scoped', () => {
     const pending = createPendingAction({
       id: 'pa-test',

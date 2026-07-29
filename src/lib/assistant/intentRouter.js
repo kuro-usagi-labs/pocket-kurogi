@@ -12,6 +12,7 @@ const SIGNALS = Object.freeze({
   income: /\b(?:pemasukan|pendapatan|income|gaji|bonus)\b/iu,
   expense: /\b(?:pengeluaran|spending|belanja|boros|habis)\b/iu,
   summary: /\b(?:ringkasan|rekap|total|analisis|analisa|bagaimana|gimana)\b/iu,
+  queryVerb: /\b(?:cek|lihat|tampilkan|tunjukkan|berapa)\b/iu,
   category: /\b(?:kategori|pos|paling besar|terbesar|terbanyak)\b/iu,
   wallet: /\b(?:dompet|rekening|wallet)\b/iu,
   budget: /\b(?:budget|anggaran|jatah|batas)\b/iu,
@@ -155,7 +156,12 @@ function scoreMutations(scores, text, entities) {
 }
 
 function scoreQueries(scores, text, entities) {
-  if (!entities.question && !SIGNALS.summary.test(text) && !SIGNALS.advice.test(text)) return
+  if (
+    !entities.question &&
+    !SIGNALS.summary.test(text) &&
+    !SIGNALS.advice.test(text) &&
+    !SIGNALS.queryVerb.test(text)
+  ) return
 
   if (SIGNALS.balance.test(text)) add(scores, 'query_balance', 0.78, 'balance_question')
   if (SIGNALS.transaction.test(text)) add(scores, 'query_transactions', 0.7, 'transaction_query')

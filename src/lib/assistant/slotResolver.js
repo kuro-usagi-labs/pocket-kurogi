@@ -109,7 +109,7 @@ function deriveSlots(intent, entities, text) {
   if (intent === 'create_saving_goal') {
     return compactObject({
       amount,
-      description,
+      description: deriveSavingGoalDescription(text, entities),
       deadline: occurredAt,
       sourceWallet: wallet,
     })
@@ -165,6 +165,16 @@ function deriveDescription(text, entities) {
     .trim()
 
   return cleaned || null
+}
+
+function deriveSavingGoalDescription(text, entities) {
+  const cleaned = String(text || '')
+    .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:rupiah|ribu|rb|k|juta|jt|miliar)?/giu, ' ')
+    .replace(/\b(?:tolong|mohon|buat|bikin|tambahkan|tambah|pasang|target|goal|tabungan|menabung|nabung|sebesar|senilai|dengan)\b/giu, ' ')
+    .replace(/\b(?:hari ini|kemarin|besok|tanggal)\b/giu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim()
+  return cleaned || deriveDescription(text, entities)
 }
 
 function deriveMultipleItems(entities, text) {
