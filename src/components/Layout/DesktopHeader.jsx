@@ -14,16 +14,19 @@ export default function DesktopHeader({ activeTab = 'chat', balance = 0, formatR
   const [title, subtitle] = PAGE_COPY[activeTab] || PAGE_COPY.chat
 
   return (
-    <header className="hidden h-[88px] w-full shrink-0 items-center justify-between px-7 font-jakarta lg:flex">
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold text-gold">Halo, {emailName}</p>
-        <h1 className="mt-1 text-[24px] font-bold tracking-[-0.04em] text-midnight">{title}</h1>
-        <p className="mt-0.5 text-[12px] font-medium text-muted">{subtitle}</p>
+    <header className="app-content-frame hidden h-[96px] shrink-0 items-center justify-between px-7 font-jakarta lg:flex">
+      <div className="flex min-w-0 items-center gap-4">
+        <span className="h-10 w-1 rounded-full bg-[var(--accent)]" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold text-[var(--accent-ink)]">Halo, {emailName}</p>
+          <h1 className="mt-0.5 text-[25px] font-bold tracking-[-0.045em] text-midnight">{title}</h1>
+          <p className="mt-0.5 text-[12px] font-medium text-muted">{subtitle}</p>
+        </div>
       </div>
 
       <button
         type="button"
-        className="rounded-[14px] border border-midnight/8 bg-white px-4 py-2.5 text-right transition-transform active:scale-[0.98]"
+        className="min-w-[172px] rounded-[16px] border border-midnight/8 bg-white px-4 py-3 text-right shadow-[0_14px_34px_-28px_rgba(25,27,32,0.45)] transition-[border-color,transform] hover:border-orange-200 active:scale-[0.98]"
       >
         <span className="block text-[10px] font-bold text-muted">Saldo tersedia</span>
         <span className="money-number mt-0.5 block text-[17px] font-bold text-midnight">

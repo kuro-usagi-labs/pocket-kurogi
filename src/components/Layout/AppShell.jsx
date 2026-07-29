@@ -8,6 +8,7 @@ import { useInputLearning } from '../../hooks/useInputLearning'
 import { useTransactionActions } from '../../hooks/useTransactionActions'
 import BottomDock from './BottomDock'
 import DesktopHeader from './DesktopHeader'
+import DesktopRightPanel from './DesktopRightPanel'
 import DesktopSidebar from './DesktopSidebar'
 import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
@@ -122,10 +123,12 @@ export default function AppShell() {
   const {
     messages,
     loading: chatLoading,
+    error: chatError,
     saveMessage,
     hasMore: hasMoreMessages,
     loadingMore: loadingMoreMessages,
     loadMore: loadMoreMessages,
+    refetch: refetchChat,
   } = useChat()
   const { analytics, getSnapshot, refetch: refetchAnalytics } = useAnalytics()
   const { conflicts, refetch: refetchNameConflicts } = useNameConflicts()
@@ -1081,12 +1084,12 @@ export default function AppShell() {
           formatRupiah={formatRupiah}
         />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden lg:px-7 lg:pb-7">
+        <div className="app-content-frame flex min-h-0 flex-1 gap-4 overflow-hidden lg:px-7 lg:pb-7">
           <section
             className={`relative min-w-0 flex-1 overflow-hidden ${
               activeTab === 'chat'
                 ? 'chat-surface bg-white'
-                : 'lg:rounded-[18px] lg:bg-transparent'
+                : 'lg:rounded-[22px] lg:bg-transparent'
             }`}
           >
             {activeTab === 'chat' ? (
@@ -1117,6 +1120,9 @@ export default function AppShell() {
                 onLoadMore={loadMoreMessages}
                 onNavigate={setActiveTab}
                 onCardAction={handleChatCardAction}
+                isFreshChat={messages.length === 0}
+                error={chatError}
+                onRetry={refetchChat}
               />
               </div>
             ) : null}
@@ -1181,6 +1187,14 @@ export default function AppShell() {
             ) : null}
           </section>
 
+          {activeTab === 'chat' ? (
+            <DesktopRightPanel
+              analytics={analytics}
+              transactions={transactions}
+              goals={goals}
+              onExecuteStrategy={handleSend}
+            />
+          ) : null}
         </div>
 
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />

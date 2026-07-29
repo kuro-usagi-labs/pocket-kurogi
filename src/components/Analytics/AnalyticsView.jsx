@@ -45,7 +45,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-4 pb-7 pt-4 sm:px-6 lg:max-w-none lg:px-0 lg:pb-0 lg:pt-0">
+    <div className="page-view space-y-4 px-4 pb-7 pt-4 sm:px-6 lg:px-0 lg:pb-0 lg:pt-0">
       <div className="lg:hidden">
         <div>
           <h2 className="font-jakarta text-[28px] font-extrabold tracking-tight text-midnight sm:text-[32px]">Analitik</h2>
@@ -123,7 +123,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
       </div>
 
       <div className="hidden lg:block">
-        <section className="overflow-hidden rounded-[20px] border border-midnight/[0.08] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)]">
+        <section className="surface-card overflow-hidden">
           <div className="border-b border-midnight/[0.08] bg-[var(--accent-soft)] px-6 py-6">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="min-w-0">
@@ -182,7 +182,7 @@ export default function AnalyticsView({ analytics, budgets = [], formatRupiah })
           </div>
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="surface-card mt-5 p-5 sm:p-6">
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
               <p className="font-jakarta text-[11px] font-extrabold  text-muted">

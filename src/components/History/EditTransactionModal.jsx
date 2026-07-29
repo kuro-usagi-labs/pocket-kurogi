@@ -168,7 +168,7 @@ export default function EditTransactionModal({
                 <h3 className="font-jakarta text-[23px] font-extrabold tracking-tight text-midnight">
                   Koreksi transaksi
                 </h3>
-                <p className="mt-1 text-[13px] font-medium leading-relaxed text-midnight/45">
+                <p className="mt-1 text-[13px] font-medium leading-relaxed text-muted">
                   {transaction.date} • {transaction.time}
                 </p>
               </div>

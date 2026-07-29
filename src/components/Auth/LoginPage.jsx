@@ -294,7 +294,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-orange-700 px-5 py-3.5 text-[14px] font-bold text-white shadow-[0_14px_32px_rgba(232,84,46,0.22)] transition-transform active:scale-[0.98] disabled:opacity-50"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-orange-700 px-5 py-3.5 text-[14px] font-bold text-white shadow-[0_14px_32px_rgba(199,71,41,0.22)] transition-transform active:scale-[0.98] disabled:opacity-50"
             >
               <span>{loading ? 'Memproses...' : getSubmitLabel(mode)}</span>
               {mode === 'forgot' ? <Mail size={18} /> : mode === 'reset' ? <KeyRound size={18} /> : <ArrowRight size={18} />}

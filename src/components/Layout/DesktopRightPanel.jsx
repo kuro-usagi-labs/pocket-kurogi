@@ -21,7 +21,7 @@ export default function DesktopRightPanel({
   }).format(Number(number || 0))
 
   return (
-    <aside className="no-scrollbar hidden h-full w-[304px] shrink-0 overflow-y-auto pr-1 xl:block">
+    <aside className="app-scrollbar hidden h-full w-[292px] shrink-0 overflow-y-auto pr-1 xl:block 2xl:w-[312px]">
       <section className="overflow-hidden rounded-[20px] bg-midnight p-5 text-white shadow-[0_24px_60px_rgba(31,32,38,0.16)]">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -39,7 +39,7 @@ export default function DesktopRightPanel({
         </p>
       </section>
 
-      <section className="mt-3 rounded-[20px] border border-midnight/8 bg-white p-5">
+      <section className="surface-card mt-3 p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-orange-50 text-orange-600">
             <Target size={20} strokeWidth={2} />
@@ -73,7 +73,7 @@ export default function DesktopRightPanel({
         )}
       </section>
 
-      <section className="mt-3 rounded-[20px] border border-midnight/8 bg-white p-5">
+      <section className="surface-card mt-3 p-5">
         <h2 className="font-jakarta text-[15px] font-bold text-midnight">Baru terjadi</h2>
         <div className="mt-3">
           {transactions.slice(0, 4).map((transaction, index) => (
@@ -99,7 +99,7 @@ export default function DesktopRightPanel({
       <button
         type="button"
         onClick={() => onExecuteStrategy('Melihat data saya, apa satu langkah menabung yang paling realistis untuk minggu ini?')}
-        className="mt-3 flex w-full items-center justify-between rounded-[20px] bg-orange-700 px-5 py-4 text-left text-white shadow-[0_16px_36px_rgba(232,84,46,0.2)] transition-transform active:scale-[0.98]"
+        className="mt-3 flex w-full items-center justify-between rounded-[18px] bg-orange-700 px-5 py-4 text-left text-white shadow-[0_16px_36px_rgba(199,71,41,0.2)] transition-[background-color,transform] hover:bg-[var(--accent-hover)] active:scale-[0.98]"
       >
         <span>
           <span className="block text-[11px] font-bold text-white/75">Butuh arah?</span>

@@ -8,6 +8,7 @@ import {
   MessageCircleMore,
   PiggyBank,
   Repeat2,
+  RefreshCw,
   RotateCcw,
   Sparkles,
   Target,
@@ -52,6 +53,9 @@ export default function ChatView({
   onLoadMore,
   onNavigate,
   onCardAction,
+  isFreshChat = false,
+  error = null,
+  onRetry,
 }) {
   const containerRef = useRef(null)
   const messagesEndRef = useRef(null)
@@ -134,26 +138,32 @@ export default function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="chat-scroll-inset no-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
+        className="chat-scroll-inset app-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
       >
-        <SavingsOpening
-          balance={balance}
-          goals={goals}
-          formatRupiah={formatRupiah}
-          onNavigate={onNavigate}
-          reduceMotion={reduceMotion}
-        />
+        {error ? <ChatSyncNotice onRetry={onRetry} /> : null}
 
-        <div className="no-scrollbar mb-8 flex snap-x gap-2 overflow-x-auto pb-1">
-          {quickActions.slice(0, 5).map((item) => (
-            <QuickAction
-              key={item.id}
-              item={item}
-              disabled={isTyping}
-              onClick={() => handleQuickAction(item)}
+        {isFreshChat ? (
+          <>
+            <SavingsOpening
+              balance={balance}
+              goals={goals}
+              formatRupiah={formatRupiah}
+              onNavigate={onNavigate}
+              reduceMotion={reduceMotion}
             />
-          ))}
-        </div>
+
+            <div className="no-scrollbar -mx-4 mb-7 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0">
+              {quickActions.slice(0, 4).map((item) => (
+                <QuickAction
+                  key={item.id}
+                  item={item}
+                  disabled={isTyping}
+                  onClick={() => handleQuickAction(item)}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {hasMore ? (
           <button
@@ -167,7 +177,9 @@ export default function ChatView({
 
         <div className="mb-5 flex items-center gap-3" aria-hidden="true">
           <span className="h-px flex-1 bg-midnight/[0.08]" />
-          <p className="text-[10px] font-bold text-muted">Percakapan hari ini</p>
+          <p className="text-[10px] font-bold text-muted">
+            {isFreshChat ? 'Mulai percakapan' : 'Percakapan terbaru'}
+          </p>
           <span className="h-px flex-1 bg-midnight/[0.08]" />
         </div>
 
@@ -236,24 +248,29 @@ function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion
       initial={reduceMotion ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      className="relative mb-4 overflow-hidden rounded-[18px] border border-midnight/[0.08] bg-[var(--accent-soft)] p-5 sm:p-7"
+      className="relative mb-3 overflow-hidden rounded-[20px] border border-[var(--accent-border)] bg-[var(--accent-soft)] p-5 sm:p-6"
     >
-      <div className="relative grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div className="relative grid gap-5 sm:grid-cols-[minmax(0,1fr)_230px] sm:items-center">
         <div>
-          <p className="max-w-[17ch] font-jakarta text-[27px] font-bold leading-[1.05] tracking-[-0.05em] text-midnight sm:text-[36px]">
+          <p className="max-w-[19ch] font-jakarta text-[26px] font-bold leading-[1.08] tracking-[-0.05em] text-midnight sm:text-[32px]">
             {needsBalanceSetup ? 'Mulai dari saldo yang kamu punya.' : 'Mau nabung untuk apa hari ini?'}
+          </p>
+          <p className="mt-2 max-w-[42ch] text-[12px] font-medium leading-relaxed text-muted sm:text-[13px]">
+            {needsBalanceSetup
+              ? 'Siapkan satu dompet agar setiap catatan punya sumber dana yang jelas.'
+              : 'Pilih tujuan, lalu Kurogi bantu menjaga langkah kecilmu tetap konsisten.'}
           </p>
           <button
             type="button"
             onClick={() => onNavigate?.('wallets')}
-            className="mt-5 inline-flex items-center gap-2 whitespace-nowrap rounded-[13px] bg-midnight px-4 py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[0.98]"
+            className="mt-4 inline-flex items-center gap-2 whitespace-nowrap rounded-[13px] bg-midnight px-4 py-2.5 text-[12px] font-bold text-white transition-[background-color,transform] hover:bg-midnight/90 active:scale-[0.98]"
           >
             <PiggyBank size={17} strokeWidth={2.1} />
             {needsBalanceSetup ? 'Atur saldo & dompet' : 'Buka tabungan'}
           </button>
         </div>
 
-        <div className="min-w-[210px] rounded-[15px] bg-midnight p-4 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.55)]">
+        <div className="min-w-0 rounded-[16px] bg-midnight p-4 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.55)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold text-white/55">
@@ -286,7 +303,7 @@ function QuickAction({ item, disabled, onClick }) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="flex min-w-[170px] snap-start items-center gap-3 rounded-[14px] border border-midnight/8 bg-white px-3.5 py-3 text-left transition-[border-color,transform] hover:border-gold active:scale-[0.98] disabled:opacity-50"
+      className="flex min-w-[188px] snap-start items-center gap-3 rounded-[15px] border border-midnight/8 bg-white px-3.5 py-3 text-left shadow-[0_12px_30px_-28px_rgba(25,27,32,0.5)] transition-[border-color,transform] hover:border-gold active:scale-[0.98] disabled:opacity-50 sm:min-w-0"
     >
       <span className="accent-soft flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]">
         {createElement(Icon, { size: 18, strokeWidth: 2 })}
@@ -296,6 +313,30 @@ function QuickAction({ item, disabled, onClick }) {
         <span className="mt-0.5 block truncate text-[10px] font-medium text-muted">{item.helper}</span>
       </span>
     </button>
+  )
+}
+
+function ChatSyncNotice({ onRetry }) {
+  return (
+    <div
+      role="alert"
+      className="mb-4 flex flex-col gap-3 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="min-w-0">
+        <p className="text-[12px] font-bold text-amber-800">Riwayat belum tersambung</p>
+        <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-muted">
+          Sesi database sedang dipulihkan. Pesanmu tidak akan dianggap hilang.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRetry?.()}
+        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-[12px] bg-midnight px-3.5 text-[11px] font-bold text-white transition-transform active:scale-[0.98]"
+      >
+        <RefreshCw size={14} strokeWidth={2.3} />
+        Coba lagi
+      </button>
+    </div>
   )
 }
 

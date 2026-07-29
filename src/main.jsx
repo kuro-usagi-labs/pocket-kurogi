@@ -21,11 +21,11 @@ function renderBootFailure(error) {
         shadow: 'rgba(0,0,0,.28)',
       }
     : {
-        canvas: '#f1f2f4',
+        canvas: '#f2f3f5',
         surface: '#ffffff',
-        ink: '#17181b',
-        muted: '#666970',
-        line: 'rgba(23,24,27,.10)',
+        ink: '#18191c',
+        muted: '#64676e',
+        line: '#dfe1e5',
         shadow: 'rgba(31,32,38,.10)',
       }
 
@@ -42,12 +42,12 @@ function renderBootFailure(error) {
   rootElement.innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:${fallbackTheme.canvas};color:${fallbackTheme.ink};font-family:Manrope,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:20px;">
       <div style="width:100%;max-width:360px;border:1px solid ${fallbackTheme.line};border-radius:20px;background:${fallbackTheme.surface};padding:22px;text-align:center;box-shadow:0 24px 70px ${fallbackTheme.shadow};">
-        <div style="width:48px;height:48px;border-radius:16px;background:#c64224;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
+        <div style="width:48px;height:48px;border-radius:16px;background:${isDarkMode ? '#c64224' : '#c74729'};margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
           <span style="width:10px;height:10px;border-radius:999px;background:#fff;display:block;"></span>
         </div>
         <h1 style="margin:0;font-size:18px;font-weight:800;letter-spacing:-.02em;">Aplikasi gagal dibuka</h1>
         <p style="margin:10px 0 0;color:${fallbackTheme.muted};font-size:13px;line-height:1.6;font-weight:500;">Muat ulang halaman. Kalau masih terjadi, coba tutup Safari lalu buka lagi.</p>
-        <button type="button" onclick="window.location.reload()" style="margin-top:18px;width:100%;border:0;border-radius:999px;background:#c64224;color:#fff;padding:13px 16px;font-size:13px;font-weight:800;cursor:pointer;">Muat ulang</button>
+        <button type="button" onclick="window.location.reload()" style="margin-top:18px;width:100%;border:0;border-radius:999px;background:${isDarkMode ? '#c64224' : '#c74729'};color:#fff;padding:13px 16px;font-size:13px;font-weight:800;cursor:pointer;">Muat ulang</button>
       </div>
     </div>
   `

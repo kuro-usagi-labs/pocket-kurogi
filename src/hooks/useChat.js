@@ -9,6 +9,28 @@ import { useAuth } from '../contexts/AuthContext'
 
 const CHAT_BUCKET = 'chat-attachments'
 const PAGE_SIZE = 40
+const CHAT_AUTH_RETRY_DELAY_MS = 180
+
+function isRetryableChatAuthError(error) {
+  const message = String(error?.message || error || '').toLowerCase()
+  return (
+    error?.code === '42501' ||
+    message.includes('row-level security') ||
+    message.includes('auth required')
+  )
+}
+
+async function runWithChatAuthRetry(operation) {
+  const firstResult = await operation()
+
+  if (!firstResult?.error || !isRetryableChatAuthError(firstResult.error)) {
+    return firstResult
+  }
+
+  await neon.auth.getSession().catch(() => null)
+  await new Promise((resolve) => window.setTimeout(resolve, CHAT_AUTH_RETRY_DELAY_MS))
+  return operation()
+}
 
 export function useChat() {
   const { user } = useAuth()
@@ -16,6 +38,7 @@ export function useChat() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  const [error, setError] = useState(null)
   const oldestCursorRef = useRef(null)
 
   const removeAttachment = useCallback(async (path) => {
@@ -74,6 +97,7 @@ export function useChat() {
       setLoading(false)
       setLoadingMore(false)
       setHasMore(false)
+      setError(null)
       oldestCursorRef.current = null
       return
     }
@@ -86,24 +110,29 @@ export function useChat() {
       oldestCursorRef.current = null
     }
 
-    let query = neon
-      .from('chat_messages')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(PAGE_SIZE)
+    const executeFetch = () => {
+      let query = neon
+        .from('chat_messages')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE)
 
-    if (loadMore && oldestCursorRef.current) {
-      query = query.lt('created_at', oldestCursorRef.current)
+      if (loadMore && oldestCursorRef.current) {
+        query = query.lt('created_at', oldestCursorRef.current)
+      }
+
+      return query
     }
 
-    const { data, error } = await query
+    const { data, error: fetchError } = await runWithChatAuthRetry(executeFetch)
 
-    if (!error && data) {
+    if (!fetchError && data) {
       const hydrated = await hydrateMessages(data)
       const ordered = [...hydrated].reverse()
       oldestCursorRef.current = data[data.length - 1]?.created_at || null
       setHasMore(data.length === PAGE_SIZE)
+      setError(null)
 
       if (loadMore) {
         setMessages((prev) => {
@@ -118,6 +147,7 @@ export function useChat() {
     } else if (!loadMore) {
       setMessages([])
       setHasMore(false)
+      setError(fetchError || new Error('Riwayat chat belum dapat dimuat.'))
     }
 
     if (loadMore) {
@@ -173,16 +203,18 @@ export function useChat() {
       ...(extras.intentStatus ? { intentStatus: extras.intentStatus } : {}),
     }
 
-    const { data, error } = await neon
-      .from('chat_messages')
-      .insert({
-        user_id: user.id,
-        sender,
-        text,
-        metadata,
-      })
-      .select()
-      .single()
+    const { data, error } = await runWithChatAuthRetry(() =>
+      neon
+        .from('chat_messages')
+        .insert({
+          user_id: user.id,
+          sender,
+          text,
+          metadata,
+        })
+        .select()
+        .single()
+    )
 
     if (!error && data) {
       const formatted = {
@@ -199,6 +231,7 @@ export function useChat() {
         metadata,
       }
       setMessages((prev) => [...prev, formatted])
+      setError(null)
       return { data: formatted, error: null }
     }
 
@@ -258,6 +291,7 @@ export function useChat() {
   return {
     messages,
     loading,
+    error,
     hasMore,
     loadingMore,
     saveMessage,

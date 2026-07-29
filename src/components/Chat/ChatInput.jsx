@@ -137,7 +137,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
 
   return (
     <div className="chat-composer-inset pointer-events-none absolute left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6">
-      <div className="flex w-full max-w-[880px] flex-col gap-2.5">
+      <div className="flex w-full max-w-[840px] flex-col gap-2.5">
         {selectedImage && (
           <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[16px] border border-midnight/10 bg-white shadow-premium">
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
@@ -158,7 +158,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
           </div>
         ) : null}
 
-        <div className={`glass-panel pointer-events-auto flex w-full items-end gap-1.5 rounded-[17px] p-2 shadow-[0_20px_52px_rgba(31,32,38,0.14)] transition-colors ${
+        <div className={`glass-panel pointer-events-auto flex w-full items-end gap-1 rounded-[18px] p-1.5 shadow-[0_20px_52px_rgba(31,32,38,0.14)] transition-colors sm:p-2 ${
           isVoiceBusy ? 'border-orange-200' : 'border-midnight/10'
         }`}>
           <input
@@ -174,7 +174,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
             aria-label="Tambah gambar"
             title="Lampirkan bukti transaksi"
             disabled={isTyping || isVoiceBusy}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45 sm:h-11 sm:w-11"
           >
             <Paperclip size={21} strokeWidth={2.1} />
           </button>
@@ -183,7 +183,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
               ref={textareaRef}
               rows={1}
               aria-label="Tulis pesan"
-              className="max-h-[120px] min-h-11 w-full resize-none border-0 bg-transparent px-2 py-2.5 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:ring-0 sm:text-[15px]"
+              className="chat-composer-textarea max-h-[120px] min-h-10 w-full resize-none border-0 bg-transparent px-2 py-2 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:ring-0 sm:min-h-11 sm:py-2.5 sm:text-[15px]"
               placeholder={voicePlaceholder}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -198,7 +198,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
               disabled={isTyping}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] transition-all active:scale-[0.96] sm:h-11 sm:w-11 ${
                 voiceState === 'listening'
                   ? 'animate-pulse bg-red-50 text-red-500'
                   : 'text-midnight hover:bg-champagne'
@@ -210,9 +210,9 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
               type="submit"
               aria-label="Kirim"
               disabled={(!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] transition-all sm:h-11 sm:w-11 ${
                 (inputValue.trim() || selectedImage) && !isTyping && !isVoiceBusy
-                  ? 'bg-orange-700 text-white shadow-[0_10px_24px_rgba(232,84,46,0.26)] active:scale-95'
+                  ? 'bg-orange-700 text-white shadow-[0_10px_24px_rgba(199,71,41,0.26)] active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}
             >

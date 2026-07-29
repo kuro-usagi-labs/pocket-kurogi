@@ -53,7 +53,7 @@ function ThemeSettings() {
   }
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_20px_60px_-45px_rgba(31,32,38,0.35)]">
+    <section className="surface-card overflow-hidden">
       <div className="border-b border-midnight/[0.07] p-5 sm:p-6">
         <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.12em] text-muted">Tampilan</p>
         <h2 className="mt-1.5 font-jakarta text-[21px] font-extrabold tracking-[-0.035em] text-midnight">Pilih suasana aplikasi</h2>
@@ -242,9 +242,9 @@ export default function SettingsView() {
   const [showResetDialog, setShowResetDialog] = useState(false)
 
   return (
-    <div className="h-full overflow-y-auto px-4 pb-7 pt-5 no-scrollbar sm:px-6 sm:pt-6 lg:pb-8">
-      <div className="mx-auto w-full max-w-3xl space-y-4">
-        <section className="overflow-hidden rounded-[22px] border border-midnight/[0.08] bg-white shadow-[0_20px_60px_-45px_rgba(31,32,38,0.35)]">
+    <div className="app-scrollbar h-full overflow-y-auto px-4 pb-7 pt-5 sm:px-6 sm:pt-6 lg:px-0 lg:pb-8 lg:pt-0">
+      <div className="page-view grid w-full gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <section className="surface-card overflow-hidden">
           <div className="border-b border-midnight/[0.07] p-5 sm:p-6">
             <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.12em] text-muted">Akun</p>
             <h2 className="mt-1.5 font-jakarta text-[21px] font-extrabold tracking-[-0.035em] text-midnight">Pengaturan pribadi</h2>
@@ -267,7 +267,7 @@ export default function SettingsView() {
 
         <ThemeSettings />
 
-        <section className="rounded-[22px] border border-red-200/80 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(31,32,38,0.3)] sm:p-6">
+        <section className="rounded-[20px] border border-red-200/80 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(31,32,38,0.3)] sm:p-6 lg:col-span-2">
           <div className="flex items-start gap-3.5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-red-50 text-red-600">
               <RotateCcw size={20} strokeWidth={2.1} />
@@ -292,7 +292,7 @@ export default function SettingsView() {
         <button
           type="button"
           onClick={signOut}
-          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 py-3.5 font-jakarta text-[12px] font-bold text-muted transition-colors hover:bg-midnight hover:text-white lg:hidden"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[16px] border border-midnight/10 bg-white px-4 py-3.5 font-jakarta text-[12px] font-bold text-muted transition-colors hover:bg-midnight hover:text-white lg:col-span-2 lg:hidden"
         >
           <LogOut size={17} strokeWidth={2.1} /> Keluar dari akun
         </button>

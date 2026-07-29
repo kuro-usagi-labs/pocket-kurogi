@@ -68,7 +68,7 @@ export default function RenameEntityModal({
                   {title}
                 </h3>
                 {subtitle ? (
-                  <p className="mt-1 text-[13px] font-medium leading-relaxed text-midnight/45">
+                  <p className="mt-1 text-[13px] font-medium leading-relaxed text-muted">
                     {subtitle}
                   </p>
                 ) : null}

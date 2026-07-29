@@ -45,7 +45,7 @@ export default function StatusToast({
             <Icon size={18} strokeWidth={2.2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold  text-midnight/45 font-jakarta">
+            <p className="font-jakarta text-[11px] font-extrabold text-muted">
               {config.label}
             </p>
             <p className="mt-1 text-[13px] font-semibold leading-relaxed text-midnight/78">

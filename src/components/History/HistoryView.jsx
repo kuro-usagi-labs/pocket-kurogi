@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, Pencil, Search, SlidersHorizontal, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, MessageCircleMore, Pencil, Search, SlidersHorizontal, Trash2, Undo2, X } from 'lucide-react'
 import { TransactionIcon, WalletIcon } from '../shared/CategoryIcon'
 import EditTransactionModal from './EditTransactionModal'
 
@@ -140,7 +140,7 @@ export default function HistoryView({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-7 pt-4 sm:px-6 lg:max-w-none lg:px-0 lg:pb-0 lg:pt-0">
+    <div className="page-view px-4 pb-7 pt-4 sm:px-6 lg:px-0 lg:pb-0 lg:pt-0">
       <div className="lg:hidden">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -233,7 +233,7 @@ export default function HistoryView({
       </div>
 
       <div className="hidden lg:block">
-        <section className="rounded-[20px] border border-midnight/[0.08] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="surface-card p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="font-jakarta text-[11px] font-extrabold  text-muted">
@@ -342,7 +342,7 @@ export default function HistoryView({
           </div>
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-midnight/[0.08] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.03)]">
+        <section className="surface-card mt-5 overflow-hidden">
           <HistoryBody
             transactions={transactions}
             filteredTransactions={filteredTransactions}
@@ -578,16 +578,21 @@ function FilterSelect({ label, value, onChange, options, desktop = false }) {
 function EmptyHistoryState({ onNavigate, desktop = false }) {
   return (
     <div
-      className={`rounded-[20px] border border-dashed border-midnight/15 bg-white text-center ${
-        desktop ? 'px-6 py-12' : 'px-5 py-10'
+      className={`rounded-[18px] border border-dashed border-midnight/15 bg-[var(--surface)] text-center ${
+        desktop ? 'px-6 py-14' : 'px-5 py-10'
       }`}
     >
-      <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada transaksi.</p>
-      <p className="mt-1 text-[12px] font-medium text-muted">Mulai dari chat.</p>
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-[15px] bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+        <MessageCircleMore size={21} strokeWidth={2.1} />
+      </span>
+      <p className="mt-3 font-jakarta text-[14px] font-bold text-midnight">Belum ada transaksi</p>
+      <p className="mx-auto mt-1 max-w-[34ch] text-[12px] font-medium leading-relaxed text-muted">
+        Ceritakan pemasukan atau pengeluaranmu. Kurogi akan menyusunnya ke histori.
+      </p>
       <button
         type="button"
         onClick={() => onNavigate?.('chat')}
-        className="mt-4 rounded-full bg-orange-700 px-4 py-2.5 font-jakarta text-[12px] font-bold text-white transition-colors hover:bg-orange-700"
+        className="mt-4 rounded-[13px] bg-orange-700 px-4 py-2.5 font-jakarta text-[12px] font-bold text-white transition-[background-color,transform] hover:bg-[var(--accent-hover)] active:scale-[0.98]"
       >
         Buka Chat
       </button>

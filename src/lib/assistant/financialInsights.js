@@ -180,7 +180,7 @@ export function composeFinancialQueryResult({
           ? 'Pemasukan'
           : 'Pengeluaran'
         const normalized = normalizeTransaction(transaction)
-        return `${type} ${formatRupiah(normalized.amount)}${normalized.merchant ? ` — ${normalized.merchant}` : ''} (${formatDateTime(normalized.occurredAt)})`
+        return `${type} ${formatRupiah(normalized.amount)}${normalized.merchant ? ` - ${normalized.merchant}` : ''} (${formatDateTime(normalized.occurredAt)})`
       })
     )
   }
@@ -216,7 +216,7 @@ export function composeFinancialQueryResult({
       `Saldo ${wallet.name} ${formatRupiah(wallet.current_balance)} dengan ${walletTransactions.length} transaksi pada data yang tersedia.`,
       walletTransactions.slice(0, 3).map((transaction) => {
         const normalized = normalizeTransaction(transaction)
-        return `${normalized.type === 'income' ? 'Masuk' : 'Keluar'} ${formatRupiah(normalized.amount)} — ${normalized.merchant || normalized.description || 'Transaksi'}`
+        return `${normalized.type === 'income' ? 'Masuk' : 'Keluar'} ${formatRupiah(normalized.amount)} - ${normalized.merchant || normalized.description || 'Transaksi'}`
       })
     )
   }

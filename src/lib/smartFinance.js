@@ -129,7 +129,7 @@ export function buildSmartFinanceReply({
 
     return [
       'Pengeluaran berulang yang terdeteksi:',
-      ...recurring.map((item) => `- **${item.label}** — ${formatRupiah(item.amount)}, muncul ${item.count} kali`),
+      ...recurring.map((item) => `- **${item.label}** - ${formatRupiah(item.amount)}, muncul ${item.count} kali`),
       'Periksa apakah semuanya masih dipakai dan layak dipertahankan.',
     ].join('\n')
   }

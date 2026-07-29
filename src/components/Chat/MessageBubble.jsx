@@ -29,12 +29,12 @@ export default function MessageBubble({
           <span className="hidden h-[38px] w-[38px] shrink-0 sm:block" aria-hidden="true" />
         )
       ) : null}
-      <div className={`flex max-w-[88%] flex-col ${isUser ? 'items-end' : 'items-start'} md:max-w-[74%]`}>
+      <div className={`flex max-w-[91%] flex-col ${isUser ? 'items-end' : 'items-start'} sm:max-w-[84%] md:max-w-[78%]`}>
         <div
           className={`relative text-[14px] leading-relaxed transition-all sm:text-[15px] ${bubbleShape} ${
             isUser
               ? 'bg-midnight px-4 py-3 text-white shadow-[0_12px_28px_rgba(31,32,38,0.14)]'
-              : 'border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight'
+              : 'border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight shadow-[0_12px_30px_-28px_rgba(25,27,32,0.5)]'
           }`}
         >
           {msg.image && (
@@ -205,7 +205,7 @@ function FinancialInsightCard({ card }) {
         </div>
       </div>
       {details.length > 0 ? (
-        <ul className="divide-y divide-sky-100 bg-white/70">
+        <ul className="surface-translucent divide-y divide-sky-100">
           {details.map((detail, index) => (
             <li key={`${index}-${detail}`} className="px-3.5 py-2.5 text-[11px] font-bold leading-relaxed">
               {detail}
@@ -248,7 +248,7 @@ function PendingActionCard({ card, disabled = false, formatRupiah, onAction }) {
       </div>
 
       {items.length > 0 ? (
-        <div className="divide-y divide-amber-100 bg-white/70">
+        <div className="surface-translucent divide-y divide-amber-100">
           {items.map((item, index) => (
             <div key={item.id || index} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
               <div className="min-w-0">
@@ -346,7 +346,7 @@ function BatchReceiptCard({ card, disabled = false, formatRupiah, onAction }) {
           const canUseAction = Boolean(item.transactionId)
 
           return (
-            <div key={item.transactionId || `${item.category}-${index}`} className="bg-white/75 px-3.5 py-3">
+            <div key={item.transactionId || `${item.category}-${index}`} className="surface-translucent px-3.5 py-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-midnight text-white">
                   <CategoryIcon category={item.category} />
