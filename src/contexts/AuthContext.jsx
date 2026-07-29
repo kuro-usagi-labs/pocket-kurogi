@@ -35,6 +35,17 @@ export function AuthProvider({ children }) {
     return { data, error }
   }
 
+  const resendVerificationEmail = async (email) => {
+    const verificationUrl = new URL(window.location.origin)
+    verificationUrl.searchParams.set('auth', 'email-verified')
+
+    const { data, error } = await neon.auth.sendVerificationEmail({
+      email,
+      callbackURL: verificationUrl.toString(),
+    })
+    return { data, error }
+  }
+
   const resetPassword = async (newPassword, token) => {
     const { data, error } = await neon.auth.resetPassword({
       newPassword,
@@ -57,6 +68,7 @@ export function AuthProvider({ children }) {
         signUp,
         signInWithPassword,
         requestPasswordReset,
+        resendVerificationEmail,
         resetPassword,
         signOut,
       }}

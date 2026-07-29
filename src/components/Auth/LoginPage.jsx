@@ -2,6 +2,11 @@ import { useId, useState } from 'react'
 import { ArrowLeft, ArrowRight, KeyRound, Mail, MessageCircleMore, PiggyBank } from 'lucide-react'
 import { motion as Motion, useReducedMotion } from 'motion/react'
 import { useAuth } from '../../contexts/AuthContext'
+import {
+  getInitialAuthNotice,
+  isEmailVerificationError,
+  toAuthMessage,
+} from '../../lib/authMessages'
 import KurogiLogo from '../shared/KurogiLogo'
 
 export default function LoginPage() {
@@ -9,14 +14,17 @@ export default function LoginPage() {
     signInWithPassword,
     signUp,
     requestPasswordReset,
+    resendVerificationEmail,
     resetPassword,
   } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [verificationLoading, setVerificationLoading] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState('')
   const [mode, setMode] = useState(getInitialAuthMode)
-  const [message, setMessage] = useState(null)
+  const [message, setMessage] = useState(getInitialAuthMessage)
   const [error, setError] = useState(getInitialAuthError)
   const passwordId = useId()
   const confirmPasswordId = useId()
@@ -29,6 +37,7 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     setMessage(null)
+    if (mode === 'login') setVerificationEmail('')
 
     try {
       const normalizedEmail = email.trim().toLowerCase()
@@ -66,18 +75,46 @@ export default function LoginPage() {
           } else {
             setPassword('')
             setConfirmPassword('')
+            setVerificationEmail(normalizedEmail)
             setMode('login')
-            setMessage('Akun berhasil dibuat. Jika belum masuk otomatis, periksa email lalu masuk di sini.')
+            setMessage('Akun berhasil dibuat. Periksa email untuk verifikasi sebelum masuk.')
           }
         }
       } else {
         const result = await signInWithPassword(normalizedEmail, password)
-        if (result.error) setError(toAuthMessage(result.error, mode))
+        if (result.error) {
+          if (isEmailVerificationError(result.error)) {
+            setVerificationEmail(normalizedEmail)
+          }
+          setError(toAuthMessage(result.error, mode))
+        }
       }
     } catch (caughtError) {
       setError(toAuthMessage(caughtError, mode))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    const normalizedEmail = (verificationEmail || email).trim().toLowerCase()
+    if (!normalizedEmail || verificationLoading) return
+
+    setVerificationLoading(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const result = await resendVerificationEmail(normalizedEmail)
+      if (result.error) {
+        setError(toVerificationMessage(result.error))
+      } else {
+        setVerificationEmail(normalizedEmail)
+        setMessage('Email verifikasi baru sudah dikirim. Periksa inbox dan folder spam.')
+      }
+    } catch (caughtError) {
+      setError(toVerificationMessage(caughtError))
+    } finally {
+      setVerificationLoading(false)
     }
   }
 
@@ -92,6 +129,7 @@ export default function LoginPage() {
     setConfirmPassword('')
     setError(null)
     setMessage(null)
+    setVerificationEmail('')
   }
 
   return (
@@ -241,6 +279,17 @@ export default function LoginPage() {
             {message ? (
               <p role="status" className="mt-4 rounded-[16px] border border-orange-200 bg-orange-50 px-4 py-3 text-[12px] font-semibold text-orange-800">{message}</p>
             ) : null}
+            {verificationEmail && mode === 'login' ? (
+              <button
+                type="button"
+                disabled={verificationLoading}
+                onClick={handleResendVerification}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2.5 text-[12px] font-bold text-orange-800 transition-colors hover:bg-orange-100 disabled:opacity-50"
+              >
+                <Mail size={16} />
+                {verificationLoading ? 'Mengirim...' : 'Kirim ulang email verifikasi'}
+              </button>
+            ) : null}
 
             <button
               type="submit"
@@ -279,6 +328,11 @@ function getInitialAuthError() {
   return errorCode ? 'Link tidak valid atau sudah kedaluwarsa. Minta link baru.' : null
 }
 
+function getInitialAuthMessage() {
+  if (typeof window === 'undefined') return null
+  return getInitialAuthNotice(window.location.search)
+}
+
 function getAuthHeading(mode) {
   if (mode === 'register') return 'Mulai menabung'
   if (mode === 'forgot') return 'Pulihkan akses'
@@ -300,38 +354,13 @@ function getSubmitLabel(mode) {
   return 'Masuk'
 }
 
-function toAuthMessage(error, mode = 'login') {
+function toVerificationMessage(error) {
   const message = String(error?.message || '').toLowerCase()
-  const status = Number(error?.status || error?.statusCode || 0)
-
-  if (mode === 'reset') {
-    if (message.includes('token') || message.includes('expired') || message.includes('invalid')) {
-      return 'Link reset tidak valid atau sudah kedaluwarsa. Minta link baru.'
-    }
-    return 'Password belum bisa diperbarui. Minta link baru lalu coba lagi.'
+  if (message.includes('already verified')) {
+    return 'Email ini sudah terverifikasi. Silakan masuk.'
   }
-
-  if (mode === 'forgot') {
-    return 'Email reset belum bisa dikirim. Tunggu sebentar lalu coba lagi.'
-  }
-
-  if (
-    status === 401 ||
-    status === 403 ||
-    message.includes('invalid') ||
-    message.includes('password') ||
-    message.includes('credential')
-  ) {
-    return 'Email atau password tidak cocok.'
-  }
-
-  if (message.includes('already') || message.includes('exist')) {
-    return 'Email ini sudah terdaftar. Silakan masuk.'
-  }
-
   if (message.includes('rate') || message.includes('too many')) {
-    return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.'
+    return 'Terlalu banyak permintaan. Tunggu sebentar sebelum mengirim ulang.'
   }
-
-  return 'Proses masuk belum berhasil. Periksa data lalu coba lagi.'
+  return 'Email verifikasi belum bisa dikirim. Tunggu sebentar lalu coba lagi.'
 }
