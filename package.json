@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "audit:backend": "node scripts/audit-neon-backend.mjs",
+    "test:db": "vitest run scripts/neon-rls.integration.test.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run"
