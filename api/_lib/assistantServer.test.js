@@ -63,4 +63,41 @@ describe('assistant Vercel API safety', () => {
     expect(() => validateAssistantOperationRequest('financial_context', {}, 'GET'))
       .not.toThrow()
   })
+
+  it('rejects unsafe pending payloads, excessive expiry, and uncurated memory', () => {
+    expect(() => validateAssistantOperationRequest('stage_action', {
+      idempotencyKey: 'request-1',
+      actionType: 'record_transactions',
+      payload: { items: [] },
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    })).toThrow(/1 sampai 20 item/)
+
+    expect(() => validateAssistantOperationRequest('stage_action', {
+      idempotencyKey: 'request-2',
+      actionType: 'transfer_money',
+      payload: {
+        sourceWalletId: '11111111-1111-4111-8111-111111111111',
+        destinationWalletId: '11111111-1111-4111-8111-111111111111',
+        amount: 10_000,
+      },
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    })).toThrow(/harus berbeda/)
+
+    expect(() => validateAssistantOperationRequest('stage_action', {
+      idempotencyKey: 'request-3',
+      actionType: 'upsert_budget',
+      payload: {
+        categoryId: '33333333-3333-4333-8333-333333333333',
+        amount: 100_000,
+      },
+      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    })).toThrow(/di luar rentang/)
+
+    expect(() => validateAssistantOperationRequest('remember', {
+      key: 'arbitrary_secret',
+      value: 'x',
+      confidence: 1,
+      source: 'explicit',
+    })).toThrow(/Memory assistant/)
+  })
 })

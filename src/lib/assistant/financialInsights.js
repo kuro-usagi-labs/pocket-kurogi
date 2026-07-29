@@ -270,6 +270,60 @@ export function composeFinancialQueryResult({
     )
   }
 
+  if (intent === 'financial_advice') {
+    const activeBalance = wallets
+      .filter((wallet) => !wallet.is_archived)
+      .reduce((sum, wallet) => sum + Number(wallet.current_balance || 0), 0)
+    const hasTransactions = Boolean(snapshot?.sourceTransactionCount)
+    if (!hasTransactions && wallets.length === 0) {
+      return unavailableInsight(
+        'Saya belum punya saldo atau transaksi yang cukup untuk memberi saran yang bertanggung jawab.'
+      )
+    }
+
+    const details = [`Saldo aktif saat ini ${formatRupiah(activeBalance)}.`]
+    const topCategory = snapshot?.topCategories?.[0] || null
+    const exceededBudgets = (snapshot?.budgetUsage || [])
+      .filter((entry) => entry.percentage >= 100)
+      .sort((left, right) => right.percentage - left.percentage)
+    const discretionaryCategory = topCategory &&
+      /^(?:jajan|kopi|hiburan|game|nongkrong|belanja)$/iu.test(topCategory.name)
+
+    if (hasTransactions) {
+      details.push(
+        `Arus kas bersih bulan ini ${formatRupiah(snapshot.currentMonth.netCashflow)}.`
+      )
+      if (topCategory) {
+        details.push(
+          `Pengeluaran terbesar: ${topCategory.name} ${formatRupiah(topCategory.amount)}.`
+        )
+      }
+      if (exceededBudgets.length > 0) {
+        details.push(
+          `Budget terlewati: ${exceededBudgets
+            .slice(0, 3)
+            .map((entry) => `${entry.category} ${formatPercentage(entry.percentage)}`)
+            .join(', ')}.`
+        )
+      }
+    }
+
+    let text
+    if (exceededBudgets.length > 0) {
+      text = `Prioritas pertama: hentikan sementara pengeluaran tambahan pada ${exceededBudgets[0].category} sampai budget kembali terkendali.`
+    } else if (discretionaryCategory && snapshot.currentMonth.netCashflow <= 0) {
+      text = `Prioritas pertama: kurangi ${topCategory.name} dan lindungi uang untuk makan dasar, transport kerja, kesehatan, serta tagihan wajib.`
+    } else if (hasTransactions && snapshot.currentMonth.netCashflow < 0) {
+      text = 'Pengeluaran bulan ini lebih besar daripada pemasukan. Tahan belanja fleksibel dan amankan kebutuhan wajib terlebih dahulu.'
+    } else if (activeBalance <= 0) {
+      text = 'Saldo aktif belum tersedia. Mulai dari mencatat pemasukan atau mengisi saldo dompet sebelum menetapkan pengeluaran baru.'
+    } else {
+      text = 'Keuanganmu belum menunjukkan alarm utama. Pertahankan pencatatan, jaga budget kategori, dan sisihkan dana untuk kebutuhan wajib serta target.'
+    }
+
+    return createQueryInsight(text, details)
+  }
+
   if (intent === 'emotional_support') {
     const base = composeFinancialInsight(snapshot, { focus: 'week' })
     const salaryDate = memory.find((entry) =>

@@ -36,6 +36,7 @@ export function shouldHandleAssistantEngineResult(result, {
 } = {}) {
   if (!result) return false
   if (hasPendingAction && result.command) return true
+  if (shouldDelegateToConversationalParser(result)) return false
   if (
     !hasPendingAction &&
     /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu.test(result.text)
@@ -47,6 +48,59 @@ export function shouldHandleAssistantEngineResult(result, {
   if (result.route?.intent === 'cancel_pending_action') return true
   if (result.dialogue?.status === 'calculation') return true
   return result.safety?.errors?.some((error) => UNSAFE_MUTATION_CODES.has(error.code)) || false
+}
+
+function shouldDelegateToConversationalParser(result) {
+  const normalizedText = String(
+    result.entities?.normalizedText || result.text || ''
+  ).toLowerCase()
+  const intent = result.route?.intent
+
+  // The conversational parser preserves a draft, so "catat yang tadi" can
+  // safely record the spending amount derived from tender and change.
+  if (intent === 'calculate_change') return true
+
+  if (
+    /\b(?:teman|temen|istri|suami|adik|kakak|ibu|ayah|mama|papa|pacar|anak|saudara|rekan|dia|mereka|bos)(?:ku|nya)?\b.{0,45}\b(?:transfer|kirim(?:kan)?|kasih|beri)\b.{0,35}\b(?:ke|kepada|buat)\s+(?:saya|aku|gue|gw)\b/iu.test(
+      normalizedText
+    )
+  ) {
+    return true
+  }
+
+  // A tendered amount ("pakai uang 50rb") is not another expense item.
+  if (
+    intent === 'record_multiple_transactions' &&
+    /\b(?:pakai|dari|bawa|kasih|serahkan)(?:\s+(?:dengan|sebesar))?\s+uang\b/iu.test(
+      normalizedText
+    )
+  ) {
+    return true
+  }
+
+  // Runway questions can supply a hypothetical balance that must not replace
+  // the actual database balance.
+  const hasLowBalanceScenario =
+    /(?:\b(?:saldo|uang|dompet|rekening)\b.{0,45}\b(?:tinggal|sisa|cuma|hanya|menipis)\b|\b(?:tinggal|sisa|cuma|hanya)\b.{0,30}\b(?:rp\s*)?\d)/iu.test(
+      normalizedText
+    )
+  const hasRunwayHorizon =
+    /\b(?:hari|minggu|pekan|bulan|sebulan|akhir bulan|sampai gajian|gajian|hemat|prioritas|cukup|gimana|bagaimana)\b/iu.test(
+      normalizedText
+    )
+  if (hasLowBalanceScenario && hasRunwayHorizon) return true
+
+  if (
+    intent === 'create_saving_goal' &&
+    (
+      (result.entities?.amounts?.length || 0) > 1 ||
+      /\b(?:setoran awal|modal awal|mulai dengan|isi awal)\b/iu.test(normalizedText)
+    )
+  ) {
+    return true
+  }
+
+  return false
 }
 
 export function isAssistantInsightIntent(intent) {

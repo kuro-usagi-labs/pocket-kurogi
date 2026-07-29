@@ -26,6 +26,19 @@ async function expectPrivilegeDenied(client, sql, parameters = []) {
   }
 }
 
+async function expectDatabaseFailure(client, callback, messagePattern) {
+  await client.query('savepoint assistant_expected_failure')
+  try {
+    await callback()
+    throw new Error('Expected PostgreSQL to reject the operation')
+  } catch (error) {
+    if (error.message === 'Expected PostgreSQL to reject the operation') throw error
+    if (messagePattern) expect(error.message).toMatch(messagePattern)
+  } finally {
+    await client.query('rollback to savepoint assistant_expected_failure')
+  }
+}
+
 describeWithDatabase('deterministic assistant persisted state', () => {
   let client
   let existingUserId
@@ -85,6 +98,39 @@ describeWithDatabase('deterministic assistant persisted state', () => {
           user_id, memory_key, memory_value, confidence, source
         ) values ($1, 'salary_date', '25'::jsonb, 1, 'explicit')`,
         [existingUserId],
+      )
+    } finally {
+      await client.query('rollback')
+    }
+  })
+
+  it('rejects pending actions whose expiry exceeds the short confirmation window', async () => {
+    await client.query('begin')
+    try {
+      await setAuthenticatedRole(client, existingUserId)
+      await expectDatabaseFailure(
+        client,
+        () => client.query(
+          `select public.create_pending_finance_action(
+            $1,
+            'record_transactions',
+            $2::jsonb,
+            now() + interval '2 hours'
+          )`,
+          [
+            `assistant-expiry-${crypto.randomUUID()}`,
+            JSON.stringify({
+              items: [{
+                clientItemId: 'item-1',
+                walletId: crypto.randomUUID(),
+                transactionType: 'expense',
+                amount: 10_000,
+                description: 'Expiry test',
+              }],
+            }),
+          ],
+        ),
+        /pending_finance_actions_expiry_window/i,
       )
     } finally {
       await client.query('rollback')

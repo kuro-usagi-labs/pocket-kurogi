@@ -40,6 +40,7 @@ import {
 } from '../../lib/chatEntities'
 import { buildChatQuickActions } from '../../lib/chatSuggestions'
 import { derivePendingFinanceDraft } from '../../lib/conversationalFinance'
+import { parseWalletNameReply } from '../../lib/assistant/walletCreationParser'
 import {
   attachResolvedWallet,
   getCurrentTimeLabel,
@@ -119,7 +120,12 @@ export default function AppShell() {
     refetch: refetchGoals,
   } = useGoals()
   const { budgets } = useBudgets()
-  const { categoryRules, learnFromInput } = useInputLearning()
+  const {
+    categoryRules,
+    walletRules,
+    learnFromInput,
+    forgetRule,
+  } = useInputLearning()
   const {
     messages,
     loading: chatLoading,
@@ -358,6 +364,7 @@ export default function AppShell() {
     goals,
     handleUpdateTransaction,
     learnFromInput,
+    forgetRule,
     renameWallet,
     resolveCategory,
     resolveTransactionCategory,
@@ -533,6 +540,74 @@ export default function AppShell() {
         return {
           text: 'Ketik "Ya", sebut dompet yang benar, atau "Batal".',
           intentStatus: 'needs_confirmation',
+        }
+      }
+
+      if (pendingAction.type === 'create_wallet_name') {
+        if (isNegative(text)) {
+          setPendingAction(null)
+          return {
+            text: 'Baik, pembuatan dompet baru saya batalkan.',
+          }
+        }
+
+        const { assessPendingFinanceReply } = await loadLocalParser()
+        const pendingReplyAssessment = assessPendingFinanceReply(text)
+        const parsedWallet = parseWalletNameReply(text)
+        if (!pendingReplyAssessment.safe || !parsedWallet.walletName) {
+          return {
+            text: 'Saya masih membutuhkan satu nama dompet yang jelas. Jawab langsung, misalnya “BCA”, “GoPay”, atau “Uang Harian”.',
+            intentStatus: 'needs_confirmation',
+            metadata: { confirmationMode: 'input' },
+          }
+        }
+
+        const existingWallet = wallets.find(
+          (wallet) =>
+            String(wallet.name || '').trim().toLocaleLowerCase('id-ID') ===
+            parsedWallet.walletName.toLocaleLowerCase('id-ID')
+        )
+        if (existingWallet) {
+          setPendingAction(null)
+          return {
+            text: `Dompet **${existingWallet.name}** sudah ada. Saya tidak membuat duplikatnya.`,
+          }
+        }
+
+        const archivedWallet = archivedWallets.find(
+          (wallet) =>
+            String(wallet.name || '').trim().toLocaleLowerCase('id-ID') ===
+            parsedWallet.walletName.toLocaleLowerCase('id-ID')
+        )
+        if (archivedWallet) {
+          setPendingAction({
+            type: 'restore_wallet',
+            walletId: archivedWallet.id,
+            walletName: archivedWallet.name,
+          })
+          return {
+            text: `Dompet **${archivedWallet.name}** sudah ada tetapi sedang diarsipkan. Mau saya pulihkan?`,
+            intentStatus: 'needs_confirmation',
+            metadata: { confirmationMode: 'binary' },
+          }
+        }
+
+        const createResult = await addWallet(
+          parsedWallet.walletName,
+          0,
+          parsedWallet.walletType || 'cash'
+        )
+        if (createResult.error) {
+          throw createResult.error
+        }
+
+        setPendingAction(null)
+        await syncFinancialViews({
+          analytics: true,
+          names: true,
+        })
+        return {
+          text: `Dompet **${createResult.data.name}** berhasil dibuat tanpa saldo awal.`,
         }
       }
 
@@ -736,6 +811,7 @@ export default function AppShell() {
     },
     [
       addWallet,
+      archivedWallets,
       createGoalWithContribution,
       deleteWallet,
       executeIntent,
@@ -762,7 +838,12 @@ export default function AppShell() {
           ? payload.imagePreview || payload.image || null
           : null
 
-      if ((!text.trim() && !imageFile && !imagePreview) || sendInFlightRef.current || chatLoading) {
+      if (
+        (!text.trim() && !imageFile && !imagePreview) ||
+        sendInFlightRef.current ||
+        chatLoading ||
+        deterministicAssistant.loading
+      ) {
         return
       }
 
@@ -784,40 +865,48 @@ export default function AppShell() {
 
         let response
 
-        const deterministicResult = await deterministicAssistant.processMessage({
-          text: userMessageText,
-          sourceMessageId: messageRequestId,
-        })
-
-        if (deterministicResult.handled) {
-          response = deterministicResult.response
-        } else if (pendingAction) {
+        if (pendingAction) {
           response = await processPendingAction({ text: userMessageText })
         } else {
-          const { analyzeTransaction } = await loadLocalParser()
-          const analysis = await analyzeTransaction(
-            text,
-            imagePreview,
-            walletOptions,
-            goalOptions,
-            categoryOptions,
-            '',
-            {
-              categoryRules,
-              archivedWalletOptions,
-              financeDraft,
-              financialState: {
-                totalBalance,
-                budgets,
-              },
-            }
-          )
-
-          response = await executeIntent(analysis, {
-            source: 'chat',
-            rawText: userMessageText,
-            requestId: messageRequestId,
+          const deterministicResult = await deterministicAssistant.processMessage({
+            text: userMessageText,
+            sourceMessageId: messageRequestId,
           })
+
+          if (deterministicResult.handled) {
+            response = deterministicResult.response
+          } else {
+            const { analyzeTransaction } = await loadLocalParser()
+            const analysis = await analyzeTransaction(
+              text,
+              imagePreview,
+              walletOptions,
+              goalOptions,
+              categoryOptions,
+              '',
+              {
+                categoryRules,
+                walletRules,
+                archivedWalletOptions,
+                financeDraft,
+                financialState: {
+                  totalBalance,
+                  budgets,
+                },
+                recentAssistantReplies: messages
+                  .filter((message) => message?.sender === 'bot')
+                  .map((message) => message?.text || '')
+                  .filter(Boolean)
+                  .slice(-12),
+              }
+            )
+
+            response = await executeIntent(analysis, {
+              source: 'chat',
+              rawText: userMessageText,
+              requestId: messageRequestId,
+            })
+          }
         }
 
         await persistBotResponse(response)
@@ -838,12 +927,14 @@ export default function AppShell() {
     [
       categoryOptions,
       categoryRules,
+      walletRules,
       budgets,
       chatLoading,
       deterministicAssistant,
       executeIntent,
       financeDraft,
       goalOptions,
+      messages,
       pendingAction,
       persistBotResponse,
       processPendingAction,
@@ -1108,7 +1199,7 @@ export default function AppShell() {
                         },
                       ]
                 }
-                isTyping={isTyping || chatLoading}
+                isTyping={isTyping || chatLoading || deterministicAssistant.loading}
                 onSend={handleSend}
                 onNotify={showNotice}
                 formatRupiah={formatRupiah}

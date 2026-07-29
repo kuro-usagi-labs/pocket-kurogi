@@ -2,9 +2,10 @@ import { neon } from '@neondatabase/serverless'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 const MAX_BODY_BYTES = 65_536
+const MAX_PENDING_ACTION_TTL_MS = 30 * 60 * 1000
+const MAX_DIALOGUE_TTL_MS = 24 * 60 * 60 * 1000
 const PRODUCTION_ORIGINS = Object.freeze([
   'https://pocket.kurousagi.web.id',
-  'https://pocket-kurogi-olive.vercel.app',
 ])
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const PAYLOAD_HASH_PATTERN = /^[0-9a-f]{32}$/iu
@@ -16,6 +17,16 @@ const WRITE_OPERATIONS = new Set([
   'cancel_action',
   'remember',
 ])
+const MEMORY_KEYS = new Set([
+  'preferred_wallet',
+  'preferred_communication_style',
+  'salary_date',
+  'common_merchant_category',
+  'financial_priority',
+  'saving_goal_preference',
+  'frequent_transaction_description',
+])
+const MEMORY_SOURCES = new Set(['explicit', 'repeated', 'correction'])
 
 let jwksCache = null
 let jwksCacheUrl = null
@@ -261,7 +272,11 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
   }
   if (normalizedOperation === 'save_dialogue') {
     requirePlainObject(body.state, 'Dialogue state')
-    requireValidDate(body.expiresAt, 'Masa berlaku dialogue state')
+    requireFutureDateWithin(
+      body.expiresAt,
+      'Masa berlaku dialogue state',
+      MAX_DIALOGUE_TTL_MS
+    )
   }
   if (normalizedOperation === 'stage_action') {
     if (
@@ -281,7 +296,12 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
       throwRequestError('Jenis pending action tidak didukung.')
     }
     requirePlainObject(body.payload, 'Payload pending action')
-    requireValidDate(body.expiresAt, 'Masa berlaku pending action')
+    validateActionPayload(body.actionType, body.payload)
+    requireFutureDateWithin(
+      body.expiresAt,
+      'Masa berlaku pending action',
+      MAX_PENDING_ACTION_TTL_MS
+    )
   }
   if (['confirm_action', 'correct_action'].includes(normalizedOperation)) {
     requireUuid(body.actionId, 'Action ID')
@@ -297,9 +317,13 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
   }
   if (normalizedOperation === 'remember') {
     if (
-      typeof body.key !== 'string' ||
-      typeof body.source !== 'string' ||
-      !Number.isFinite(Number(body.confidence))
+      !MEMORY_KEYS.has(String(body.key || '')) ||
+      !MEMORY_SOURCES.has(String(body.source || '')) ||
+      !Number.isFinite(Number(body.confidence)) ||
+      Number(body.confidence) < 0 ||
+      Number(body.confidence) > 1 ||
+      body.value === null ||
+      body.value === undefined
     ) {
       throwRequestError('Memory assistant tidak valid.')
     }
@@ -343,9 +367,87 @@ function requireValidDate(value, label) {
   }
 }
 
+function requireFutureDateWithin(value, label, maximumTtlMs) {
+  requireValidDate(value, label)
+  const timestamp = new Date(value).getTime()
+  const now = Date.now()
+  if (timestamp <= now || timestamp > now + maximumTtlMs) {
+    throwRequestError(`${label} berada di luar rentang yang diizinkan.`)
+  }
+}
+
 function requireUuid(value, label) {
   if (!UUID_PATTERN.test(String(value || ''))) {
     throwRequestError(`${label} tidak valid.`)
+  }
+}
+
+function requirePositiveAmount(value, label) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 9_999_999_999_999.99) {
+    throwRequestError(`${label} tidak valid.`)
+  }
+}
+
+function validateActionPayload(actionType, payload) {
+  if (actionType === 'record_transactions') {
+    if (
+      !Array.isArray(payload.items) ||
+      payload.items.length === 0 ||
+      payload.items.length > 20
+    ) {
+      throwRequestError('Rincian transaksi harus berisi 1 sampai 20 item.')
+    }
+    for (const [index, item] of payload.items.entries()) {
+      requirePlainObject(item, `Transaksi ${index + 1}`)
+      requireUuid(item.walletId, `Dompet transaksi ${index + 1}`)
+      requirePositiveAmount(item.amount, `Nominal transaksi ${index + 1}`)
+      if (!['income', 'expense'].includes(item.transactionType)) {
+        throwRequestError(`Jenis transaksi ${index + 1} tidak valid.`)
+      }
+      if (item.categoryId) requireUuid(item.categoryId, `Kategori transaksi ${index + 1}`)
+    }
+    return
+  }
+
+  if (actionType === 'transfer_money') {
+    requireUuid(payload.sourceWalletId, 'Dompet sumber')
+    requireUuid(payload.destinationWalletId, 'Dompet tujuan')
+    if (payload.sourceWalletId === payload.destinationWalletId) {
+      throwRequestError('Dompet sumber dan tujuan harus berbeda.')
+    }
+    requirePositiveAmount(payload.amount, 'Nominal transfer')
+    return
+  }
+
+  if (actionType === 'upsert_budget') {
+    requireUuid(payload.categoryId, 'Kategori budget')
+    requirePositiveAmount(payload.amount, 'Nominal budget')
+    return
+  }
+
+  if (actionType === 'create_saving_goal') {
+    if (
+      typeof payload.description !== 'string' ||
+      payload.description.trim().length === 0 ||
+      payload.description.length > 120
+    ) {
+      throwRequestError('Nama target tabungan tidak valid.')
+    }
+    requirePositiveAmount(payload.amount, 'Nominal target tabungan')
+    if (payload.sourceWalletId) requireUuid(payload.sourceWalletId, 'Dompet sumber target')
+    if (payload.initialAmount !== null && payload.initialAmount !== undefined) {
+      const initialAmount = Number(payload.initialAmount)
+      if (!Number.isFinite(initialAmount) || initialAmount < 0) {
+        throwRequestError('Setoran awal target tabungan tidak valid.')
+      }
+    }
+    return
+  }
+
+  if (actionType === 'update_saving_goal') {
+    requireUuid(payload.goalId, 'Target tabungan')
+    requirePositiveAmount(payload.amount, 'Nominal target tabungan')
   }
 }
 

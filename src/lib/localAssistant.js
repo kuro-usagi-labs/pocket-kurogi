@@ -9,6 +9,7 @@ import {
   resolveOptionReference,
 } from './chatEntities'
 import { inferCategoryFromText, normalizeCategoryLookup } from './categoryCatalog'
+import { applyLearnedWalletRuleToAnalysis } from './chatLearning'
 import { getChatWriteCandidate, isChatWriteIntentType } from './chatWriteSafety'
 import { analyzeConversationalFinance, extractMoneyMentions } from './conversationalFinance'
 import {
@@ -16,17 +17,61 @@ import {
   normalizeIndonesianFinanceText,
 } from './indonesianFinanceLanguage'
 import { detectSmartFinanceQuery } from './smartFinance'
+import { extractWalletCreationDetails } from './assistant/walletCreationParser'
+import { selectFreshResponse } from './assistant/responseVariety'
 
 const LEDGER_AMOUNT_REQUIRED_REPLY =
-  'Saya perlu nominal yang jelas. Contoh: "Beli kopi 50k tunai".'
-const GENERIC_UNKNOWN_REPLY =
-  'Saya belum bisa memetakan permintaan itu ke aksi yang aman. Coba minta analisis keuangan, cek ringkasan, atau tulis transaksi dengan nominal yang jelas.'
-const HELP_REPLY = [
-  'Saya bisa bantu catat transaksi, transfer antar dompet, cek saldo, membaca arus kas, menghitung budget harian, memproyeksikan target, dan menemukan pengeluaran berulang.',
-  'Tulis natural saja, misalnya: “beli kopi 25rb dari BCA”, “budget harian saya berapa?”, atau “kapan target laptop tercapai kalau nabung 500rb per bulan?”.',
-].join('\n')
+  'Ceritakan jenis transaksi, nominal, dan dompetnya. Contoh: “beli kopi 50rb dari BCA” atau “gaji 5jt masuk BCA”.'
+const GENERIC_UNKNOWN_REPLIES = [
+  'Aku belum menangkap tujuanmu dengan pasti. Kamu bisa minta analisis keuangan atau cerita soal transaksi, saldo, dompet, budget, dan target tabungan.',
+  'Maksudmu belum cukup jelas buatku. Coba minta analisis keuangan atau ceritakan apa yang ingin dicek maupun dicatat.',
+  'Aku ingin memastikan dulu supaya tidak salah memahami. Kamu sedang ingin mencatat sesuatu atau meminta analisis keuangan?',
+]
+const HELP_REPLIES = [
+  [
+    'Aku bisa bantu catat transaksi, membuat dan mengelola dompet, transfer antar-dompet, mengecek saldo, membaca arus kas, menyusun budget, dan memantau target tabungan.',
+    'Ceritakan saja secara natural, misalnya: "buatkan dompet BCA", "beli kopi 25rb dari BCA", atau "budget harianku aman berapa?"',
+    'Aku juga bisa belajar istilahmu, misalnya: "ajari Kurogi bahwa ngopi berarti kategori Kopi".',
+  ].join('\n'),
+  [
+    'Kamu bisa menganggapku asisten keuangan pribadimu: catat transaksi, cek saldo, membuat dan mengelola dompet, susun budget, atau bahas target menabung.',
+    'Tidak perlu format kaku. Contohnya: "tadi makan 30rb pakai BCA, catat ya".',
+    'Untuk mengajariku kebiasaanmu, coba: "kalau aku bilang kantor, pakai dompet BCA".',
+  ].join('\n'),
+  [
+    'Aku bisa bantu catat transaksi sampai membuat dan mengelola dompet serta meringkas kondisi keuanganmu. Transfer, budget, dan target tabungan juga bisa dikelola lewat chat.',
+    'Mulai saja dari hal yang baru terjadi atau tanyakan apa yang paling ingin kamu ketahui.',
+    'Kamu juga dapat mengajariku kategori atau dompet untuk istilah tertentu, lalu menyuruhku melupakannya kapan saja.',
+  ].join('\n'),
+]
+const GREETING_REPLIES = [
+  'Halo! Ada transaksi yang mau dicatat, atau kamu ingin mengecek kondisi keuangan hari ini?',
+  'Hai! Aku siap membantu. Kamu mau mulai dari transaksi terbaru, saldo, atau rencana pengeluaran?',
+  'Halo, aku di sini. Ceritakan saja soal uangmu dengan bahasa sehari-hari, nanti kita rapikan bersama.',
+  'Hai! Mau mencatat sesuatu atau ngobrol dulu soal kondisi keuanganmu?',
+]
+const GRATITUDE_REPLIES = [
+  'Sama-sama. Kalau ada transaksi lain, tinggal ceritakan seperti biasa.',
+  'Dengan senang hati. Aku siap bantu kapan pun kamu ingin mencatat atau mengecek keuangan.',
+  'Sama-sama! Kita lanjut kapan saja kamu butuh.',
+]
+const ACKNOWLEDGMENT_REPLIES = [
+  'Siap. Kalau ada hal lain yang ingin dicatat atau dicek, langsung bilang saja.',
+  'Oke. Aku tetap di sini kalau kamu ingin lanjut.',
+  'Sip, kita lanjut kapan pun kamu siap.',
+]
+const IDENTITY_REPLIES = [
+  'Aku Kurogi, asisten keuangan pribadimu di aplikasi ini. Tugasku membantu memahami ceritamu, merapikan transaksi, dan memberi gambaran keuangan tanpa mengubah data kalau maksudmu belum jelas.',
+  'Aku Kurogi. Anggap saja aku teman pencatatan keuanganmu: bisa diajak ngobrol natural, tetapi tetap berhati-hati sebelum menjalankan aksi.',
+]
+const GETTING_STARTED_REPLIES = [
+  'Tidak perlu mulai dari semuanya sekaligus. Ceritakan satu hal dulu: saldo yang kamu punya sekarang atau transaksi terakhir yang kamu ingat.',
+  'Kita mulai dari yang paling mudah. Kamu bisa sebutkan dompet utama dan saldonya, atau ceritakan pengeluaran terakhirmu.',
+  'Aku bantu pelan-pelan. Mulai saja dengan kalimat seperti "saldo BCA saya 500rb" atau "tadi beli makan 20rb".',
+]
 const TRANSFER_INTENT_PATTERN = /\b(transfer|trf|tf|trasfer|tranfer|pindah|pindahin|geser|kirim|kirimkan|oper|mutasi|move)\b/i
-const ASSISTANT_HELP_PATTERN = /\b(bisa apa|bantu apa|fitur|cara pakai|cara gunakan|contoh perintah|command|help|panduan|instruksi)\b/i
+const ASSISTANT_HELP_PATTERN =
+  /\b(?:bisa\s+(?:apa|ngapain|melakukan apa)|bantu\s+apa|apa(?:\s+dong)?\s+yang\s+(?:kamu|kau|anda)?\s*bisa|kamu\s+bisa\s+apa|kemampuan|fitur|cara\s+(?:pakai|gunakan)|contoh\s+perintah|command|help|panduan|instruksi)\b/iu
 const GENERIC_WALLET_REFERENCE_PATTERN = /^(uang|saldo|cash|tunai|dompet|rekening|wallet|uang tunai)$/i
 
 /** Analyze text locally with deterministic rules and learned user preferences. */
@@ -77,11 +122,17 @@ export async function analyzeTransaction(
   })
 
   if (conversationalResult) {
-    return finalizeChatFinanceAnalysis({
+    const finalizedConversationalResult = finalizeChatFinanceAnalysis({
       text: text || '',
       result: conversationalResult,
       walletOptions,
       context: learningContext?.financeDraft || null,
+    })
+    return applyLearnedWalletRuleToAnalysis({
+      analysis: finalizedConversationalResult,
+      text: text || '',
+      wallets: walletOptions,
+      walletRules: learningContext?.walletRules || [],
     })
   }
 
@@ -90,7 +141,10 @@ export async function analyzeTransaction(
     walletOptions,
     goalOptions,
     archivedWalletOptions,
-    categoryOptions
+    categoryOptions,
+    {
+      recentAssistantMessages: learningContext?.recentAssistantReplies || [],
+    }
   )
 
   if (imageBase64 && !String(text || '').trim()) {
@@ -100,11 +154,17 @@ export async function analyzeTransaction(
     }
   }
 
-  return finalizeChatFinanceAnalysis({
+  const finalizedResult = finalizeChatFinanceAnalysis({
     text: text || '',
     result: localResult,
     walletOptions,
     context: learningContext?.financeDraft || null,
+  })
+  return applyLearnedWalletRuleToAnalysis({
+    analysis: finalizedResult,
+    text: text || '',
+    wallets: walletOptions,
+    walletRules: learningContext?.walletRules || [],
   })
 }
 
@@ -303,18 +363,35 @@ export function analyzeWithRegex(
   walletOptions,
   goalOptions = [],
   archivedWalletOptions = [],
-  categoryOptions = []
+  categoryOptions = [],
+  responseContext = {}
 ) {
   let normalizedText = normalizeIntentText(
     normalizeNumericText(normalizeIndonesianFinanceText(text))
   )
-  const helpQuery = detectAssistantHelpQuery(normalizedText)
+  const recentAssistantMessages = responseContext?.recentAssistantMessages || []
+  const teachingIntent = detectExplicitTeachingIntent({
+    text,
+    normalizedText,
+    walletOptions,
+    categoryOptions,
+  })
+  const helpQuery = detectAssistantHelpQuery(normalizedText, recentAssistantMessages)
+  const smallTalk = detectNaturalSmallTalk(normalizedText, recentAssistantMessages)
   const analyticsQuery = detectAnalyticsQuery(normalizedText)
   const adviceQuery = detectAdviceQuery(normalizedText)
   const smartFinanceQuery = detectSmartFinanceQuery(normalizedText, walletOptions, goalOptions)
 
+  if (teachingIntent) {
+    return teachingIntent
+  }
+
   if (helpQuery) {
     return helpQuery
+  }
+
+  if (smallTalk) {
+    return smallTalk
   }
 
   if (smartFinanceQuery) {
@@ -355,6 +432,11 @@ export function analyzeWithRegex(
     return walletTransfer
   }
 
+  const walletCreation = detectWalletCreationIntent(text, normalizedText)
+  if (walletCreation) {
+    return walletCreation
+  }
+
   const goalCreation = detectGoalCreationIntent(normalizedText, walletOptions)
   if (goalCreation) {
     return goalCreation
@@ -367,12 +449,21 @@ export function analyzeWithRegex(
   if (/^(halo|hai|hi|hey|pagi|siang|sore|malam)/.test(normalizedText) && !/\d/.test(normalizedText)) {
     return {
       type: 'greeting',
-      reply: 'Sistem aktif. Silakan instruksikan pencatatan pengeluaran atau pemasukan Anda hari ini.',
+      reply: selectFreshResponse(GREETING_REPLIES, {
+        recentMessages: recentAssistantMessages,
+        seed: normalizedText,
+      }),
     }
   }
 
-  if (/^(ya|iy|yes|ok|siap|betul|benar)$/i.test(normalizedText)) {
-    return { type: 'confirm' }
+  if (/^(ya|iya|iy|yes|ok(?:e+)?|sip|siap|baik|mantap|betul|benar)$/i.test(normalizedText)) {
+    return {
+      type: 'unknown',
+      reply: selectFreshResponse(ACKNOWLEDGMENT_REPLIES, {
+        recentMessages: recentAssistantMessages,
+        seed: normalizedText,
+      }),
+    }
   }
 
   if (/^(tidak|gak|no|batal|cancel|nggak)$/i.test(normalizedText)) {
@@ -540,43 +631,12 @@ export function analyzeWithRegex(
     return analyticsQuery
   }
 
-  if (/^(buat|bikin|tambah|create)\s+(dompet|rekening|wallet)/i.test(normalizedText)) {
-    const moneyMatch = matchMoney(normalizedText)
-    const initialBalance = moneyMatch ? parseMoneyMatch(moneyMatch) : 0
-
-    const nameMatch = text.match(
-      /(?:dompet|rekening|wallet)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:isi|saldo|dengan|sebesar)\s*|\s*$|\s+(?:rp\s*)?(?:\d+))/i
-    )
-
-    let name = ''
-    if (nameMatch?.[1]) {
-      name = nameMatch[1].replace(/^(isi|saldo|sebesar|rp|dengan)\s+/i, '').trim()
-      name = name.replace(/\s+\d.*/, '').trim()
-      name = name.charAt(0).toUpperCase() + name.slice(1)
-    }
-
-    if (!name || /^(baru|new)$/i.test(name)) {
-      return {
-        type: 'unknown',
-        reply: 'Nama dompet barunya apa? Contoh: "buat dompet BCA saldo 500rb".',
-      }
-    }
-
-    return {
-      type: 'create_wallet',
-      name,
-      initial_balance: initialBalance,
-      wallet_type: 'bank',
-      reply: `Siap, dompet ${name} akan segera dibuat dengan saldo awal.`,
-    }
-  }
-
   const amountMatch = matchMoney(normalizedText)
 
   if (!amountMatch) {
     return {
       type: 'unknown',
-      reply: buildUnknownReply(normalizedText),
+      reply: buildUnknownReply(normalizedText, recentAssistantMessages),
     }
   }
 
@@ -637,15 +697,211 @@ export function analyzeWithRegex(
   }
 }
 
-function detectAssistantHelpQuery(normalizedText) {
+function detectAssistantHelpQuery(normalizedText, recentAssistantMessages = []) {
   if (!normalizedText || !ASSISTANT_HELP_PATTERN.test(normalizedText)) {
     return null
   }
 
   return {
     type: 'unknown',
-    reply: HELP_REPLY,
+    reply: selectFreshResponse(HELP_REPLIES, {
+      recentMessages: recentAssistantMessages,
+      seed: normalizedText,
+    }),
   }
+}
+
+export function detectExplicitTeachingIntent({
+  text = '',
+  normalizedText = '',
+  walletOptions = [],
+  categoryOptions = [],
+} = {}) {
+  const forgetMatch = String(text).trim().match(
+    /^(?:lupakan(?:\s+(?:aturan|pelajaran|ingatan))?|hapus\s+(?:aturan|pelajaran|ingatan))(?:\s+(kategori|dompet|wallet))?(?:\s+(?:untuk|tentang|kata|istilah))?\s+["“]?(.+?)["”]?[.!]?$/iu
+  )
+  if (forgetMatch?.[2]) {
+    const keyword = cleanLearningKeyword(forgetMatch[2])
+    if (!keyword) return invalidLearningKeywordReply()
+    return {
+      type: 'forget_learning_rule',
+      keyword,
+      ruleType: /dompet|wallet/iu.test(forgetMatch[1] || '')
+        ? 'wallet'
+        : /kategori/iu.test(forgetMatch[1] || '')
+          ? 'category'
+          : 'all',
+    }
+  }
+
+  const categoryMatch = matchTeachingPair(text, [
+    /^(?:tolong\s+)?(?:ajari|ajarkan|ingat|ingatlah)(?:\s+(?:kamu|bot|kurogi))?(?:\s+bahwa)?\s+["“]?(.+?)["”]?\s+(?:itu\s+)?(?:artinya|berarti|masuk|sebagai)\s+kategori\s+["“]?(.+?)["”]?[.!]?$/iu,
+    /^(?:mulai sekarang\s+)?kalau\s+(?:aku|saya)\s+bilang\s+["“]?(.+?)["”]?\s*,?\s+(?:anggap|masukkan|masukin|kategorikan)(?:\s+itu)?(?:\s+sebagai|\s+ke|\s+masuk)?\s+kategori\s+["“]?(.+?)["”]?[.!]?$/iu,
+    /^(?:mulai sekarang\s+)?kalau\s+(?:aku|saya)\s+bilang\s+["“]?(.+?)["”]?\s*,?\s+(?:itu\s+)?(?:berarti|artinya|masuk)?\s*kategori(?:nya)?\s+["“]?(.+?)["”]?[.!]?$/iu,
+  ])
+  if (categoryMatch) {
+    return buildTeachingResult({
+      type: 'teach_category_rule',
+      keyword: categoryMatch.keyword,
+      targetName: categoryMatch.targetName,
+      options: categoryOptions,
+      targetLabel: 'kategori',
+      idKey: 'categoryId',
+    })
+  }
+
+  const walletMatch = matchTeachingPair(text, [
+    /^(?:tolong\s+)?(?:ajari|ajarkan|ingat|ingatlah)(?:\s+(?:kamu|bot|kurogi))?(?:\s+bahwa)?\s+["“]?(.+?)["”]?\s+(?:itu\s+)?(?:artinya|berarti|gunakan|pakai)\s+(?:dompet|wallet|rekening)\s+["“]?(.+?)["”]?[.!]?$/iu,
+    /^(?:mulai sekarang\s+)?kalau\s+(?:aku|saya)\s+bilang\s+["“]?(.+?)["”]?\s*,?\s+(?:pakai|gunakan)(?:\s+itu)?\s+(?:dompet|wallet|rekening)\s+["“]?(.+?)["”]?[.!]?$/iu,
+    /^(?:mulai sekarang\s+)?kalau\s+(?:aku|saya)\s+bilang\s+["“]?(.+?)["”]?\s*,?\s+(?:maksudnya|artinya|berarti)\s+(?:pakai\s+)?(?:dompet|wallet|rekening)\s+["“]?(.+?)["”]?[.!]?$/iu,
+  ])
+  if (walletMatch) {
+    return buildTeachingResult({
+      type: 'teach_wallet_rule',
+      keyword: walletMatch.keyword,
+      targetName: walletMatch.targetName,
+      options: walletOptions,
+      targetLabel: 'dompet',
+      idKey: 'walletId',
+    })
+  }
+
+  if (
+    /\b(?:jawab|balas|respons|jelaskan)\b.{0,24}\b(?:singkat|ringkas|to the point)\b/iu.test(
+      normalizedText
+    )
+  ) {
+    return {
+      type: 'unknown',
+      reply: 'Siap, aku akan menjawab lebih ringkas mulai sekarang.',
+    }
+  }
+  if (
+    /\b(?:jawab|balas|respons|jelaskan)\b.{0,24}\b(?:lebih detail|lengkap|terperinci)\b/iu.test(
+      normalizedText
+    )
+  ) {
+    return {
+      type: 'unknown',
+      reply: 'Baik, aku akan memberi penjelasan yang lebih lengkap mulai sekarang.',
+    }
+  }
+
+  return null
+}
+
+function matchTeachingPair(text, patterns) {
+  for (const pattern of patterns) {
+    const match = String(text || '').trim().match(pattern)
+    if (!match?.[1] || !match?.[2]) continue
+    const keyword = cleanLearningKeyword(match[1])
+    const targetName = cleanLearningTarget(match[2])
+    if (!keyword || !targetName) return { keyword: null, targetName: null }
+    return { keyword, targetName }
+  }
+  return null
+}
+
+function buildTeachingResult({
+  type,
+  keyword,
+  targetName,
+  options,
+  targetLabel,
+  idKey,
+}) {
+  if (!keyword || !targetName) return invalidLearningKeywordReply()
+  const resolution = resolveOptionReference({
+    input: targetName,
+    options,
+  })
+
+  if (resolution.match) {
+    return {
+      type,
+      keyword,
+      [idKey]: resolution.match.id,
+      targetName: resolution.match.name,
+    }
+  }
+
+  if (resolution.candidates.length > 0) {
+    return {
+      type: 'unknown',
+      reply: `Nama ${targetLabel}nya masih ambigu. Maksudmu ${formatCandidateNames(resolution.candidates)}?`,
+    }
+  }
+
+  return {
+    type: 'unknown',
+    reply: `Aku belum menemukan ${targetLabel} "${targetName}". Buat atau pilih ${targetLabel} yang sudah ada dulu agar aku tidak mempelajari aturan yang salah.`,
+  }
+}
+
+function cleanLearningKeyword(value = '') {
+  const keyword = normalizeEntityName(value)
+    .replace(/^(?:kata|istilah)\s+/iu, '')
+    .trim()
+  const blocked = /^(?:uang|saldo|transaksi|pengeluaran|pemasukan|dompet|wallet|rekening|kategori|catat|beli|bayar|masuk|keluar)$/iu
+  if (
+    keyword.length < 2 ||
+    keyword.length > 48 ||
+    keyword.split(/\s+/u).length > 6 ||
+    /\d/u.test(keyword) ||
+    blocked.test(keyword)
+  ) {
+    return null
+  }
+  return keyword
+}
+
+function cleanLearningTarget(value = '') {
+  return String(value || '')
+    .replace(/[.!?,]+$/u, '')
+    .replace(/^["“”']+|["“”']+$/gu, '')
+    .trim()
+}
+
+function invalidLearningKeywordReply() {
+  return {
+    type: 'unknown',
+    reply: 'Aku belum menyimpan aturan itu. Gunakan istilah khusus sepanjang 2–48 karakter tanpa nominal, misalnya "ngopi" atau "makan kantor".',
+  }
+}
+
+function detectNaturalSmallTalk(normalizedText, recentAssistantMessages = []) {
+  const responseOptions = {
+    recentMessages: recentAssistantMessages,
+    seed: normalizedText,
+  }
+
+  if (/^(?:makasih|terima kasih|thanks|thank you)(?:\s+(?:ya|yah|banget|banyak))?[.!]*$/iu.test(normalizedText)) {
+    return {
+      type: 'unknown',
+      reply: selectFreshResponse(GRATITUDE_REPLIES, responseOptions),
+    }
+  }
+
+  if (/\b(?:kamu siapa|siapa kamu|siapa namamu|nama kamu siapa|kenalan dong)\b/iu.test(normalizedText)) {
+    return {
+      type: 'unknown',
+      reply: selectFreshResponse(IDENTITY_REPLIES, responseOptions),
+    }
+  }
+
+  if (
+    /\b(?:bingung|tidak tahu|ga tahu|gak tahu|nggak tahu)\b.{0,24}\b(?:mulai|harus apa|ngapain)\b/iu.test(
+      normalizedText
+    ) ||
+    /\b(?:mulai dari mana|harus mulai dari apa)\b/iu.test(normalizedText)
+  ) {
+    return {
+      type: 'unknown',
+      reply: selectFreshResponse(GETTING_STARTED_REPLIES, responseOptions),
+    }
+  }
+
+  return null
 }
 
 function detectUndoIntent(normalizedText) {
@@ -963,6 +1219,35 @@ function detectGoalWithdrawalIntent(normalizedText, walletOptions = [], goalOpti
     destinationWalletId: destinationResolution.match.id,
     wallet: destinationResolution.match.name,
     reply: `Siap, saya akan memindahkan dana dari tabungan ${goalResolution.match.name} ke dompet ${destinationResolution.match.name}.`,
+  }
+}
+
+function detectWalletCreationIntent(text, normalizedText) {
+  const details = extractWalletCreationDetails(text)
+  if (!details.isCreationRequest) return null
+
+  if (!details.walletName) {
+    return {
+      type: 'needs_confirmation',
+      reason: 'missing_wallet_name',
+      action: 'create_wallet',
+      reply: 'Nama dompet barunya apa? Contoh: "tolong buat dompet bernama BCA".',
+      prompt: 'Nama dompet barunya apa? Jawab langsung, misalnya “BCA” atau “GoPay”.',
+    }
+  }
+
+  const moneyMatch = matchMoney(normalizedText)
+  const initialBalance = moneyMatch ? parseMoneyMatch(moneyMatch) : 0
+
+  return {
+    type: 'create_wallet',
+    name: details.walletName,
+    initial_balance: initialBalance,
+    wallet_type: details.walletType,
+    reply:
+      initialBalance > 0
+        ? `Siap, dompet ${details.walletName} akan dibuat dengan saldo awal ${initialBalance}.`
+        : `Siap, dompet ${details.walletName} akan dibuat tanpa saldo awal.`,
   }
 }
 
@@ -1641,13 +1926,27 @@ function detectAnalyticsPeriod(normalizedText) {
   return 'all_time'
 }
 
-function buildUnknownReply(normalizedText) {
+function buildUnknownReply(normalizedText, recentAssistantMessages = []) {
   if (!normalizedText) {
-    return GENERIC_UNKNOWN_REPLY
+    return selectFreshResponse(GENERIC_UNKNOWN_REPLIES, {
+      recentMessages: recentAssistantMessages,
+      seed: 'empty',
+    })
+  }
+
+  if (/\b(?:(?:di|men)?catat|simpan|rekam|input|masukkan|tambahkan)\b/iu.test(normalizedText)) {
+    const amountMatch = matchMoney(normalizedText)
+    if (amountMatch) {
+      return `Saya menangkap nominal ${amountMatch[0].trim()}, tetapi belum tahu transaksi itu untuk apa${/\b(?:dari|pakai|via|dompet|rekening)\b/iu.test(normalizedText) ? '' : ' dan memakai dompet mana'}. Contoh: “catat makan 20rb dari BCA”.`
+    }
+    return LEDGER_AMOUNT_REQUIRED_REPLY
   }
 
   if (/(bagaimana|gimana|kenapa|mengapa|apa|tolong|bisakah|bisa|boleh|analisa|analisis|sarankan|strategi|ringkas|ringkasan)/i.test(normalizedText)) {
-    return GENERIC_UNKNOWN_REPLY
+    return selectFreshResponse(GENERIC_UNKNOWN_REPLIES, {
+      recentMessages: recentAssistantMessages,
+      seed: normalizedText,
+    })
   }
 
   if (TRANSFER_INTENT_PATTERN.test(normalizedText)) {
@@ -1663,7 +1962,10 @@ function buildUnknownReply(normalizedText) {
   }
 
   if (/\?$/.test(normalizedText)) {
-    return GENERIC_UNKNOWN_REPLY
+    return selectFreshResponse(GENERIC_UNKNOWN_REPLIES, {
+      recentMessages: recentAssistantMessages,
+      seed: normalizedText,
+    })
   }
 
   return LEDGER_AMOUNT_REQUIRED_REPLY

@@ -59,7 +59,11 @@ export function useInputLearning() {
     categoryKeywords = [],
     walletKeywords = [],
   }) => {
-    if (!user || !rawText) {
+    const hasExplicitKeywords =
+      categoryKeywords.some((keyword) => String(keyword || '').trim()) ||
+      walletKeywords.some((keyword) => String(keyword || '').trim())
+
+    if (!user || (!String(rawText || '').trim() && !hasExplicitKeywords)) {
       return { data: null, error: null }
     }
 
@@ -78,11 +82,32 @@ export function useInputLearning() {
     return result
   }, [fetchRules, user])
 
+  const forgetRule = useCallback(async ({
+    keyword,
+    ruleType = 'all',
+  } = {}) => {
+    if (!user || !String(keyword || '').trim()) {
+      return { data: null, error: new Error('Kata yang ingin dilupakan wajib diisi.') }
+    }
+
+    const result = await neon.rpc('forget_chat_learning_rule', {
+      p_keyword: keyword,
+      p_rule_type: ruleType,
+    })
+
+    if (!result.error) {
+      fetchRules().catch(() => null)
+    }
+
+    return result
+  }, [fetchRules, user])
+
   return {
     categoryRules,
     walletRules,
     loading,
     learnFromInput,
+    forgetRule,
     refetch: fetchRules,
   }
 }

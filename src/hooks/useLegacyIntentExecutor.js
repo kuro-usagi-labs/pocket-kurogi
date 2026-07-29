@@ -23,6 +23,7 @@ export function useLegacyIntentExecutor(dependencies) {
     contributeToGoal,
     createGoalWithContribution,
     formatRupiah,
+    forgetRule,
     getSnapshot,
     goals,
     handleUpdateTransaction,
@@ -68,6 +69,60 @@ export function useLegacyIntentExecutor(dependencies) {
           text: 'Saya belum menjalankan aksi apa pun karena pemahaman pesan ini belum melewati pemeriksaan ambiguitas. Tulis ulang instruksi final dengan nominal, sumber, tujuan, dan aksi yang jelas.',
           intentStatus: 'needs_confirmation',
           metadata: { confirmationMode: 'input' },
+        }
+      }
+
+      if (analysis.type === 'teach_category_rule') {
+        const result = await learnFromInput({
+          rawText: '',
+          categoryId: analysis.categoryId,
+          categoryKeywords: [analysis.keyword],
+        })
+        if (result.error) throw result.error
+        return {
+          text: `Sudah kuingat: saat kamu menyebut **${analysis.keyword}**, aku akan memakai kategori **${analysis.targetName}**. Kamu bisa mengubahnya dengan mengajariku lagi.`,
+          metadata: {
+            learningUpdated: true,
+            learningType: 'category',
+            learningKeyword: analysis.keyword,
+          },
+        }
+      }
+
+      if (analysis.type === 'teach_wallet_rule') {
+        const result = await learnFromInput({
+          rawText: '',
+          walletId: analysis.walletId,
+          walletKeywords: [analysis.keyword],
+        })
+        if (result.error) throw result.error
+        return {
+          text: `Sudah kuingat: saat kamu menyebut **${analysis.keyword}**, aku akan memilih dompet **${analysis.targetName}** jika kamu tidak menyebut dompet lain.`,
+          metadata: {
+            learningUpdated: true,
+            learningType: 'wallet',
+            learningKeyword: analysis.keyword,
+          },
+        }
+      }
+
+      if (analysis.type === 'forget_learning_rule') {
+        const result = await forgetRule({
+          keyword: analysis.keyword,
+          ruleType: analysis.ruleType,
+        })
+        if (result.error) throw result.error
+        const deleted =
+          Number(result.data?.categoryRulesDeleted || 0) +
+          Number(result.data?.walletRulesDeleted || 0)
+        return {
+          text: deleted > 0
+            ? `Aturan untuk **${analysis.keyword}** sudah kulupakan.`
+            : `Aku tidak menemukan aturan tersimpan untuk **${analysis.keyword}**.`,
+          metadata: {
+            learningForgotten: deleted > 0,
+            learningKeyword: analysis.keyword,
+          },
         }
       }
 
@@ -642,6 +697,33 @@ export function useLegacyIntentExecutor(dependencies) {
       }
 
       if (analysis.type === 'create_wallet') {
+        const normalizedRequestedName = normalizeEntityName(analysis.name)
+        const existingWallet = walletCatalog.find(
+          (wallet) => normalizeEntityName(wallet.name) === normalizedRequestedName
+        )
+
+        if (existingWallet) {
+          return {
+            text: `Dompet **${existingWallet.name}** sudah ada dengan saldo **${formatRupiah(existingWallet.current_balance || 0)}**. Saya tidak membuat duplikatnya.`,
+          }
+        }
+
+        const archivedWallet = archivedWalletCatalog.find(
+          (wallet) => normalizeEntityName(wallet.name) === normalizedRequestedName
+        )
+        if (archivedWallet) {
+          setPendingAction({
+            type: 'restore_wallet',
+            walletId: archivedWallet.id,
+            walletName: archivedWallet.name,
+          })
+          return {
+            text: `Dompet **${archivedWallet.name}** sudah ada tetapi sedang diarsipkan. Mau saya pulihkan dompet itu?`,
+            intentStatus: 'needs_confirmation',
+            metadata: { confirmationMode: 'binary' },
+          }
+        }
+
         const walletResult = await addWallet(
           analysis.name,
           analysis.initial_balance || 0,
@@ -857,6 +939,10 @@ export function useLegacyIntentExecutor(dependencies) {
             walletName: analysis.walletName,
             intent: intentWithRawText,
           })
+        } else if (analysis.reason === 'missing_wallet_name' && analysis.action === 'create_wallet') {
+          setPendingAction({
+            type: 'create_wallet_name',
+          })
         } else if (intentWithRawText) {
           setPendingAction({
             type: 'resolve_intent',
@@ -873,6 +959,8 @@ export function useLegacyIntentExecutor(dependencies) {
             confirmationMode:
               analysis.reason === 'unknown_wallet' && analysis.action === 'create_wallet'
                 ? 'binary'
+                : analysis.reason === 'missing_wallet_name'
+                  ? 'input'
                 : analysis.candidates?.length
                   ? 'choice'
                   : 'input',
@@ -913,6 +1001,7 @@ export function useLegacyIntentExecutor(dependencies) {
       contributeToGoal,
       createGoalWithContribution,
       formatRupiah,
+      forgetRule,
       getSnapshot,
       goals,
       handleUpdateTransaction,

@@ -11,20 +11,24 @@ export function validateAssistantInterpretation({
 } = {}) {
   const errors = []
   const warnings = []
-  const mutationLike =
-    isMutatingAssistantIntent(intent) ||
+  const selectedMutation = isMutatingAssistantIntent(intent)
+  const ambiguousMutation =
+    intent === 'unknown' &&
     route?.alternatives?.some((candidate) =>
       isMutatingAssistantIntent(candidate.intent) && candidate.score >= 0.18
-    ) ||
+    )
+  const explicitMutationLanguage =
+    entities.amounts?.length > 0 &&
     (
-      entities.amounts?.length > 0 &&
-      (
-        entities.transactionTypes?.length > 0 ||
-        /\b(?:catat|simpan|transfer|buat|ubah|beli|bayar|terima|gaji|bonus)\b/iu.test(
-          entities.normalizedText || ''
-        )
+      entities.transactionTypes?.length > 0 ||
+      /\b(?:catat|simpan|rekam|input|masukkan|tambahkan|transfer|buat(?:kan)?|buatin|bikin(?:kan)?|bikinin|ubah|ganti|beli|bayar|terima|gaji|bonus)\b/iu.test(
+        entities.normalizedText || ''
       )
     )
+  const mutationLike =
+    selectedMutation ||
+    ambiguousMutation ||
+    explicitMutationLanguage
 
   if (entities.foreignCurrencies?.length) {
     errors.push(createIssue(

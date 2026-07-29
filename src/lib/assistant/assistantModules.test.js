@@ -5,6 +5,7 @@ import {
   upsertAssistantMemory,
 } from './assistantMemory'
 import { runAssistantEngine } from './assistantEngine'
+import { shouldHandleAssistantEngineResult } from './assistantChatBridge'
 import { createDialogueState } from './conversationContext'
 import { resolveDateEntities } from './dateResolver'
 import { detectEmotionalContext } from './emotionalContext'
@@ -59,6 +60,18 @@ describe('deterministic assistant modules', () => {
       expect.objectContaining({ value: 20_000 }),
     ])
     expect(extractMoneyEntities('iPhone 15 panjangnya 5 meter')).toEqual([])
+  })
+
+  it('understands colloquial bare thousands without treating item quantities as money', () => {
+    expect(extractMoneyEntities('beli kopi 20')).toEqual([
+      expect.objectContaining({
+        value: 20_000,
+        inferredUnit: 'ribu',
+      }),
+    ])
+    expect(extractMoneyEntities('beli 2 roti seharga 20rb')).toEqual([
+      expect.objectContaining({ value: 20_000 }),
+    ])
   })
 
   it('never interprets m as miliar', () => {
@@ -273,6 +286,34 @@ describe('deterministic assistant modules', () => {
     expect(result.details.join(' ')).toContain('tagihan wajib')
   })
 
+  it('turns database facts into conservative, actionable financial advice', () => {
+    const snapshot = buildFinancialInsightSnapshot({
+      transactions: [{
+        id: 'trx-1',
+        type: 'expense',
+        amount: 300_000,
+        category: 'Jajan',
+        occurredAt: now.toISOString(),
+      }],
+      budgets: [{
+        id: 'budget-1',
+        category: 'Jajan',
+        monthly_limit: 200_000,
+      }],
+      now,
+    })
+    const result = composeFinancialQueryResult({
+      intent: 'financial_advice',
+      snapshot,
+      wallets: [{ id: 'cash', name: 'Tunai', current_balance: 200_000 }],
+      now,
+    })
+
+    expect(result.text).toMatch(/hentikan sementara/iu)
+    expect(result.details.join(' ')).toMatch(/budget terlewati/iu)
+    expect(result.details.join(' ')).toMatch(/saldo aktif/iu)
+  })
+
   it('resolves a known goal and stages a reviewed target update', () => {
     const result = runAssistantEngine({
       text: 'Ubah target Dana Darurat jadi 7 juta',
@@ -409,9 +450,64 @@ describe('deterministic assistant modules', () => {
     }))
     expect(response.text).toContain('Konfirmasi')
   })
+
+  it('varies conversational wrappers while preserving financial facts', () => {
+    const first = composeAssistantResponse({
+      intent: 'record_expense',
+      confidence: 0.9,
+      slots: {
+        amount: 20_000,
+        description: 'Makan',
+        wallet: { id: 'wallet-bca', name: 'BCA' },
+      },
+      status: 'clarification',
+      clarification: { question: 'Dompet mana yang dipakai?' },
+    })
+    const second = composeAssistantResponse({
+      intent: 'record_expense',
+      confidence: 0.9,
+      slots: {
+        amount: 20_000,
+        description: 'Makan',
+        wallet: { id: 'wallet-bca', name: 'BCA' },
+      },
+      status: 'clarification',
+      clarification: { question: 'Dompet mana yang dipakai?' },
+      recentAssistantMessages: [first.text],
+    })
+
+    expect(second.components.acknowledgment)
+      .not.toBe(first.components.acknowledgment)
+    expect(second.text).toMatch(/Rp\s*20\.000/u)
+    expect(second.text).toContain('Makan')
+    expect(second.text).toContain('BCA')
+    expect(second.text).toContain('Dompet mana yang dipakai?')
+  })
 })
 
 describe('assistant engine multi-turn integration', () => {
+  it('uses chat history to avoid repeating the same response wrapper', () => {
+    const first = runAssistantEngine({
+      text: 'Tadi makan 20rb',
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+    const second = runAssistantEngine({
+      text: 'Tadi makan 20rb',
+      userId: 'user-1',
+      wallets,
+      categories,
+      messages: [{ sender: 'bot', text: first.response.text }],
+      now,
+    })
+
+    expect(second.response.components.acknowledgment)
+      .not.toBe(first.response.components.acknowledgment)
+    expect(second.response.text).toMatch(/Rp\s*20\.000/u)
+  })
+
   it('collects slots across turns and never mutates before confirmation', () => {
     const first = runAssistantEngine({
       text: 'Tadi makan 20rb',
@@ -481,6 +577,7 @@ describe('assistant engine multi-turn integration', () => {
 
   it.each([
     ['Besok mau beli sepatu 500rb', 'HYPOTHETICAL_OR_FUTURE'],
+    ['Tadi aku hampir beli sepatu 500rb', 'HYPOTHETICAL_OR_FUTURE'],
     ['Temanku beli sepatu 700rb', 'THIRD_PARTY_OWNERSHIP'],
     ['Gaji belum masuk 5 juta', 'NEGATED_ACTION'],
   ])('blocks unsafe mutation text: %s', (text, expectedCode) => {
@@ -507,6 +604,81 @@ describe('assistant engine multi-turn integration', () => {
     expect(result.route.intent).toBe('calculate_change')
     expect(result.dialogue.calculation.spentAmount).toBe(65_000)
     expect(result.pendingAction).toBeNull()
+  })
+
+  it('delegates change, tendered cash, runway, and incoming transfers to the contextual parser', () => {
+    for (const text of [
+      'Bayar 100rb kembali 35rb',
+      'Beli bensin 20 dan makan 10 pakai uang 50rb',
+      'Sisa uangku 200rb buat sebulan, gimana?',
+      'Ibu transfer 200rb ke aku',
+    ]) {
+      const result = runAssistantEngine({
+        text,
+        userId: 'user-1',
+        wallets,
+        categories,
+        now,
+      })
+      expect(
+        shouldHandleAssistantEngineResult(result),
+        `${text} should use the contextual parser`
+      ).toBe(false)
+    }
+  })
+
+  it('allows questions to read data but never stages permission questions as mutations', () => {
+    const balanceQuestion = runAssistantEngine({
+      text: 'Sisa uangku berapa?',
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+    expect(balanceQuestion.route.intent).toBe('query_balance')
+    expect(balanceQuestion.dialogue.status).toBe('query')
+    expect(balanceQuestion.safety.safe).toBe(true)
+
+    const budgetPermission = runAssistantEngine({
+      text: 'Bisakah buatkan budget makan 500rb?',
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+    expect(budgetPermission.pendingAction).toBeNull()
+    expect(budgetPermission.safety.errors.map((entry) => entry.code))
+      .toContain('QUESTION_NOT_ACTION')
+  })
+
+  it('treats an explicit wish to record as a current request, not a future plan', () => {
+    const result = runAssistantEngine({
+      text: 'Saya ingin catat makan 20rb dari BCA',
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+
+    expect(result.entities.hypothetical).toBe(false)
+    expect(result.route.intent).toBe('record_expense')
+    expect(result.dialogue.status).toBe('pending_confirmation')
+  })
+
+  it.each([
+    ['Tolong tambahkan budget makan 500rb', 'create_budget'],
+    ['Bikinin target laptop 10jt', 'create_saving_goal'],
+  ])('understands natural Indonesian creation morphology: %s', (text, intent) => {
+    const result = runAssistantEngine({
+      text,
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+
+    expect(result.route.intent).toBe(intent)
+    expect(result.dialogue.status).toBe('pending_confirmation')
   })
 
   it('corrects a pending single transaction before confirmation', () => {

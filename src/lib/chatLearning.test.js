@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveCategoryForMessage } from './chatLearning'
+import {
+  applyLearnedWalletRuleToAnalysis,
+  resolveCategoryForMessage,
+} from './chatLearning'
 
 const baseCategories = [
   { id: 'cat-makan', name: 'Makan', category_type: 'expense' },
@@ -74,5 +77,56 @@ describe('resolveCategoryForMessage', () => {
 
     expect(result.categoryName).toBe('Ngopi')
     expect(result.resolution).not.toBe('analysis_create')
+  })
+})
+
+describe('applyLearnedWalletRuleToAnalysis', () => {
+  const wallets = [
+    { id: 'wallet-bca', name: 'BCA', is_archived: false },
+    { id: 'wallet-cash', name: 'Tunai', is_archived: false },
+  ]
+  const walletRules = [{
+    keyword: 'kantor',
+    wallet_id: 'wallet-bca',
+    usage_count: 4,
+  }]
+
+  it('fills a missing wallet from an account-scoped learned keyword', () => {
+    const result = applyLearnedWalletRuleToAnalysis({
+      text: 'catat makan kantor 20rb',
+      wallets,
+      walletRules,
+      analysis: {
+        type: 'needs_confirmation',
+        reason: 'missing_wallet',
+        intent: {
+          type: 'transaction',
+          transactionType: 'expense',
+          amount: 20_000,
+          writeDecision: 'commit',
+        },
+      },
+    })
+
+    expect(result).toMatchObject({
+      type: 'transaction',
+      walletId: 'wallet-bca',
+      wallet: 'BCA',
+      writeDecision: 'commit',
+    })
+  })
+
+  it('never overrides an explicitly supplied wallet', () => {
+    const analysis = {
+      type: 'transaction',
+      walletId: 'wallet-cash',
+      wallet: 'Tunai',
+    }
+    expect(applyLearnedWalletRuleToAnalysis({
+      analysis,
+      text: 'makan kantor pakai Tunai',
+      wallets,
+      walletRules,
+    })).toBe(analysis)
   })
 })

@@ -105,6 +105,7 @@ export function runAssistantEngine({
     insight,
     status: dialogue.status,
     memory,
+    recentAssistantMessages: getRecentAssistantMessages(messages),
   })
 
   return {
@@ -123,6 +124,14 @@ export function runAssistantEngine({
     command: dialogue.command || null,
     insight,
   }
+}
+
+function getRecentAssistantMessages(messages = []) {
+  return messages
+    .filter((message) => message?.sender === 'bot' || message?.role === 'assistant')
+    .map((message) => message?.text || message?.content || '')
+    .filter(Boolean)
+    .slice(-12)
 }
 
 function resolveInsightFocus(text = '') {

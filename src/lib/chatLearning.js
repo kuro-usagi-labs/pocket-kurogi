@@ -284,6 +284,85 @@ export function resolveTransactionWithLearning({
   }
 }
 
+export function applyLearnedWalletRuleToAnalysis({
+  analysis,
+  text = '',
+  wallets = [],
+  walletRules = [],
+} = {}) {
+  if (!analysis || !walletRules.length) return analysis
+
+  const resolution = resolveWalletForMessage({
+    text,
+    wallets,
+    walletRules,
+    analysisWallet:
+      analysis.wallet ||
+      analysis.intent?.wallet ||
+      analysis.draft?.wallet ||
+      null,
+  })
+  if (resolution.resolution !== 'learned' || !resolution.wallet) return analysis
+
+  const wallet = resolution.wallet
+  const learning = {
+    source: 'learned_wallet_rule',
+    keyword: resolution.keyword,
+  }
+
+  if (analysis.type === 'transaction' && !analysis.walletId) {
+    return {
+      ...analysis,
+      walletId: wallet.id,
+      wallet: wallet.name,
+      learning,
+    }
+  }
+
+  if (
+    analysis.type === 'needs_confirmation' &&
+    analysis.reason === 'missing_wallet' &&
+    analysis.intent?.type === 'transaction'
+  ) {
+    return {
+      ...analysis.intent,
+      walletId: wallet.id,
+      wallet: wallet.name,
+      learning,
+    }
+  }
+
+  if (
+    (analysis.type === 'finance_calculation' || analysis.type === 'finance_draft') &&
+    analysis.draft
+  ) {
+    const items = (analysis.draft.items || []).map((item) =>
+      item.walletId
+        ? item
+        : { ...item, walletId: wallet.id, wallet: wallet.name }
+    )
+    const missingSlots = (analysis.draft.missingSlots || [])
+      .filter((slot) => slot !== 'wallet')
+    return {
+      ...analysis,
+      draft: {
+        ...analysis.draft,
+        walletId: analysis.draft.walletId || wallet.id,
+        wallet: analysis.draft.wallet || wallet.name,
+        items,
+        missingSlots,
+        status:
+          missingSlots.length === 0 && analysis.draft.status === 'needs_wallet'
+            ? 'proposed'
+            : analysis.draft.status,
+        learning,
+      },
+    }
+  }
+
+  return analysis
+}
+
 export function buildWalletClarificationReply({
   draft,
   wallets = [],

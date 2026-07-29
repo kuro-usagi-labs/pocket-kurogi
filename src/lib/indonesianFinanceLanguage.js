@@ -13,7 +13,7 @@ const NORMALIZATION_RULES = [
   [/\b(?:masing2)\b/giu, 'masing-masing'],
   [/\b(?:dicatetin|dicatatin|dicatet)\b/giu, 'dicatat'],
   [/\b(?:catet|catetin|catatin|catatkan|inputin|masukin|masukkin|rekamin|rekamkan)\b/giu, 'catat'],
-  [/\b(?:masukkan|tambahkan|inputkan|input)\b/giu, 'catat'],
+  [/\b(?:masukkan|inputkan|input)\b/giu, 'catat'],
   [/\b(?:pake|pke|pk)\b/giu, 'pakai'],
   [/\b(?:byr|bayr)\b/giu, 'bayar'],
   [/\b(?:dibyr|dibayr)\b/giu, 'dibayar'],
@@ -80,12 +80,14 @@ const CURRENCY_WORD_PATTERN = new RegExp(
 )
 
 const RECORD_PATTERN = /\b(?:(?:di|men)?catat|simpan|rekam|input|masukkan|tambahkan)\b/iu
+const CREATION_ACTION_SOURCE = '(?:buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambah(?:kan|in)?|buka(?:kan)?|create)'
+const NORMALIZED_CREATION_ACTION_SOURCE = `(?:${CREATION_ACTION_SOURCE}|catat)`
 const DIRECT_ACTION_PATTERN = new RegExp(
   [
     '^\\s*(?:(?:tolong|mohon|bantu)\\s+)?',
     '(?:',
     '(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|sisih(?:kan)?|tarik|ambil|cair(?:kan)?|keluarkan)',
-    '|(?:buat|bikin|tambah|create|hapus|buang|delete|hilangkan|ubah|ganti|rename|koreksi|revisi|batal(?:kan)?|undo|revert|pulihkan|restore|kembalikan|aktifkan\\s+kembali)',
+    `|(?:${CREATION_ACTION_SOURCE}|hapus|buang|delete|hilangkan|ubah|ganti|rename|koreksi|revisi|batal(?:kan)?|undo|revert|pulihkan|restore|kembalikan|aktifkan\\s+kembali)`,
     '|(?:(?:yang\\s+)?(?:tadi|terakhir|barusan)|transaksi\\s+terakhir|catatan\\s+terakhir|input\\s+terakhir)\\s+(?:harusnya|seharusnya|koreksi|revisi|ubah|ganti|jadi|pindah)',
     '|(?:[\\p{L}\\p{N}-]+\\s+){1,4}(?:tadi|barusan)\\s+(?:harusnya|seharusnya|koreksi|revisi|ubah|ganti|jadi|pindah)',
     '|(?:harusnya|seharusnya)\\s+(?:(?:yang\\s+)?(?:tadi|terakhir|barusan)|transaksi\\s+terakhir|catatan\\s+terakhir|input\\s+terakhir)',
@@ -514,22 +516,22 @@ function buildEvidence(normalizedText, mentions) {
     exclusionCues: collectMatches(normalizedText, /\b(?:kecuali|selain|tanpa)\b/iu, 'exclusion'),
     metaCues: collectMatches(
       normalizedText,
-      /\b(?:contoh(?: kalimat)?|sekadar contoh|sekedar ngetes|cuma contoh|cuma mengetes|simulasi|tutorial|demo|uji coba|menguji|mengetes|tes parser|test parser|format perintah|terjemahkan|apa artinya|artinya apa|maksud kalimat|harga(?:nya)?|biaya normal|biaya standar|tarif normal|nilai(?:nya|\s+\w+nya)?|(?:cara|bagaimana cara|gimana cara)\s+(?:catat|mencatat|transfer|pindah(?:kan|in)?|nabung|menabung|setor|tarik|buat|bikin|hapus|ubah|ganti|koreksi|batalkan|pulihkan))\b/iu,
+      /\b(?:contoh(?: kalimat)?|sekadar contoh|sekedar ngetes|cuma contoh|cuma mengetes|simulasi|tutorial|demo|uji coba|menguji|mengetes|tes parser|test parser|format perintah|terjemahkan|apa artinya|artinya apa|maksud kalimat|harga(?:nya)?|biaya normal|biaya standar|tarif normal|nilai(?:nya|\s+\w+nya)?|(?:cara|bagaimana cara|gimana cara)\s+(?:catat|mencatat|transfer|pindah(?:kan|in)?|nabung|menabung|setor|tarik|buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambah(?:kan|in)?|buka(?:kan)?|hapus|ubah|ganti|koreksi|batalkan|pulihkan))\b/iu,
       'meta'
     ),
     permissionQuestionCues: collectMatches(
       normalizedText,
-      /\b(?:bolehkah|bisakah|bisa tidak|dapatkah|apa(?:kah)?\s+bisa)\b|\b(?:bisa|boleh)\s+(?:tolong\s+)?(?:catat|simpan|rekam|transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|tarik|ambil|cair(?:kan)?|buat|bikin|hapus|ubah|ganti|koreksi|revisi|batal(?:kan)?|pulihkan|restore)\b|\b(?:untuk apa|buat apa|kenapa|mengapa|gimana|bagaimana)\b|\b(?:bisa|boleh)\s*[.!?]*$|\?\s*$/iu,
+      /\b(?:bolehkah|bisakah|bisa tidak|dapatkah|apa(?:kah)?\s+bisa)\b|\b(?:bisa|boleh)\s+(?:tolong\s+)?(?:catat|simpan|rekam|transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|tarik|ambil|cair(?:kan)?|buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambah(?:kan|in)?|buka(?:kan)?|hapus|ubah|ganti|koreksi|revisi|batal(?:kan)?|pulihkan|restore)\b|\b(?:untuk apa|buat apa|kenapa|mengapa|gimana|bagaimana)\b|\b(?:bisa|boleh)\s*[.!?]*$|\?\s*$/iu,
       'permission_question'
     ),
     alreadyRecordedCues: collectMatches(
       normalizedText,
-      /\b(?:sudah|telah|pernah|biasanya|selalu|rutin)\s+(?:(?:di|men)?catat|simpan|rekam|input)\b|\b(?:tadi|kemarin|barusan)\b[^.!?]{0,35}\b(?:saya|aku|gue|kami)\s+(?:men)?catat\b|\b(?:saya|aku|gue|kami)\s+(?:men)?catat\b|\b(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|tarik|ambil|cair(?:kan)?|buat|bikin|hapus|ubah|ganti|koreksi)\b[^.!?]{0,100}\b(?:tadi|kemarin|barusan|sudah dilakukan|telah dilakukan|sudah selesai|telah selesai|sudah berhasil|telah berhasil)\b/iu,
+      /\b(?:sudah|telah|pernah|biasanya|selalu|rutin)\s+(?:(?:di|men)?catat|simpan|rekam|input)\b|\b(?:tadi|kemarin|barusan)\b[^.!?]{0,35}\b(?:saya|aku|gue|kami)\s+(?:men)?catat\b|\b(?:saya|aku|gue|kami)\s+(?:men)?catat\b|\b(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|tarik|ambil|cair(?:kan)?|buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambah(?:kan|in)?|buka(?:kan)?|hapus|ubah|ganti|koreksi)\b[^.!?]{0,100}\b(?:tadi|kemarin|barusan|sudah dilakukan|telah dilakukan|sudah selesai|telah selesai|sudah berhasil|telah berhasil)\b/iu,
       'already_recorded'
     ),
     cancelCues: collectMatches(
       maskPositiveNegationIdioms(normalizedText),
-      /\b(?:batal|tidak jadi|tidak usah|tidak perlu|jangan)\s+(?:(?:di|men)?catat|simpan|rekam|transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|tarik|ambil|cair(?:kan)?|buat|bikin|hapus|ubah|ganti|koreksi|revisi|pulihkan|restore)\b|\b(?:tapi\s+)?jangan\s+(?:sekarang|dulu)\b|\bbelum\s+sekarang\b/iu,
+      /\b(?:batal|tidak jadi|tidak usah|tidak perlu|jangan)\s+(?:(?:di|men)?catat|simpan|rekam|transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|tarik|ambil|cair(?:kan)?|buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambah(?:kan|in)?|buka(?:kan)?|hapus|ubah|ganti|koreksi|revisi|pulihkan|restore)\b|\b(?:tapi\s+)?jangan\s+(?:sekarang|dulu)\b|\bbelum\s+sekarang\b/iu,
       'cancel'
     ),
     contextReferenceCues: collectContextReferenceCues(normalizedText),
@@ -582,7 +584,7 @@ function collectNonOccurrenceCues(text) {
     /\b(?:tidak jadi|batal)\s+(?:di)?(?:beli|bayar|belanja|jajan|terima|transfer)?\b/iu,
     /\b(?:harusnya|seharusnya|koreksi|revisi|ubah|ganti)\b[^.!?]{0,80}\b(?:bukan|tidak|jangan)\s+(?:rp\s*)?\d/iu,
     /\b(?:(?:yang\s+)?(?:tadi|terakhir|barusan)|transaksi terakhir|catatan terakhir|input terakhir)\b[^.!?]{0,80}\b(?:bukan|tidak|jangan)\s+(?:rp\s*)?\d/iu,
-    /\b(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|sisih(?:kan)?|tarik|ambil|cair(?:kan)?|keluarkan|buat|bikin|tambah|create|hapus|buang|delete|hilangkan|ubah|ganti|rename|koreksi|revisi|batal(?:kan)?|undo|revert|pulihkan|restore|kembalikan)\b[^.!?]{0,120}\b(?:bukan|tidak|jangan)\b/iu,
+    /\b(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|sisih(?:kan)?|tarik|ambil|cair(?:kan)?|keluarkan|buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambah(?:kan|in)?|buka(?:kan)?|create|hapus|buang|delete|hilangkan|ubah|ganti|rename|koreksi|revisi|batal(?:kan)?|undo|revert|pulihkan|restore|kembalikan)\b[^.!?]{0,120}\b(?:bukan|tidak|jangan)\b/iu,
     /\b(?:gaji|refund|pengembalian dana|transfer|pembayaran|tagihan)\b[^.!?]{0,60}\b(?:masih\s+)?(?:pending|diproses|dalam proses|tertunda|menunggu|belum cair|belum masuk|belum diterima)\b/iu,
     /\b(?:gratis|cuma lihat|hanya lihat|tidak pakai (?:uang|duit|dana)(?:ku|saya)?)\b/iu,
     /\bbukan\b[^.!?]{0,100}\b(?:tapi|melainkan)\b/iu,
@@ -633,8 +635,12 @@ function hasSharedAmountScope(text, mentions) {
 
 function hasMultipleActionArguments(text) {
   const coordinationPattern = '(?:\\b(?:dan|sama|serta|plus|beserta|sekaligus|lalu|kemudian)\\b|[&+])'
+  const creationActionPattern = new RegExp(
+    `^(?:(?:tolong|mohon|bantu)\\s+)?${NORMALIZED_CREATION_ACTION_SOURCE}\\s+(?:\\S+\\s+){0,3}?(?:dompet|rekening|wallet|target|goal|tabungan|milestone)\\b`,
+    'iu'
+  )
   if (
-    /^(?:(?:tolong|mohon|bantu)\s+)?(?:buat|bikin|tambah|create)\s+(?:dompet|rekening|wallet|target|goal|tabungan|milestone)\b/iu.test(text) &&
+    creationActionPattern.test(text) &&
     new RegExp(coordinationPattern, 'iu').test(text)
   ) {
     return true
@@ -653,14 +659,21 @@ function hasMultipleActionArguments(text) {
 function hasUnsupportedMultipleMutationAmounts(text, mentions) {
   if (!Array.isArray(mentions) || mentions.length <= 1) return false
 
-  return /^(?:(?:tolong|mohon|bantu)\s+)?(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|sisih(?:kan)?|tarik|ambil|cair(?:kan)?|keluarkan|buat|bikin|tambah|create|ubah|ganti|rename|koreksi|revisi)\b/iu.test(text) ||
+  return new RegExp(
+    `^(?:(?:tolong|mohon|bantu)\\s+)?(?:transfer|pindah(?:kan|in)?|geser|kirim(?:kan)?|tabung|nabung|setor|sisih(?:kan)?|tarik|ambil|cair(?:kan)?|keluarkan|${NORMALIZED_CREATION_ACTION_SOURCE}|ubah|ganti|rename|koreksi|revisi)\\b`,
+    'iu'
+  ).test(text) ||
     /^(?:[\p{L}\p{N}-]+\s+){0,4}(?:(?:yang\s+)?(?:tadi|terakhir|barusan)|transaksi terakhir|catatan terakhir|input terakhir)\b[^.!?]{0,50}\b(?:harusnya|seharusnya|koreksi|revisi|ubah|ganti|jadi|pindah)\b/iu.test(text)
 }
 
 function hasUnmodeledInitialFunding(text, mentions) {
+  const creationWithFundingPattern = new RegExp(
+    `^(?:(?:tolong|mohon|bantu)\\s+)?${NORMALIZED_CREATION_ACTION_SOURCE}\\s+(?:\\S+\\s+){0,3}?(?:dompet|rekening|wallet|target|goal|tabungan|milestone)\\b[^.!?]{0,140}\\b(?:dari|pakai|via)\\b`,
+    'iu'
+  )
   return Array.isArray(mentions) &&
     mentions.length > 0 &&
-    /^(?:(?:tolong|mohon|bantu)\s+)?(?:buat|bikin|tambah|create)\s+(?:dompet|rekening|wallet|target|goal|tabungan|milestone)\b[^.!?]{0,140}\b(?:dari|pakai|via)\b/iu.test(text)
+    creationWithFundingPattern.test(text)
 }
 
 function hasAmbiguousThirdPartyOwnership(text) {

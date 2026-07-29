@@ -8,6 +8,8 @@ const NON_MONEY_PRECEDING_PATTERN =
   /\b(?:tanggal|tgl|jam|pukul|iphone|galaxy|android|versi|seri|tipe|ukuran)\s*$/iu
 const NON_MONEY_FOLLOWING_PATTERN =
   /^\s*(?:meter|m\b|cm\b|mm\b|km\b|botol|buah|orang|kali|lembar|pcs|unit|kg\b|gram|liter|ml\b|hari|minggu|bulan|tahun|jam|menit|detik)\b/iu
+const QUANTITY_PRECEDING_PATTERN =
+  /\b(?:beli|pesan|ambil|butuh|mau|ingin)\s*$/iu
 
 export function extractMoneyEntities(text = '') {
   const normalized = normalizeIndonesianFinanceText(text)
@@ -28,13 +30,25 @@ export function extractMoneyEntities(text = '') {
       if (
         NON_MONEY_PRECEDING_PATTERN.test(before) ||
         NON_MONEY_FOLLOWING_PATTERN.test(after) ||
+        (
+          QUANTITY_PRECEDING_PATTERN.test(before) &&
+          /^\s*[\p{L}]/u.test(after)
+        ) ||
         !hasMoneyContext(normalized, start, end)
       ) {
         continue
       }
     }
 
-    const value = parseMoneyValue(match.groups?.number, unit)
+    const parsedValue = parseMoneyValue(match.groups?.number, unit)
+    const inferredUnit =
+      !explicitCurrency &&
+      !explicitUnit &&
+      parsedValue > 0 &&
+      parsedValue < 1_000
+        ? 'ribu'
+        : null
+    const value = inferredUnit === 'ribu' ? parsedValue * 1_000 : parsedValue
     if (!Number.isFinite(value) || value <= 0) continue
 
     entities.push({
@@ -46,11 +60,16 @@ export function extractMoneyEntities(text = '') {
       end,
       explicitCurrency,
       explicitUnit,
-      unit: unit || null,
-      confidence: explicitCurrency || explicitUnit ? 0.99 : 0.62,
+      unit: unit || inferredUnit,
+      inferredUnit,
+      confidence: explicitCurrency || explicitUnit ? 0.99 : 0.74,
       evidence: [
         explicitCurrency ? 'explicit_currency:rp' : null,
-        explicitUnit ? `money_unit:${unit}` : 'contextual_bare_amount',
+        explicitUnit
+          ? `money_unit:${unit}`
+          : inferredUnit
+            ? 'inferred_money_unit:ribu'
+            : 'contextual_bare_amount',
       ].filter(Boolean),
     })
   }

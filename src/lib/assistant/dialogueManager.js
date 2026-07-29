@@ -91,11 +91,13 @@ export function manageAssistantDialogue({
   }
 
   if (!safety.safe || route.ambiguous) {
-    const clarification = planClarification({
-      intentResult: route,
-      slotResult,
-      entities,
-    })
+    const clarification =
+      planSafetyClarification(safety.errors) ||
+      planClarification({
+        intentResult: route,
+        slotResult,
+        entities,
+      })
     return {
       status: 'blocked',
       clarification,
@@ -179,6 +181,40 @@ export function manageAssistantDialogue({
       collectedSlots: slotResult.slots,
       now,
     }),
+  }
+}
+
+function planSafetyClarification(errors = []) {
+  const issue = errors.find((entry) => [
+    'HYPOTHETICAL_OR_FUTURE',
+    'QUESTION_NOT_ACTION',
+    'NEGATED_ACTION',
+    'THIRD_PARTY_OWNERSHIP',
+    'FOREIGN_CURRENCY',
+    'SAME_TRANSFER_WALLET',
+  ].includes(entry.code))
+  if (!issue) return null
+
+  const question = {
+    HYPOTHETICAL_OR_FUTURE:
+      'Pesanmu masih terdengar seperti rencana atau transaksi yang belum terjadi. Setelah benar-benar terjadi, tulis kejadian final, nominal, dan dompetnya.',
+    QUESTION_NOT_ACTION:
+      'Saya membaca ini sebagai pertanyaan, jadi belum ada data yang diubah. Jika memang ingin mencatat, beri instruksi final seperti “catat pengeluaran kopi 20rb dari BCA”.',
+    NEGATED_ACTION:
+      'Ada kata penyangkalan atau pembatalan pada pesanmu, jadi saya tidak menjalankan perubahan apa pun.',
+    THIRD_PARTY_OWNERSHIP:
+      'Belum jelas apakah transaksi itu memakai uangmu atau uang orang lain. Jelaskan siapa pemilik uang dan siapa yang membayar.',
+    FOREIGN_CURRENCY:
+      'Perubahan data saat ini hanya aman untuk rupiah. Ubah nominalnya ke IDR terlebih dahulu.',
+    SAME_TRANSFER_WALLET:
+      'Dompet sumber dan tujuan transfer harus berbeda. Sebutkan dua dompet yang benar.',
+  }[issue.code]
+
+  return {
+    type: 'safety',
+    field: null,
+    question,
+    candidates: [],
   }
 }
 

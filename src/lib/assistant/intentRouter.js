@@ -17,11 +17,11 @@ const SIGNALS = Object.freeze({
   wallet: /\b(?:dompet|rekening|wallet)\b/iu,
   budget: /\b(?:budget|anggaran|jatah|batas)\b/iu,
   savingGoal: /\b(?:target|goal|tabungan|menabung|nabung)\b/iu,
-  create: /\b(?:buat|bikin|tambahkan|tambah|pasang)\b/iu,
-  update: /\b(?:ubah|ganti|update|naikkan|turunkan|revisi)\b/iu,
+  create: /\b(?:buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambahkan|tambah(?:kan|in)?|pasang)\b/iu,
+  update: /\b(?:ubah(?:kan|in)?|ganti(?:kan|in)?|update|naikkan|naikin|turunkan|turunin|revisi)\b/iu,
   advice: /\b(?:saran|strategi|rekomendasi|sebaiknya|menurutmu|aman|cukup|atur|hemat|prioritas)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
-  confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi)(?:\s+(?:catat|lanjut|saja|aja|sekarang))?$/iu,
+  confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
   cancel: /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu,
   greeting: /^(?:halo|hai|hi|pagi|siang|sore|malam|apa kabar)\b/iu,
   emotional: /\b(?:stres|stress|khawatir|cemas|takut|menyesal|nyesel|bingung|pusing|bangga|senang|semangat|panik|tertekan|boros banget|uang menipis|saldo tinggal|sisa uang)\b/iu,
@@ -142,10 +142,22 @@ function scoreMutations(scores, text, entities) {
   }
 
   if (SIGNALS.budget.test(text) && SIGNALS.create.test(text)) {
-    add(scores, 'create_budget', 0.64, 'create_budget')
+    add(scores, 'create_budget', 0.78, 'create_budget')
+    addConflict(
+      scores,
+      ['record_expense', 'record_income', 'record_multiple_transactions'],
+      'budget_creation_context',
+      0.32
+    )
   }
   if (SIGNALS.budget.test(text) && SIGNALS.update.test(text)) {
-    add(scores, 'update_budget', 0.64, 'update_budget')
+    add(scores, 'update_budget', 0.78, 'update_budget')
+    addConflict(
+      scores,
+      ['record_expense', 'record_income', 'record_multiple_transactions'],
+      'budget_update_context',
+      0.32
+    )
   }
   if (SIGNALS.savingGoal.test(text) && SIGNALS.create.test(text)) {
     add(scores, 'create_saving_goal', 0.66, 'create_saving_goal')

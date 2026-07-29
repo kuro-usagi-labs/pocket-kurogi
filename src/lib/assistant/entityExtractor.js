@@ -12,11 +12,16 @@ import {
   resolveWalletMentions,
 } from './walletResolver'
 
-const CONFIRMATION_PATTERN = /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi)(?:\s+(?:catat|lanjut|saja|aja|sekarang))?$/iu
+const CONFIRMATION_PATTERN =
+  /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|lanjut(?:kan)?|saja|aja|sekarang))?$/iu
 const CANCELLATION_PATTERN = /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu
-const HYPOTHETICAL_PATTERN = /\b(?:kalau|andaikan|misal(?:nya)?|seandainya|rencana|mau|ingin|pengen|akan|besok|nanti)\b/iu
-const QUESTION_PATTERN = /[?？]\s*$|\b(?:berapa|apakah|gimana|bagaimana|menurutmu|boleh|aman|cukup|kenapa|mengapa)\b/iu
+const HYPOTHETICAL_PATTERN =
+  /\b(?:kalau|andaikan|misal(?:nya)?|seandainya|rencana|berencana|akan|besok|lusa|nanti|hampir|nyaris)\b|\b(?:mau|ingin|pengen|pingin)\b(?!\s+(?:tolong\s+)?(?:catat|simpan|rekam|input|masukkan|tambahkan|buat(?:kan)?|bikin(?:kan)?|transfer|ubah|ganti)\b)/iu
+const QUESTION_PATTERN =
+  /[?？]\s*$|\b(?:berapa|apakah|gimana|bagaimana|menurutmu|boleh(?:kah)?|bisa(?:kah)?|dapatkah|aman|cukup|kenapa|mengapa)\b/iu
 const THIRD_PARTY_PATTERN = /\b(?:teman|temen|istri|suami|adik|kakak|ibu|ayah|mama|papa|pacar|anak|saudara|rekan|dia|mereka|bos)(?:ku|nya)?\b/iu
+const CLEAR_INCOMING_THIRD_PARTY_PATTERN =
+  /\b(?:teman|temen|istri|suami|adik|kakak|ibu|ayah|mama|papa|pacar|anak|saudara|rekan|dia|mereka|bos)(?:ku|nya)?\b.{0,45}\b(?:transfer|kirim(?:kan)?|kasih|beri)\b.{0,35}\b(?:ke|kepada|buat)\s+(?:saya|aku|gue|gw)\b/iu
 const NEGATION_PATTERN = /\b(?:tidak|bukan|belum|jangan|tanpa|gagal)\b/iu
 const INCOME_PATTERN = /\b(?:gaji|bonus|pendapatan|pemasukan|terima|menerima|dapat|masuk|cashback|refund|komisi)\b/iu
 const EXPENSE_PATTERN = /\b(?:beli|bayar|belanja|jajan|makan|minum|pengeluaran|habis|keluar)\b/iu
@@ -80,7 +85,9 @@ export function extractAssistantEntities({
     cancellation: CANCELLATION_PATTERN.test(normalizedText),
     hypothetical: HYPOTHETICAL_PATTERN.test(normalizedText),
     question: QUESTION_PATTERN.test(normalizedText),
-    thirdParty: THIRD_PARTY_PATTERN.test(normalizedText),
+    thirdParty:
+      THIRD_PARTY_PATTERN.test(normalizedText) &&
+      !CLEAR_INCOMING_THIRD_PARTY_PATTERN.test(normalizedText),
     negated: NEGATION_PATTERN.test(normalizedText),
   }
 }

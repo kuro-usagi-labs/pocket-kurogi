@@ -1,15 +1,113 @@
 import { formatRupiah } from './formatters'
+import { selectFreshResponse } from './responseVariety'
 
 const ACKNOWLEDGMENTS = Object.freeze({
-  record_expense: ['Aku menangkap pengeluaran berikut.', 'Rincian pengeluarannya sudah terbaca.'],
-  record_income: ['Aku menangkap pemasukan berikut.', 'Rincian pemasukannya sudah terbaca.'],
-  record_multiple_transactions: ['Aku menangkap beberapa transaksi.', 'Rincian transaksi jamaknya sudah terbaca.'],
-  transfer_money: ['Aku menangkap perpindahan antar-dompet.', 'Rincian transfernya sudah terbaca.'],
-  create_budget: ['Rencana budgetnya sudah terbaca.'],
-  update_budget: ['Perubahan budgetnya sudah terbaca.'],
-  create_saving_goal: ['Target tabungannya sudah terbaca.'],
-  update_saving_goal: ['Perubahan targetnya sudah terbaca.'],
+  record_expense: [
+    'Oke, pengeluarannya sudah aku pahami.',
+    'Sip, rincian uang keluarnya sudah terbaca.',
+    'Baik, aku sudah menangkap transaksi pengeluaran ini.',
+    'Siap, pengeluaran ini sudah aku rangkum.',
+  ],
+  record_income: [
+    'Oke, pemasukannya sudah aku pahami.',
+    'Sip, rincian uang masuknya sudah terbaca.',
+    'Baik, aku sudah menangkap transaksi pemasukan ini.',
+    'Siap, pemasukan ini sudah aku rangkum.',
+  ],
+  record_multiple_transactions: [
+    'Oke, aku menangkap beberapa transaksi sekaligus.',
+    'Sip, semua rincian transaksinya sudah terbaca.',
+    'Baik, aku sudah memisahkan transaksi-transaksi tadi.',
+    'Siap, beberapa transaksi itu sudah aku rangkum.',
+  ],
+  transfer_money: [
+    'Oke, perpindahan antar-dompetnya sudah aku pahami.',
+    'Sip, rincian transfernya sudah terbaca.',
+    'Baik, aku sudah menangkap dompet asal dan tujuannya.',
+    'Siap, transfer antar-dompet ini sudah aku rangkum.',
+  ],
+  create_budget: [
+    'Oke, rencana budgetnya sudah aku pahami.',
+    'Sip, batas pengeluarannya sudah terbaca.',
+    'Baik, aku sudah merangkum budget yang kamu inginkan.',
+  ],
+  update_budget: [
+    'Oke, perubahan budgetnya sudah aku pahami.',
+    'Sip, penyesuaian anggarannya sudah terbaca.',
+    'Baik, aku sudah merangkum perubahan budget ini.',
+  ],
+  create_saving_goal: [
+    'Oke, target tabungannya sudah aku pahami.',
+    'Sip, tujuan menabungmu sudah terbaca.',
+    'Baik, aku sudah merangkum target tabungan ini.',
+  ],
+  update_saving_goal: [
+    'Oke, perubahan targetnya sudah aku pahami.',
+    'Sip, penyesuaian target tabungannya sudah terbaca.',
+    'Baik, aku sudah merangkum perubahan target ini.',
+  ],
+  query_balance: [
+    'Ini posisi saldomu berdasarkan data terbaru.',
+    'Aku sudah mengecek saldo yang tercatat.',
+    'Berikut kondisi saldo yang bisa kulihat sekarang.',
+  ],
+  query_transactions: [
+    'Aku sudah menelusuri transaksi yang tercatat.',
+    'Ini ringkasan transaksi yang kutemukan.',
+    'Berikut catatan transaksi terbarumu.',
+  ],
+  query_income: [
+    'Aku sudah merangkum uang masukmu.',
+    'Ini gambaran pemasukan dari data yang tercatat.',
+    'Berikut hasil pengecekan pemasukannya.',
+  ],
+  query_expenses: [
+    'Aku sudah merangkum uang keluarmu.',
+    'Ini gambaran pengeluaran dari data yang tercatat.',
+    'Berikut hasil pengecekan pengeluarannya.',
+  ],
+  query_spending_summary: [
+    'Aku sudah melihat pola pengeluaranmu.',
+    'Ini ringkasan uang keluar yang tercatat.',
+    'Berikut gambaran belanjamu untuk periode tersebut.',
+  ],
+  query_category_summary: [
+    'Aku sudah mengelompokkan transaksinya per kategori.',
+    'Ini kategori yang terlihat dari catatanmu.',
+    'Berikut ringkasan kategorinya.',
+  ],
+  query_wallet: [
+    'Aku sudah mengecek dompet yang kamu maksud.',
+    'Ini kondisi dompet tersebut berdasarkan data terbaru.',
+    'Berikut rincian dompet yang tercatat.',
+  ],
+  query_budget: [
+    'Aku sudah membandingkan budget dan pemakaiannya.',
+    'Ini kondisi anggaranmu berdasarkan catatan terbaru.',
+    'Berikut hasil pengecekan budgetnya.',
+  ],
+  query_saving_goal: [
+    'Aku sudah melihat perkembangan target tabunganmu.',
+    'Ini progres menabung yang tercatat.',
+    'Berikut kondisi target tabunganmu sekarang.',
+  ],
+  financial_advice: [
+    'Aku sudah melihat angkanya. Ini langkah yang paling masuk akal.',
+    'Dari kondisi yang tercatat, aku menyarankan pendekatan berikut.',
+    'Mari kita buat prioritasnya realistis berdasarkan datamu.',
+  ],
+  emotional_support: [
+    'Aku dengar kekhawatiranmu. Kita lihat situasinya dengan kepala dingin.',
+    'Kita urutkan kondisinya pelan-pelan supaya terasa lebih terkendali.',
+    'Aku temani melihat angka yang ada dan menentukan langkah terdekat.',
+  ],
 })
+
+const CONFIRMATION_PROMPTS = [
+  'Periksa ringkasannya, lalu pilih Konfirmasi, Ubah, atau Batal.',
+  'Cek dulu detailnya. Kalau sudah tepat, pilih Konfirmasi; kamu juga bisa Ubah atau Batal.',
+  'Pastikan rinciannya sesuai sebelum memilih Konfirmasi. Opsi Ubah dan Batal tetap tersedia.',
+]
 
 export function composeAssistantResponse({
   intent,
@@ -21,20 +119,35 @@ export function composeAssistantResponse({
   insight = null,
   status = 'ready',
   memory = [],
+  recentAssistantMessages = [],
 } = {}) {
   const style = resolveCommunicationStyle(memory)
+  const seed = `${intent}:${slots.amount || slots.items?.length || 0}:${status}`
   const components = {
-    acknowledgment: selectAcknowledgment(intent, slots),
-    empathy: composeEmpathy(emotion, status),
+    acknowledgment: selectAcknowledgment(intent, recentAssistantMessages, seed),
+    empathy: composeEmpathy(emotion, status, recentAssistantMessages, seed),
     interpretation: composeInterpretation(intent, slots),
     details: composeDetails(intent, slots),
     insight: insight?.text || null,
-    warning: composeWarning({ confidence, status }),
+    warning: composeWarning({
+      confidence,
+      status,
+      recentAssistantMessages,
+      seed,
+    }),
     clarification: clarification?.question || null,
     confirmation: pendingAction
-      ? 'Periksa ringkasannya, lalu pilih Konfirmasi, Ubah, atau Batal.'
+      ? selectFreshResponse(CONFIRMATION_PROMPTS, {
+          recentMessages: recentAssistantMessages,
+          seed: `${seed}:confirmation`,
+        })
       : null,
-    nextSuggestion: composeNextSuggestion(intent, status),
+    nextSuggestion: composeNextSuggestion(
+      intent,
+      status,
+      recentAssistantMessages,
+      seed
+    ),
   }
 
   return {
@@ -69,25 +182,58 @@ export function joinResponseComponents(components, style = 'balanced') {
   return [...primary, ...secondary].join('\n\n')
 }
 
-function selectAcknowledgment(intent, slots) {
+function selectAcknowledgment(intent, recentAssistantMessages, seed) {
   const variants = ACKNOWLEDGMENTS[intent]
   if (!variants?.length) return null
-  const selector = stableSelector(`${intent}:${slots.amount || slots.items?.length || 0}`)
-  return variants[selector % variants.length]
+  return selectFreshResponse(variants, {
+    recentMessages: recentAssistantMessages,
+    seed: `${seed}:acknowledgment`,
+  })
 }
 
-function composeEmpathy(emotionalContext, status) {
+function composeEmpathy(emotionalContext, status, recentAssistantMessages, seed) {
   if (status === 'clarification' && emotionalContext.emotion === 'confused') {
-    return 'Tidak apa-apa, kita rapikan satu informasi dulu.'
+    return selectFreshResponse([
+      'Tidak apa-apa, kita rapikan satu informasi dulu.',
+      'Santai, kita lengkapi satu bagian dulu supaya hasilnya tepat.',
+      'Aku bantu urutkan. Kita mulai dari detail yang masih kurang.',
+    ], {
+      recentMessages: recentAssistantMessages,
+      seed: `${seed}:confused`,
+    })
   }
-  return {
-    worried: 'Kondisinya memang perlu dijaga dengan hati-hati.',
-    stressed: 'Aku paham ini terasa menekan; kita fokus ke angka yang bisa dikendalikan.',
-    regretful: 'Yang penting sekarang datanya dirapikan supaya langkah berikutnya lebih jelas.',
-    proud: 'Bagus, progresnya layak dipertahankan.',
-    motivated: 'Momentum ini bagus untuk dijadikan kebiasaan.',
-    urgent: 'Kita prioritaskan kebutuhan paling mendesak terlebih dahulu.',
-  }[emotionalContext.emotion] || null
+  const variants = {
+    worried: [
+      'Kondisinya memang perlu dijaga dengan hati-hati.',
+      'Aku paham kamu ingin memastikan uangnya tetap aman.',
+    ],
+    stressed: [
+      'Aku paham ini terasa menekan; kita fokus ke angka yang bisa dikendalikan.',
+      'Tarik napas dulu. Kita urutkan angkanya pelan-pelan.',
+    ],
+    regretful: [
+      'Yang penting sekarang datanya dirapikan supaya langkah berikutnya lebih jelas.',
+      'Tidak apa-apa, kita jadikan ini bahan untuk keputusan yang lebih baik berikutnya.',
+    ],
+    proud: [
+      'Bagus, progresnya layak dipertahankan.',
+      'Kerja bagus—kebiasaan seperti ini membantu keuangan tetap terarah.',
+    ],
+    motivated: [
+      'Momentum ini bagus untuk dijadikan kebiasaan.',
+      'Semangatnya sudah tepat; kita buat langkahnya tetap realistis.',
+    ],
+    urgent: [
+      'Kita prioritaskan kebutuhan paling mendesak terlebih dahulu.',
+      'Kita fokus dulu pada kebutuhan wajib dan ruang aman untuk beberapa hari ke depan.',
+    ],
+  }[emotionalContext.emotion]
+  return variants
+    ? selectFreshResponse(variants, {
+        recentMessages: recentAssistantMessages,
+        seed: `${seed}:empathy`,
+      })
+    : null
 }
 
 function composeInterpretation(intent, slots) {
@@ -121,17 +267,51 @@ function composeDetails(intent, slots) {
   )
 }
 
-function composeWarning({ confidence, status }) {
-  if (status === 'blocked') return 'Belum ada data finansial yang diubah.'
+function composeWarning({ confidence, status, recentAssistantMessages, seed }) {
+  if (status === 'blocked') {
+    return selectFreshResponse([
+      'Belum ada data keuangan yang aku ubah.',
+      'Tenang, belum ada perubahan yang dijalankan.',
+      'Data keuanganmu masih tetap; belum ada aksi yang dieksekusi.',
+    ], {
+      recentMessages: recentAssistantMessages,
+      seed: `${seed}:blocked`,
+    })
+  }
   if (confidence > 0 && confidence < 0.62) {
-    return 'Pemahamannya masih berkeyakinan rendah, jadi aku tidak akan menebak.'
+    return selectFreshResponse([
+      'Aku belum cukup yakin dengan maksudnya, jadi aku tidak akan menebak.',
+      'Pesannya masih bisa ditafsirkan berbeda. Aku pilih memastikan dulu.',
+      'Supaya catatanmu tetap akurat, aku perlu satu detail tambahan.',
+    ], {
+      recentMessages: recentAssistantMessages,
+      seed: `${seed}:low-confidence`,
+    })
   }
   return null
 }
 
-function composeNextSuggestion(intent, status) {
-  if (status === 'clarification') return 'Jawab hanya informasi yang ditanyakan; detail lain yang sudah ada tetap tersimpan.'
-  if (intent === 'calculate_change') return 'Jika ingin dicatat, sebutkan keterangan dan dompetnya.'
+function composeNextSuggestion(intent, status, recentAssistantMessages, seed) {
+  if (status === 'clarification') {
+    return selectFreshResponse([
+      'Cukup jawab bagian yang kutanyakan; detail sebelumnya tetap aku ingat.',
+      'Kamu hanya perlu melengkapi informasi yang kurang, tidak perlu mengulang semuanya.',
+      'Jawab singkat saja untuk bagian yang belum lengkap; konteks sebelumnya tetap tersimpan.',
+    ], {
+      recentMessages: recentAssistantMessages,
+      seed: `${seed}:clarification`,
+    })
+  }
+  if (intent === 'calculate_change') {
+    return selectFreshResponse([
+      'Kalau mau dicatat, beri tahu keterangannya dan dompet yang dipakai.',
+      'Mau sekalian masuk pengeluaran? Sebutkan nama belanja dan dompetnya.',
+      'Aku bisa lanjut menyiapkan catatannya setelah kamu menyebutkan keterangan dan dompet.',
+    ], {
+      recentMessages: recentAssistantMessages,
+      seed: `${seed}:change`,
+    })
+  }
   return null
 }
 
@@ -188,8 +368,4 @@ function resolveCommunicationStyle(memory) {
 
 function sumItemAmounts(items = []) {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
-}
-
-function stableSelector(value) {
-  return Array.from(String(value)).reduce((sum, character) => sum + character.codePointAt(0), 0)
 }

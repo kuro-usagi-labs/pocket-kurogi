@@ -22,6 +22,177 @@ const categoryOptions = buildCategoryOptions([
 ])
 
 describe('analyzeWithRegex', () => {
+  it('responds naturally to small talk without falling back to a ledger error', () => {
+    expect(analyzeWithRegex('makasih ya', walletOptions, goalOptions)).toEqual(
+      expect.objectContaining({
+        type: 'unknown',
+        reply: expect.stringMatching(/sama-sama|senang hati/iu),
+      })
+    )
+    expect(analyzeWithRegex('kamu siapa?', walletOptions, goalOptions).reply)
+      .toContain('Kurogi')
+    expect(analyzeWithRegex(
+      'aku bingung mulai dari mana',
+      walletOptions,
+      goalOptions
+    ).reply).toMatch(/mulai|satu hal|pelan-pelan/iu)
+  })
+
+  it('does not repeat the same greeting or help response when recent replies are supplied', () => {
+    const firstGreeting = analyzeWithRegex(
+      'halo',
+      walletOptions,
+      goalOptions
+    )
+    const secondGreeting = analyzeWithRegex(
+      'halo',
+      walletOptions,
+      goalOptions,
+      [],
+      [],
+      { recentAssistantMessages: [firstGreeting.reply] }
+    )
+    const firstHelp = analyzeWithRegex(
+      'kamu bisa ngapain?',
+      walletOptions,
+      goalOptions
+    )
+    const secondHelp = analyzeWithRegex(
+      'kamu bisa ngapain?',
+      walletOptions,
+      goalOptions,
+      [],
+      [],
+      { recentAssistantMessages: [firstHelp.reply] }
+    )
+
+    expect(secondGreeting.reply).not.toBe(firstGreeting.reply)
+    expect(secondHelp.reply).not.toBe(firstHelp.reply)
+  })
+
+  it('treats a standalone acknowledgment as conversation when no action is pending', () => {
+    const result = analyzeWithRegex('oke', walletOptions, goalOptions)
+
+    expect(result).toEqual(expect.objectContaining({
+      type: 'unknown',
+      reply: expect.stringMatching(/lanjut|siap|di sini/iu),
+    }))
+  })
+
+  it('accepts explicit user teaching for categories and wallets', () => {
+    const categoryLesson = analyzeWithRegex(
+      'ajari Kurogi bahwa ngopi berarti kategori Kopi',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )
+    const walletLesson = analyzeWithRegex(
+      'kalau aku bilang kantor, pakai dompet BCA',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )
+
+    expect(categoryLesson).toEqual({
+      type: 'teach_category_rule',
+      keyword: 'ngopi',
+      categoryId: 'cat-kopi',
+      targetName: 'Kopi',
+    })
+    expect(walletLesson).toEqual({
+      type: 'teach_wallet_rule',
+      keyword: 'kantor',
+      walletId: 'wallet-bca',
+      targetName: 'BCA',
+    })
+  })
+
+  it('rejects lessons whose target does not exist or whose keyword is unsafe', () => {
+    const missingTarget = analyzeWithRegex(
+      'ajari bot bahwa ngemil berarti kategori Rahasia',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )
+    const unsafeKeyword = analyzeWithRegex(
+      'ajari bot bahwa transaksi berarti kategori Kopi',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )
+
+    expect(missingTarget.reply).toContain('belum menemukan kategori')
+    expect(unsafeKeyword.reply).toContain('belum menyimpan aturan')
+  })
+
+  it('parses requests to forget a personal learning rule', () => {
+    expect(analyzeWithRegex(
+      'lupakan aturan kategori untuk ngopi',
+      walletOptions,
+      goalOptions,
+      [],
+      categoryOptions
+    )).toEqual({
+      type: 'forget_learning_rule',
+      keyword: 'ngopi',
+      ruleType: 'category',
+    })
+  })
+
+  it('applies a learned wallet only when no explicit wallet was supplied', async () => {
+    const learned = await analyzeTransaction(
+      'catat makan kantor 20rb',
+      null,
+      walletOptions,
+      goalOptions,
+      categoryOptions,
+      '',
+      {
+        walletRules: [{
+          keyword: 'kantor',
+          wallet_id: 'wallet-bca',
+          usage_count: 3,
+        }],
+      }
+    )
+    const explicit = await analyzeTransaction(
+      'catat makan kantor 20rb dari Bank Jago Syariah',
+      null,
+      walletOptions,
+      goalOptions,
+      categoryOptions,
+      '',
+      {
+        walletRules: [{
+          keyword: 'kantor',
+          wallet_id: 'wallet-bca',
+          usage_count: 3,
+        }],
+      }
+    )
+
+    expect(learned).toMatchObject({
+      type: 'finance_draft',
+      draft: {
+        walletId: 'wallet-bca',
+        wallet: 'BCA',
+        learning: {
+          source: 'learned_wallet_rule',
+          keyword: 'kantor',
+        },
+      },
+    })
+    expect(explicit).toMatchObject({
+      type: 'transaction_batch',
+      walletId: 'wallet-jago',
+      wallet: 'Bank Jago Syariah',
+    })
+  })
+
   it('routes multi-item natural language through the conversational batch parser', async () => {
     const result = await analyzeTransaction(
       'tadi beli bensin 20 dan makanan 10 pakai uang 50rb, tolong catat',
@@ -342,9 +513,49 @@ describe('analyzeWithRegex', () => {
     const result = analyzeWithRegex('buat dompet', walletOptions, goalOptions)
 
     expect(result).toMatchObject({
-      type: 'unknown',
+      type: 'needs_confirmation',
+      reason: 'missing_wallet_name',
+      action: 'create_wallet',
     })
     expect(result.reply).toContain('Nama dompet')
+  })
+
+  it.each([
+    ['tolong buat dompet yang bernama bca', 'BCA', 'bank', 0],
+    ['tolong buatkan aku dompet GoPay', 'GoPay', 'e_wallet', 0],
+    ['bikinin dompet belanja harian dong', 'Belanja Harian', 'cash', 0],
+    ['tambahkan OVO sebagai dompet', 'OVO', 'e_wallet', 0],
+    ['buka rekening BRI saldo 250rb', 'BRI', 'bank', 250000],
+    ['mohon tambahkan dompet tunai kecil', 'Tunai Kecil', 'cash', 0],
+  ])(
+    'parses flexible Indonesian wallet creation: %s',
+    (text, name, walletType, initialBalance) => {
+      const result = analyzeWithRegex(text, walletOptions, goalOptions)
+
+      expect(result).toMatchObject({
+        type: 'create_wallet',
+        name,
+        wallet_type: walletType,
+        initial_balance: initialBalance,
+      })
+    }
+  )
+
+  it('does not confuse a saving goal funded from a wallet with wallet creation', () => {
+    const result = analyzeWithRegex(
+      'buat target liburan 5jt dari dompet BCA',
+      walletOptions,
+      goalOptions
+    )
+
+    expect(result.type).toBe('goal_creation_pending')
+  })
+
+  it('understands a natural capability question and mentions wallet creation', () => {
+    const result = analyzeWithRegex('apa dong yang kamu bisa?', walletOptions, goalOptions)
+
+    expect(result.type).toBe('unknown')
+    expect(result.reply).toContain('membuat dan mengelola dompet')
   })
 
   it('parses new goal creation with target amount', () => {
