@@ -6,7 +6,7 @@ import {
 } from './semanticFrame'
 
 const LOCAL_FIRST_PATTERN =
-  /\b(?:buat(?:kan)?|bikin(?:kan)?|tambah(?:kan)?)\s+(?:dompet|wallet|rekening)\b|\b(?:hapus|arsipkan|pulihkan|restore|rename|ganti nama|ubah nama)\s+(?:dompet|wallet|rekening)\b|\b(?:ajari|ajarkan|lupakan aturan|kalau (?:aku|saya) bilang)\b|\b(?:setor|cairkan|tarik)\b.{0,30}\b(?:target|tabungan)\b|\b(?:kembalian|susuk)\b/iu
+  /\b(?:buat(?:kan)?|bikin(?:kan)?|tambah(?:kan)?)\s+(?:dompet|wallet|rekening)\b|\b(?:hapus|arsipkan|pulihkan|restore|rename|ganti nama|ubah nama)\s+(?:dompet|wallet|rekening)\b|\b(?:ajari|ajarkan|lupakan aturan|kalau (?:aku|saya) bilang)\b|\b(?:setor|tabung|nabung|simpan|alokasi|pindah(?:kan)?|transfer|geser|cairkan|tarik)\b.{0,48}\b(?:target|tabungan|simpanan|goal|milestone)\b|\b(?:kembalian|susuk)\b/iu
 
 export function orchestrateAssistantMessage({
   text = '',

@@ -418,6 +418,44 @@ describe('analyzeWithRegex', () => {
     })
   })
 
+  it('recognizes a goal as the destination when the user omits "dari"', () => {
+    const result = analyzeWithRegex(
+      'pindahkan 1jt tabungan bibit ke simpanan nikah',
+      buildWalletOptions([
+        { id: 'wallet-bibit', name: 'Tabungan Bibit', current_balance: 2_000_000 },
+        { id: 'wallet-bca', name: 'BCA', current_balance: 5_000_000 },
+      ]),
+      buildGoalOptions([
+        { id: 'goal-nikah', name: 'Simpanan Nikah', current_amount: 0, target_amount: 20_000_000 },
+      ]),
+    )
+    expect(result).toMatchObject({
+      type: 'goal_contribution',
+      goalId: 'goal-nikah',
+      sourceWalletId: 'wallet-bibit',
+      amount: 1_000_000,
+    })
+  })
+
+  it('handles transfer wording when the source wallet is stated explicitly', () => {
+    const result = analyzeWithRegex(
+      'pindah 500rb dari BCA ke simpanan nikah',
+      buildWalletOptions([
+        { id: 'wallet-bca', name: 'BCA', current_balance: 2_000_000 },
+      ]),
+      buildGoalOptions([
+        { id: 'goal-nikah', name: 'Simpanan Nikah', current_amount: 0, target_amount: 20_000_000 },
+      ]),
+    )
+
+    expect(result).toMatchObject({
+      type: 'goal_contribution',
+      goalId: 'goal-nikah',
+      sourceWalletId: 'wallet-bca',
+      amount: 500_000,
+    })
+  })
+
   it('keeps multi-word wallet matching deterministic', () => {
     const result = analyzeWithRegex(
       'transfer dari bank jago syariah ke bca bisnis 250rb',

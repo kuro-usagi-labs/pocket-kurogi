@@ -1070,16 +1070,19 @@ function detectGoalCreationIntent(normalizedText, walletOptions = []) {
 }
 
 function detectGoalContributionIntent(normalizedText, walletOptions = [], goalOptions = []) {
-  const mentionsGoal = /(tabung|nabung|setor|sisih|simpan|alokasi|masukin|masukkan)/i.test(normalizedText)
+  const mentionsGoal = /(tabung|nabung|setor|sisih|simpan|alokasi|masukin|masukkan|transfer|pindah|pindahkan|geser)/i.test(normalizedText)
   if (!mentionsGoal) {
     return null
   }
 
-  const goalResolution = findOptionAfterKeyword({
+  const destinationGoalResolution = findOptionAfterKeyword({
     text: normalizedText,
     options: goalOptions,
-    keywords: ['ke', 'buat', 'untuk', 'target', 'tabungan', 'goal', 'milestone'],
+    keywords: ['ke', 'buat', 'untuk'],
   })
+  const goalResolution = destinationGoalResolution.match
+    ? destinationGoalResolution
+    : resolveOptionReference({ input: normalizedText, options: goalOptions })
 
   if (!goalResolution.match) {
     return null
@@ -1090,12 +1093,18 @@ function detectGoalContributionIntent(normalizedText, walletOptions = [], goalOp
     return null
   }
 
-  const sourceResolution = findOptionAfterKeyword({
+  const explicitSourceResolution = findOptionAfterKeyword({
     text: normalizedText,
     options: walletOptions,
     keywords: ['dari', 'pakai', 'pake', 'via'],
     stopKeywords: ['ke', 'buat', 'untuk', 'target', 'tabungan', 'goal', 'milestone'],
   })
+  // Natural Indonesian often omits "dari": "pindahkan 1jt Tabungan Bibit
+  // ke Simpanan Nikah". Once the destination is resolved as a goal, any
+  // unambiguous wallet mentioned in the same sentence is the source.
+  const sourceResolution = explicitSourceResolution.match
+    ? explicitSourceResolution
+    : resolveOptionReference({ input: normalizedText, options: walletOptions })
 
   if (!sourceResolution.match) {
     if (sourceResolution.reason === 'ambiguous') {
@@ -1162,6 +1171,18 @@ function detectGoalWithdrawalIntent(normalizedText, walletOptions = [], goalOpti
   const mentionsWithdrawal = /(transfer|pindah|tarik|ambil|cair|keluarkan|balikin|kembalikan)/i.test(normalizedText)
 
   if (!mentionsGoal || !mentionsWithdrawal) {
+    return null
+  }
+
+  // A target named after "ke" is a deposit destination. Do not interpret a
+  // wallet-to-goal instruction as a withdrawal merely because the source
+  // wallet happens to contain the word "tabungan".
+  const destinationGoal = findOptionAfterKeyword({
+    text: normalizedText,
+    options: goalOptions,
+    keywords: ['ke', 'untuk'],
+  })
+  if (destinationGoal.match) {
     return null
   }
 

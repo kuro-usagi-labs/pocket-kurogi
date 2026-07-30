@@ -55,6 +55,26 @@ describe('unified assistant orchestrator', () => {
     }).preferredEngine).toBe('local')
   })
 
+  it('routes transfers into a savings goal to the goal specialist', () => {
+    const result = orchestrateAssistantMessage({
+      text: 'pindahkan 1jt tabungan bibit ke simpanan nikah',
+      wallets: [{
+        id: 'wallet-bibit',
+        name: 'Tabungan Bibit',
+        current_balance: 2_000_000,
+      }],
+      goals: [{
+        id: 'goal-nikah',
+        name: 'Simpanan Nikah',
+        current_amount: 0,
+        target_amount: 20_000_000,
+        status: 'active',
+      }],
+    })
+
+    expect(result.preferredEngine).toBe('local')
+  })
+
   it('captures explicit preferences independently from the selected engine', () => {
     const style = orchestrateAssistantMessage({
       text: 'Mulai sekarang jawab lebih ringkas ya',
