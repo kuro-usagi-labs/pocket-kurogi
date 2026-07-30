@@ -1,29 +1,22 @@
 import { neon } from '../neon'
+import { getAssistantJwt } from './assistantAuthToken'
 
-export async function requestAssistantApi({
+async function fetchAssistantApi({
+  endpoint,
+  method,
   operation,
-  method = 'POST',
-  body = {},
-} = {}) {
-  const tokenResult = await neon.auth.token()
-  const token = tokenResult?.data?.token || tokenResult?.token || null
-  if (tokenResult?.error || !token) {
-    throw new Error('Sesi autentikasi assistant tidak tersedia. Silakan login ulang.')
-  }
-
-  const normalizedMethod = String(method || 'POST').toUpperCase()
-  const endpoint = normalizedMethod === 'GET'
-    ? `/api/assistant?operation=${encodeURIComponent(operation || 'get_state')}`
-    : '/api/assistant'
-  const response = await fetch(endpoint, {
-    method: normalizedMethod,
+  body,
+  token,
+}) {
+  return fetch(endpoint, {
+    method,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(normalizedMethod === 'POST'
+      ...(method === 'POST'
         ? { 'Content-Type': 'application/json' }
         : {}),
     },
-    ...(normalizedMethod === 'POST'
+    ...(method === 'POST'
       ? {
           body: JSON.stringify({
             operation,
@@ -32,6 +25,37 @@ export async function requestAssistantApi({
         }
       : {}),
   })
+}
+
+export async function requestAssistantApi({
+  operation,
+  method = 'POST',
+  body = {},
+} = {}) {
+  const normalizedMethod = String(method || 'POST').toUpperCase()
+  const endpoint = normalizedMethod === 'GET'
+    ? `/api/assistant?operation=${encodeURIComponent(operation || 'get_state')}`
+    : '/api/assistant'
+  let token = await getAssistantJwt(neon.auth)
+  let response = await fetchAssistantApi({
+    endpoint,
+    method: normalizedMethod,
+    operation,
+    body,
+    token,
+  })
+
+  if (response.status === 401) {
+    token = await getAssistantJwt(neon.auth, { forceRefresh: true })
+    response = await fetchAssistantApi({
+      endpoint,
+      method: normalizedMethod,
+      operation,
+      body,
+      token,
+    })
+  }
+
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
