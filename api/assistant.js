@@ -9,6 +9,7 @@ import {
 } from './_lib/assistantServer.js'
 
 export default async function handler(req, res) {
+  let operation = null
   try {
     applyAssistantCors(req, res)
 
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
     const { userId } = await authenticateAssistantRequest(req)
     const sql = getAssistantSql()
     const body = req.method === 'POST' ? parseAssistantBody(req) : {}
-    const operation = req.method === 'GET'
+    operation = req.method === 'GET'
       ? String(req.query?.operation || 'get_state')
       : String(body.operation || '')
     validateAssistantOperationRequest(operation, body, req.method)
@@ -47,6 +48,8 @@ export default async function handler(req, res) {
       name: error?.name,
       code: error?.code,
       statusCode: error?.statusCode,
+      operation,
+      message: error?.code === 'P0001' ? error.message : undefined,
     })
     sendAssistantError(res, error)
   }

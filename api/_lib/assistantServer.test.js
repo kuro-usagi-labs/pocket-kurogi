@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   applyAssistantCors,
   parseAssistantBody,
+  runAssistantDatabaseOperation,
+  sendAssistantError,
   validateAssistantOperationRequest,
 } from './assistantServer'
 
@@ -113,5 +115,71 @@ describe('assistant Vercel API safety', () => {
       confidence: 1,
       source: 'explicit',
     })).toThrow(/Memory assistant/)
+  })
+
+  it('sets both supported JWT subject claims before calling assistant functions', async () => {
+    const queries = []
+    const sql = (strings, ...values) => ({
+      text: strings.join('?'),
+      values,
+    })
+    sql.transaction = async (nextQueries) => {
+      queries.push(...nextQueries)
+      return [
+        [{ set_config: 'ok' }],
+        [{ result: { id: 'pending-action' } }],
+      ]
+    }
+
+    await runAssistantDatabaseOperation({
+      sql,
+      userId: '11111111-1111-4111-8111-111111111111',
+      operation: 'stage_action',
+      body: {
+        idempotencyKey: 'request-1',
+        actionType: 'record_transactions',
+        payload: {
+          items: [{
+            clientItemId: 'item-1',
+            walletId: '22222222-2222-4222-8222-222222222222',
+            transactionType: 'income',
+            amount: 72_000,
+          }],
+        },
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      },
+    })
+
+    expect(queries[0].text).toContain('request.jwt.claim.sub')
+    expect(queries[0].text).toContain('request.jwt.claims')
+    expect(queries[0].values).toContain(
+      '11111111-1111-4111-8111-111111111111'
+    )
+  })
+
+  it('returns controlled database conflicts instead of a generic server error', () => {
+    const response = {
+      statusCode: null,
+      payload: null,
+      status(code) {
+        this.statusCode = code
+        return this
+      },
+      json(payload) {
+        this.payload = payload
+      },
+    }
+    const error = new Error('Pending action sudah kedaluwarsa.')
+    error.code = 'P0001'
+
+    sendAssistantError(response, error)
+
+    expect(response.statusCode).toBe(409)
+    expect(response.payload).toEqual({
+      error: {
+        code: 'ASSISTANT_ACTION_CONFLICT',
+        message: 'Pending action sudah kedaluwarsa.',
+      },
+    })
   })
 })

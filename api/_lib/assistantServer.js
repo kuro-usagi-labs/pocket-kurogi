@@ -114,7 +114,14 @@ export async function runAssistantDatabaseOperation({
   body = {},
 }) {
   const claims = JSON.stringify({ sub: userId, role: 'authenticated' })
-  const queries = [sql`select set_config('request.jwt.claims', ${claims}, true)`]
+  // current_user_id() supports both Neon/PostgREST claim formats. Set both in
+  // the same transaction because Vercel connects directly as the database
+  // owner instead of going through the Data API JWT middleware.
+  const queries = [sql`
+    select
+      set_config('request.jwt.claim.sub', ${userId}, true),
+      set_config('request.jwt.claims', ${claims}, true)
+  `]
 
   if (operation === 'get_state') {
     queries.push(sql`
@@ -337,13 +344,21 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
 }
 
 export function sendAssistantError(res, error) {
-  const statusCode = Number(error?.statusCode || 500)
+  const isControlledDatabaseError = error?.code === 'P0001'
+  const statusCode = Number(
+    error?.statusCode ||
+    (isControlledDatabaseError ? 409 : 500)
+  )
   const safeMessage = statusCode >= 500
     ? 'Layanan assistant sedang bermasalah. Coba lagi sebentar.'
     : String(error?.message || 'Request tidak valid.')
   res.status(statusCode).json({
     error: {
-      code: statusCode >= 500 ? 'ASSISTANT_SERVER_ERROR' : 'ASSISTANT_REQUEST_ERROR',
+      code: statusCode >= 500
+        ? 'ASSISTANT_SERVER_ERROR'
+        : isControlledDatabaseError
+          ? 'ASSISTANT_ACTION_CONFLICT'
+          : 'ASSISTANT_REQUEST_ERROR',
       message: safeMessage,
     },
   })
