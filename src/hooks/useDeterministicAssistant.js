@@ -1,6 +1,10 @@
 import { useCallback } from 'react'
 import { runAssistantEngine } from '../lib/assistant/assistantEngine'
-import { inferMemoryCandidates } from '../lib/assistant/assistantMemory'
+import {
+  MemoryLifecycleError,
+  activateProposedMemoryCandidate,
+  proposeMemoryCandidate,
+} from '../lib/assistant/memoryLifecycle'
 import {
   buildAssistantCancellationResponse,
   buildAssistantCorrectionResponse,
@@ -81,12 +85,6 @@ export function useDeterministicAssistant({
       })
     }
 
-    await persistExplicitMemory({
-      assistantState,
-      engineResult,
-      text,
-    })
-
     if (!shouldHandleAssistantEngineResult(engineResult)) {
       return { handled: false, response: null }
     }
@@ -137,9 +135,137 @@ export function useDeterministicAssistant({
     wallets,
   ])
 
+  const proposeMemoryCandidates = useCallback(({
+    candidates = [],
+    sourceMessageId = null,
+    now = new Date(),
+  } = {}) => {
+    const accountId = assistantState.userId
+    if (!accountId || candidates.length === 0) {
+      return { data: null, rejected: [] }
+    }
+
+    const proposals = []
+    const displayItems = []
+    const rejected = []
+    for (const [index, candidate] of candidates.entries()) {
+      const evidenceBase = String(
+        sourceMessageId ||
+        `memory-${candidate.key}-${index}`
+      )
+      try {
+        proposals.push(proposeMemoryCandidate({
+          candidate: {
+            ...candidate,
+            userId: accountId,
+          },
+          accountId,
+          instructionEvidence: {
+            id: `${evidenceBase}:instruction:${candidate.key}`,
+            kind: candidate.source === 'correction'
+              ? 'correction'
+              : 'explicit_instruction',
+            source: candidate.source,
+            confidence: candidate.confidence,
+            reference: sourceMessageId,
+            value: candidate.value,
+          },
+          now,
+        }))
+        displayItems.push({
+          key: candidate.key,
+          value: candidate.value,
+          displayValue: candidate.displayValue || candidate.value,
+        })
+      } catch (error) {
+        if (error instanceof MemoryLifecycleError) {
+          rejected.push({
+            key: candidate.key,
+            reason: error.code,
+          })
+          continue
+        }
+        throw error
+      }
+    }
+
+    if (proposals.length === 0) {
+      return { data: null, rejected }
+    }
+
+    const createdAt = new Date(now)
+    return {
+      data: {
+        id: `memory-proposal:${sourceMessageId || createdAt.getTime()}`,
+        accountId,
+        sourceMessageId,
+        status: 'proposed',
+        createdAt: createdAt.toISOString(),
+        expiresAt: new Date(
+          createdAt.getTime() + 15 * 60 * 1000
+        ).toISOString(),
+        memories: proposals,
+        displayItems,
+      },
+      rejected,
+    }
+  }, [assistantState])
+
+  const confirmMemoryProposal = useCallback(async ({
+    proposal,
+    sourceMessageId,
+    now = new Date(),
+  } = {}) => {
+    const accountId = assistantState.userId
+    if (!accountId || !proposal || proposal.accountId !== accountId) {
+      throw new MemoryLifecycleError(
+        'ACCOUNT_SCOPE_MISMATCH',
+        'Proposal memory tidak berada dalam scope akun ini.'
+      )
+    }
+    if (
+      proposal.status !== 'proposed' ||
+      !Array.isArray(proposal.memories) ||
+      proposal.memories.length === 0 ||
+      new Date(proposal.expiresAt).getTime() <= new Date(now).getTime()
+    ) {
+      throw new MemoryLifecycleError(
+        'INVALID_STATUS_TRANSITION',
+        'Proposal memory sudah tidak aktif.'
+      )
+    }
+
+    const stored = []
+    for (const proposedMemory of proposal.memories) {
+      const activated = activateProposedMemoryCandidate({
+        proposal: proposedMemory,
+        accountId,
+        confirmationEvidence: {
+          id: `${sourceMessageId}:confirmation:${proposedMemory.key}`,
+          kind: 'confirmation',
+          source: 'explicit',
+          confidence: 1,
+          affirmed: true,
+          reference: sourceMessageId,
+          value: proposedMemory.value,
+        },
+        now,
+      })
+      const memoryResult = await assistantState.rememberPreference(
+        activated.memory
+      )
+      if (memoryResult.error) throw memoryResult.error
+      stored.push(activated.lifecycle)
+    }
+
+    return { data: stored, error: null }
+  }, [assistantState])
+
   return {
     ...assistantState,
     processMessage,
+    proposeMemoryCandidates,
+    confirmMemoryProposal,
   }
 }
 
@@ -191,27 +317,6 @@ async function processExistingPendingAction({
     pendingActionId: assistantState.pendingAction.id,
   })
   return buildAssistantPendingResponse(engineResult, assistantState.pendingAction)
-}
-
-async function persistExplicitMemory({
-  assistantState,
-  engineResult,
-  text,
-}) {
-  const candidates = inferMemoryCandidates({
-    text,
-    resolvedWallet:
-      engineResult.entities.wallets?.find((wallet) => wallet.id) ||
-      null,
-    resolvedCategory: engineResult.entities.categories?.[0] || null,
-    correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya)\b/iu.test(text),
-    userId: assistantState.userId,
-  })
-
-  for (const candidate of candidates) {
-    const memoryResult = await assistantState.rememberPreference(candidate)
-    if (memoryResult.error) throw memoryResult.error
-  }
 }
 
 async function persistDialogueState({

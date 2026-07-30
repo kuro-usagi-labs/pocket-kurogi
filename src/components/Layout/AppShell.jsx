@@ -42,6 +42,17 @@ import { buildChatQuickActions } from '../../lib/chatSuggestions'
 import { derivePendingFinanceDraft } from '../../lib/conversationalFinance'
 import { parseWalletNameReply } from '../../lib/assistant/walletCreationParser'
 import {
+  attachAssistantUnderstanding,
+  orchestrateAssistantMessage,
+} from '../../lib/assistant/unifiedAssistantOrchestrator'
+import { reconcileSemanticFrameWithLocalAnalysis } from '../../lib/assistant/semanticFrame'
+import {
+  buildMemoryProposalResolutionResponse,
+  buildMemoryProposalResponse,
+  classifyMemoryProposalReply,
+  getPendingMemoryProposal,
+} from '../../lib/assistant/memoryProposal'
+import {
   analyzeTransaction,
   assessPendingFinanceReply,
 } from '../../lib/localAssistant'
@@ -861,53 +872,147 @@ export default function AppShell() {
         }
 
         const messageRequestId = savedUserMessage.data?.id || null
+        const orchestration = orchestrateAssistantMessage({
+          text: userMessageText,
+          messages,
+          wallets,
+          categories,
+          goals,
+          memory: deterministicAssistant.memories,
+          dialogueState: deterministicAssistant.dialogueState,
+          pendingAction:
+            deterministicAssistant.pendingAction ||
+            pendingAction,
+          financialState: {
+            totalBalance,
+            budgets,
+          },
+        })
+        const assistantInputText = orchestration.resolvedText
+        const pendingMemoryProposal =
+          !pendingAction &&
+          !deterministicAssistant.pendingAction
+            ? getPendingMemoryProposal(messages)
+            : null
+        const memoryProposalDecision = pendingMemoryProposal
+          ? classifyMemoryProposalReply(userMessageText)
+          : null
+        let actualEngine = orchestration.preferredEngine
+
+        const processLocalAssistant = async () => {
+          const analysis = await analyzeTransaction(
+            assistantInputText,
+            imagePreview,
+            walletOptions,
+            goalOptions,
+            categoryOptions,
+            '',
+            {
+              categoryRules,
+              walletRules,
+              archivedWalletOptions,
+              financeDraft,
+              financialState: {
+                totalBalance,
+                budgets,
+              },
+              recentAssistantReplies: messages
+                .filter((message) => message?.sender === 'bot')
+                .map((message) => message?.text || '')
+                .filter(Boolean)
+              .slice(-12),
+            }
+          )
+          const reconciliation = reconcileSemanticFrameWithLocalAnalysis(
+            orchestration.frame,
+            analysis
+          )
+          orchestration.frame = reconciliation.frame
+          actualEngine = 'local'
+          if (!reconciliation.executionAllowed) {
+            return {
+              text: 'Saya belum menjalankan aksi apa pun karena instruksi ini belum lolos pemeriksaan keamanan dan kejelasan. Tulis ulang sebagai perintah final yang tidak berupa pertanyaan, rencana, negasi, atau transaksi orang lain.',
+              intentStatus: 'needs_confirmation',
+              metadata: {
+                confirmationMode: 'input',
+                localExecutionBlocked: reconciliation.reason,
+              },
+            }
+          }
+
+          return executeIntent(analysis, {
+            source: 'chat',
+            rawText: userMessageText,
+            requestId: messageRequestId,
+          })
+        }
 
         let response
 
-        if (pendingAction) {
-          response = await processPendingAction({ text: userMessageText })
+        if (memoryProposalDecision === 'confirm') {
+          await deterministicAssistant.confirmMemoryProposal({
+            proposal: pendingMemoryProposal,
+            sourceMessageId: messageRequestId,
+          })
+          actualEngine = 'memory-lifecycle'
+          response = buildMemoryProposalResolutionResponse(
+            pendingMemoryProposal,
+            'confirm'
+          )
+        } else if (memoryProposalDecision === 'cancel') {
+          actualEngine = 'memory-lifecycle'
+          response = buildMemoryProposalResolutionResponse(
+            pendingMemoryProposal,
+            'cancel'
+          )
+        } else if (
+          !pendingAction &&
+          !deterministicAssistant.pendingAction &&
+          orchestration.frame.action.kind === 'conversation' &&
+          ['general_chat', 'unknown'].includes(orchestration.frame.intent) &&
+          orchestration.memoryCandidates.length > 0
+        ) {
+          const proposalResult =
+            deterministicAssistant.proposeMemoryCandidates({
+              candidates: orchestration.memoryCandidates,
+              sourceMessageId: messageRequestId,
+            })
+          if (proposalResult.data) {
+            actualEngine = 'memory-lifecycle'
+            response = buildMemoryProposalResponse(proposalResult.data)
+          } else {
+            response = await processLocalAssistant()
+          }
+        } else if (pendingAction) {
+          actualEngine = 'local-pending'
+          response = await processPendingAction({ text: assistantInputText })
+        } else if (orchestration.preferredEngine === 'local') {
+          response = await processLocalAssistant()
         } else {
           const deterministicResult = await deterministicAssistant.processMessage({
-            text: userMessageText,
+            text: assistantInputText,
             sourceMessageId: messageRequestId,
           })
 
           if (deterministicResult.handled) {
+            actualEngine = 'deterministic'
             response = deterministicResult.response
           } else {
-            const analysis = await analyzeTransaction(
-              text,
-              imagePreview,
-              walletOptions,
-              goalOptions,
-              categoryOptions,
-              '',
-              {
-                categoryRules,
-                walletRules,
-                archivedWalletOptions,
-                financeDraft,
-                financialState: {
-                  totalBalance,
-                  budgets,
-                },
-                recentAssistantReplies: messages
-                  .filter((message) => message?.sender === 'bot')
-                  .map((message) => message?.text || '')
-                  .filter(Boolean)
-                  .slice(-12),
-              }
-            )
-
-            response = await executeIntent(analysis, {
-              source: 'chat',
-              rawText: userMessageText,
-              requestId: messageRequestId,
-            })
+            response = await processLocalAssistant()
           }
         }
 
-        await persistBotResponse(response)
+        orchestration.actualEngine = actualEngine
+        orchestration.frame = {
+          ...orchestration.frame,
+          engine: actualEngine,
+          preferredEngine: orchestration.preferredEngine,
+        }
+        await persistBotResponse(
+          attachAssistantUnderstanding(response, orchestration, {
+            actualEngine,
+          })
+        )
       } catch (error) {
         console.error('Chat Error:', error)
         try {
@@ -925,6 +1030,7 @@ export default function AppShell() {
     [
       categoryOptions,
       categoryRules,
+      categories,
       walletRules,
       budgets,
       chatLoading,
@@ -932,6 +1038,7 @@ export default function AppShell() {
       executeIntent,
       financeDraft,
       goalOptions,
+      goals,
       messages,
       pendingAction,
       persistBotResponse,
@@ -941,6 +1048,7 @@ export default function AppShell() {
       archivedWalletOptions,
       totalBalance,
       walletOptions,
+      wallets,
     ]
   )
 

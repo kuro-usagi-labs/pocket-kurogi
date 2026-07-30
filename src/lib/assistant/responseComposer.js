@@ -1,4 +1,8 @@
 import { formatRupiah } from './formatters'
+import {
+  applyResponsePlan,
+  planAssistantResponse,
+} from './responsePlanner'
 import { selectFreshResponse } from './responseVariety'
 
 const ACKNOWLEDGMENTS = Object.freeze({
@@ -123,7 +127,17 @@ export function composeAssistantResponse({
 } = {}) {
   const style = resolveCommunicationStyle(memory)
   const seed = `${intent}:${slots.amount || slots.items?.length || 0}:${status}`
-  const components = {
+  const plan = planAssistantResponse({
+    intent,
+    status,
+    confidence,
+    emotion,
+    communicationStyle: style,
+    hasInsight: Boolean(insight),
+    hasPendingAction: Boolean(pendingAction),
+    hasClarification: Boolean(clarification),
+  })
+  const components = applyResponsePlan({
     acknowledgment: selectAcknowledgment(intent, recentAssistantMessages, seed),
     empathy: composeEmpathy(emotion, status, recentAssistantMessages, seed),
     interpretation: composeInterpretation(intent, slots),
@@ -148,11 +162,12 @@ export function composeAssistantResponse({
       recentAssistantMessages,
       seed
     ),
-  }
+  }, plan)
 
   return {
     text: joinResponseComponents(components, style),
     components,
+    plan,
     card: pendingAction
       ? buildPendingActionCard(pendingAction, slots, clarification)
       : insight

@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { assessMemorySafety } from '../../src/lib/assistant/memoryLifecycle.js'
 
 const MAX_BODY_BYTES = 65_536
 const MAX_PENDING_ACTION_TTL_MS = 30 * 60 * 1000
@@ -316,6 +317,10 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
     requireUuid(body.actionId, 'Action ID')
   }
   if (normalizedOperation === 'remember') {
+    const memorySafety = assessMemorySafety({
+      key: String(body.key || ''),
+      value: body.value,
+    })
     if (
       !MEMORY_KEYS.has(String(body.key || '')) ||
       !MEMORY_SOURCES.has(String(body.source || '')) ||
@@ -323,7 +328,8 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
       Number(body.confidence) < 0 ||
       Number(body.confidence) > 1 ||
       body.value === null ||
-      body.value === undefined
+      body.value === undefined ||
+      !memorySafety.safe
     ) {
       throwRequestError('Memory assistant tidak valid.')
     }

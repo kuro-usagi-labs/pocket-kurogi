@@ -22,6 +22,12 @@ Skor intent hanya memberi sinyal routing. Keputusan yang mengubah saldo tetap di
 
 Implementasi utama berada di `src/lib/assistant/`:
 
+- `unifiedAssistantOrchestrator.js` membangun satu semantic frame dan memilih
+  specialist deterministic atau lokal tanpa menjalankan keduanya sekaligus;
+- `semanticFrame.js` menyatukan intent, dialogue act, slot, referensi, safety,
+  action, serta provenance executor aktual;
+- `referenceResolver.js` menyelesaikan rujukan seperti `yang tadi`, `yang
+  biasa`, dan `dompet satunya` hanya ketika konteksnya cukup kuat;
 - `assistantEngine.js` mengorkestrasi pipeline tanpa melakukan I/O;
 - `intentRouter.js` dan `intentDefinitions.js` menentukan skor dan kontrak slot;
 - resolver entity menangani uang, tanggal, dompet, kategori, dan target;
@@ -30,11 +36,24 @@ Implementasi utama berada di `src/lib/assistant/`:
 - `financialInsights.js` menghitung insight hanya dari data backend;
 - `responseComposer.js` menyusun respons dan card secara deterministik;
 - `assistantMemory.js` hanya menerima jenis preferensi yang diizinkan;
+- `memoryLifecycle.js` menjaga alur `observed -> proposed -> confirmed ->
+  active`, scope akun, koreksi, pelupaan, dan penolakan pelajaran berbahaya;
+- `responsePlanner.js` memilih struktur serta tingkat keringkasan respons tanpa
+  mengubah fakta keuangan;
+- `financeReasoningEngine.js` menghasilkan rekomendasi hanya dari snapshot
+  database dan tidak mengarang saldo atau transaksi;
 - `safetyValidator.js` adalah gerbang terakhir sebelum pending action.
 
 `src/hooks/useDeterministicAssistant.js` menghubungkan engine murni dengan
 `/api/assistant`. Parser lama tetap tersedia sebagai fallback untuk kemampuan
 yang belum termasuk intent utama, tetapi tidak dapat melewati grammar guard.
+
+Preferensi yang tampak eksplisit tidak langsung dianggap benar. Asisten
+menampilkan pemahamannya, meminta konfirmasi terpisah, dan baru menyimpan
+preferensi setelah jawaban afirmatif yang berdiri sendiri. Permintaan sekali
+pakai seperti `jelaskan lebih detail` tidak otomatis menjadi kebiasaan permanen.
+Aturan istilah seperti `kalau aku bilang kantor, pakai dompet BCA` tetap
+dipisahkan dari preferensi dompet default.
 
 ## State dan pending action
 
@@ -135,6 +154,12 @@ Corpus berada di `src/lib/financeIntentClassifier.js`. Setiap intent memiliki co
 2. Tambahkan hard negative yang mirip tetapi tidak boleh menulis transaksi.
 3. Tambahkan test parser untuk nominal, peran uang, kategori, dan keputusan write/no-write.
 4. Pertahankan aturan bahwa confidence classifier tidak pernah cukup untuk melewati safety gate.
+
+Corpus regresi lintas-engine juga tersedia di
+`src/lib/assistant/indonesianEvaluationCorpus.js` dengan harness
+`indonesianEvaluationHarness.js`. Kasusnya mencakup slang, typo, negasi,
+hipotesis, transaksi pihak ketiga, rujukan multi-turn, transaksi jamak,
+teaching, forgetting, dan percobaan write yang harus ditolak.
 
 ## Verifikasi
 

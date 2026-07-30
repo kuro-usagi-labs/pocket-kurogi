@@ -1,4 +1,5 @@
 import { formatDateTime, formatPercentage, formatRupiah } from './formatters'
+import { reasonAboutFinancialHealth } from './financeReasoningEngine'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -271,27 +272,26 @@ export function composeFinancialQueryResult({
   }
 
   if (intent === 'financial_advice') {
-    const activeBalance = wallets
-      .filter((wallet) => !wallet.is_archived)
-      .reduce((sum, wallet) => sum + Number(wallet.current_balance || 0), 0)
-    const hasTransactions = Boolean(snapshot?.sourceTransactionCount)
-    if (!hasTransactions && wallets.length === 0) {
+    const reasoning = reasonAboutFinancialHealth({
+      snapshot,
+      wallets,
+    })
+    const {
+      activeBalance,
+      topCategory,
+      exceededBudgets,
+      netCashflow,
+    } = reasoning.evidence
+    if (reasoning.code === 'INSUFFICIENT_DATA') {
       return unavailableInsight(
         'Saya belum punya saldo atau transaksi yang cukup untuk memberi saran yang bertanggung jawab.'
       )
     }
 
     const details = [`Saldo aktif saat ini ${formatRupiah(activeBalance)}.`]
-    const topCategory = snapshot?.topCategories?.[0] || null
-    const exceededBudgets = (snapshot?.budgetUsage || [])
-      .filter((entry) => entry.percentage >= 100)
-      .sort((left, right) => right.percentage - left.percentage)
-    const discretionaryCategory = topCategory &&
-      /^(?:jajan|kopi|hiburan|game|nongkrong|belanja)$/iu.test(topCategory.name)
-
-    if (hasTransactions) {
+    if (reasoning.evidence.transactionCount > 0) {
       details.push(
-        `Arus kas bersih bulan ini ${formatRupiah(snapshot.currentMonth.netCashflow)}.`
+        `Arus kas bersih bulan ini ${formatRupiah(netCashflow)}.`
       )
       if (topCategory) {
         details.push(
@@ -308,20 +308,10 @@ export function composeFinancialQueryResult({
       }
     }
 
-    let text
-    if (exceededBudgets.length > 0) {
-      text = `Prioritas pertama: hentikan sementara pengeluaran tambahan pada ${exceededBudgets[0].category} sampai budget kembali terkendali.`
-    } else if (discretionaryCategory && snapshot.currentMonth.netCashflow <= 0) {
-      text = `Prioritas pertama: kurangi ${topCategory.name} dan lindungi uang untuk makan dasar, transport kerja, kesehatan, serta tagihan wajib.`
-    } else if (hasTransactions && snapshot.currentMonth.netCashflow < 0) {
-      text = 'Pengeluaran bulan ini lebih besar daripada pemasukan. Tahan belanja fleksibel dan amankan kebutuhan wajib terlebih dahulu.'
-    } else if (activeBalance <= 0) {
-      text = 'Saldo aktif belum tersedia. Mulai dari mencatat pemasukan atau mengisi saldo dompet sebelum menetapkan pengeluaran baru.'
-    } else {
-      text = 'Keuanganmu belum menunjukkan alarm utama. Pertahankan pencatatan, jaga budget kategori, dan sisihkan dana untuk kebutuhan wajib serta target.'
+    return {
+      ...createQueryInsight(composeReasoningAdvice(reasoning), details),
+      reasoning,
     }
-
-    return createQueryInsight(text, details)
   }
 
   if (intent === 'emotional_support') {
@@ -361,6 +351,22 @@ export function composeFinancialQueryResult({
   return composeFinancialInsight(snapshot, {
     focus: intent === 'emotional_support' ? 'week' : 'overview',
   })
+}
+
+function composeReasoningAdvice(reasoning) {
+  if (reasoning.code === 'BUDGET_EXCEEDED') {
+    return `Prioritas pertama: hentikan sementara pengeluaran tambahan pada ${reasoning.focusCategory} sampai budget kembali terkendali.`
+  }
+  if (reasoning.code === 'DISCRETIONARY_DEFICIT') {
+    return `Prioritas pertama: kurangi ${reasoning.focusCategory} dan lindungi uang untuk makan dasar, transport kerja, kesehatan, serta tagihan wajib.`
+  }
+  if (reasoning.code === 'NEGATIVE_CASHFLOW') {
+    return 'Pengeluaran bulan ini lebih besar daripada pemasukan. Tahan belanja fleksibel dan amankan kebutuhan wajib terlebih dahulu.'
+  }
+  if (reasoning.code === 'NO_ACTIVE_BALANCE') {
+    return 'Saldo aktif belum tersedia. Mulai dari mencatat pemasukan atau mengisi saldo dompet sebelum menetapkan pengeluaran baru.'
+  }
+  return 'Keuanganmu belum menunjukkan alarm utama. Pertahankan pencatatan, jaga budget kategori, dan sisihkan dana untuk kebutuhan wajib serta target.'
 }
 
 function daysUntilSalaryDate(now, salaryDay) {

@@ -92,9 +92,16 @@ export function inferMemoryCandidates({
 } = {}) {
   const normalized = String(text || '').toLowerCase()
   const candidates = []
+  const teachesKeywordRule =
+    /\b(?:ajari|ajarkan)\b|\bkalau\s+(?:aku|saya)\s+bilang\b/iu.test(normalized)
+  const persistentStyleInstruction =
+    /\b(?:mulai sekarang|seterusnya|selalu|biasakan|jadikan\b.{0,20}\bdefault)\b/iu.test(
+      normalized
+    )
 
   if (
     resolvedWallet &&
+    !teachesKeywordRule &&
     /\b(?:biasanya|selalu|default|utama|lebih sering|mulai sekarang)\b/iu.test(normalized)
   ) {
     candidates.push(createAssistantMemory({
@@ -107,7 +114,17 @@ export function inferMemoryCandidates({
     }))
   }
 
-  if (/\b(?:singkat|ringkas|to the point)\b/iu.test(normalized)) {
+  if (
+    persistentStyleInstruction &&
+    (
+    /\b(?:jawab|balas|respons|jelaskan)\b.{0,32}\b(?:singkat|ringkas|to the point)\b/iu.test(
+      normalized
+    ) ||
+    /\b(?:singkat|ringkas|to the point)\b.{0,24}\b(?:mulai sekarang|ya|dong)\b/iu.test(
+      normalized
+    )
+    )
+  ) {
     candidates.push(createAssistantMemory({
       key: 'preferred_communication_style',
       value: 'concise',
@@ -116,7 +133,17 @@ export function inferMemoryCandidates({
       now,
       userId,
     }))
-  } else if (/\b(?:jelaskan detail|lebih detail|lengkap)\b/iu.test(normalized)) {
+  } else if (
+    persistentStyleInstruction &&
+    (
+    /\b(?:jawab|balas|respons|jelaskan)\b.{0,32}\b(?:lebih detail|lengkap|terperinci)\b/iu.test(
+      normalized
+    ) ||
+    /\b(?:lebih detail|lengkap|terperinci)\b.{0,24}\b(?:mulai sekarang|ya|dong)\b/iu.test(
+      normalized
+    )
+    )
+  ) {
     candidates.push(createAssistantMemory({
       key: 'preferred_communication_style',
       value: 'detailed',
@@ -141,6 +168,7 @@ export function inferMemoryCandidates({
 
   if (
     resolvedCategory &&
+    !teachesKeywordRule &&
     /\b(?:biasanya|selalu|anggap|masukkan)\b/iu.test(normalized)
   ) {
     candidates.push(createAssistantMemory({
