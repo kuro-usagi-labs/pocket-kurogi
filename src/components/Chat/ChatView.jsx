@@ -57,6 +57,7 @@ export default function ChatView({
   error = null,
   onRetry,
   loading = false,
+  syncStatus = 'idle',
   activePendingActionId = null,
 }) {
   const containerRef = useRef(null)
@@ -142,7 +143,7 @@ export default function ChatView({
         onScroll={handleScroll}
         className="chat-scroll-inset app-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
       >
-        {error ? <ChatSyncNotice onRetry={onRetry} /> : null}
+        {error ? <ChatSyncNotice error={error} status={syncStatus} onRetry={onRetry} /> : null}
 
         {loading ? <ChatHistoryLoading /> : null}
 
@@ -324,22 +325,28 @@ function QuickAction({ item, disabled, onClick }) {
   )
 }
 
-function ChatSyncNotice({ onRetry }) {
+function ChatSyncNotice({ error, status, onRetry }) {
   return (
     <div
       role="alert"
-      className="mb-4 flex flex-col gap-3 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-amber-200 bg-amber-50/90 px-3.5 py-2.5"
     >
-      <div className="min-w-0">
-        <p className="text-[12px] font-bold text-amber-800">Riwayat belum tersambung</p>
-        <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-muted">
-          Sesi database sedang dipulihkan. Pesanmu tidak akan dianggap hilang.
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-bold text-amber-800">
+          {status === 'retrying' ? 'Menyambungkan ulang riwayat…' : 'Riwayat belum tersambung'}
         </p>
+        <p className="mt-0.5 text-[10px] font-medium leading-relaxed text-muted">
+          Pesan yang sudah tampil tetap aman. Percakapan baru akan tersedia setelah sinkron.
+        </p>
+        <details className="mt-1 text-[10px] text-muted">
+          <summary className="cursor-pointer font-semibold">Detail</summary>
+          <span>{error?.code || 'CHAT_SYNC_UNAVAILABLE'}</span>
+        </details>
       </div>
       <button
         type="button"
         onClick={() => onRetry?.()}
-        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-[12px] bg-midnight px-3.5 text-[11px] font-bold text-white transition-transform active:scale-[0.98]"
+        className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-midnight px-3 text-[10px] font-bold text-white transition-transform active:scale-[0.98]"
       >
         <RefreshCw size={14} strokeWidth={2.3} />
         Coba lagi

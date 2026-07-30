@@ -68,10 +68,8 @@ export function useDeterministicAssistant({
 
       // A fresh message starts a fresh turn. Leaving an old draft active here
       // made ordinary questions repeatedly resurrect an unrelated action.
-      const cancellationResult = await assistantState.cancelPendingAction(
-        assistantState.pendingAction
-      )
-      if (cancellationResult.error) throw cancellationResult.error
+      const supersessionResult = await assistantState.supersedePendingActions()
+      if (supersessionResult.error) throw supersessionResult.error
       commonInput.pendingAction = null
       commonInput.dialogueState = null
     }

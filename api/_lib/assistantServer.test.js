@@ -64,6 +64,8 @@ describe('assistant Vercel API safety', () => {
     )).toThrow(/harus memakai POST/)
     expect(() => validateAssistantOperationRequest('financial_context', {}, 'GET'))
       .not.toThrow()
+    expect(() => validateAssistantOperationRequest('supersede_actions', {}))
+      .not.toThrow()
   })
 
   it('rejects unsafe pending payloads and uncurated memory', () => {
@@ -176,8 +178,8 @@ describe('assistant Vercel API safety', () => {
     expect(response.statusCode).toBe(409)
     expect(response.payload).toEqual({
       error: {
-        code: 'ASSISTANT_ACTION_CONFLICT',
-        message: 'Pending action sudah kedaluwarsa.',
+        code: 'ASSISTANT_ACTION_EXPIRED',
+        message: 'Rancangan ini sudah kedaluwarsa. Buat catatan baru untuk melanjutkan.',
       },
     })
   })

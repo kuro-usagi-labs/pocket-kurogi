@@ -16,6 +16,7 @@ const WRITE_OPERATIONS = new Set([
   'confirm_action',
   'correct_action',
   'cancel_action',
+  'supersede_actions',
   'remember',
 ])
 const MEMORY_KEYS = new Set([
@@ -40,7 +41,10 @@ export function applyAssistantCors(req, res) {
     res.setHeader('Vary', 'Origin')
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Authorization, Content-Type, X-Request-Id, X-Chat-Session-Generation, X-Chat-Retry-Attempt'
+  )
   res.setHeader('Access-Control-Max-Age', '600')
 
   if (origin && !allowedOrigins.has(origin)) {
@@ -227,6 +231,10 @@ export async function runAssistantDatabaseOperation({
         ${body.actionId}::uuid
       ) as result
     `)
+  } else if (operation === 'supersede_actions') {
+    queries.push(sql`
+      select public.supersede_pending_finance_actions() as result
+    `)
   } else if (operation === 'remember') {
     queries.push(sql`
       select public.remember_assistant_preference(
@@ -339,19 +347,46 @@ export function sendAssistantError(res, error) {
     error?.statusCode ||
     (isControlledDatabaseError ? 409 : 500)
   )
+  const conflict = isControlledDatabaseError
+    ? getAssistantConflictCopy(error?.message)
+    : null
   const safeMessage = statusCode >= 500
     ? 'Layanan assistant sedang bermasalah. Coba lagi sebentar.'
-    : String(error?.message || 'Request tidak valid.')
+    : conflict?.message ||
+      String(error?.message || 'Request tidak valid.')
   res.status(statusCode).json({
     error: {
       code: statusCode >= 500
         ? 'ASSISTANT_SERVER_ERROR'
         : isControlledDatabaseError
-          ? 'ASSISTANT_ACTION_CONFLICT'
+          ? conflict?.code || 'ASSISTANT_ACTION_CONFLICT'
           : 'ASSISTANT_REQUEST_ERROR',
       message: safeMessage,
     },
   })
+}
+
+function getAssistantConflictCopy(message) {
+  const normalized = String(message || '').toLowerCase()
+  if (normalized.includes('kedaluwarsa') || normalized.includes('expired')) {
+    return {
+      code: 'ASSISTANT_ACTION_EXPIRED',
+      message: 'Rancangan ini sudah kedaluwarsa. Buat catatan baru untuk melanjutkan.',
+    }
+  }
+  if (normalized.includes('superseded') || normalized.includes('digantikan')) {
+    return {
+      code: 'ASSISTANT_ACTION_SUPERSEDED',
+      message: 'Rancangan sebelumnya sudah digantikan oleh pesan yang lebih baru.',
+    }
+  }
+  if (normalized.includes('cancelled') || normalized.includes('dibatalkan')) {
+    return {
+      code: 'ASSISTANT_ACTION_CANCELLED',
+      message: 'Rancangan ini sudah dibatalkan.',
+    }
+  }
+  return null
 }
 
 function getAllowedOrigins() {

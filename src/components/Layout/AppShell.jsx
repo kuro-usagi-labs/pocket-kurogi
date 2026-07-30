@@ -14,6 +14,7 @@ import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
 import StatusToast from '../shared/StatusToast'
 import ChatView from '../Chat/ChatView'
+import { CHAT_SYNC_STATUS } from '../../lib/chat/chatSyncState'
 import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
@@ -145,6 +146,7 @@ export default function AppShell() {
     messages,
     loading: chatLoading,
     error: chatError,
+    syncStatus: chatSyncStatus,
     saveMessage,
     hasMore: hasMoreMessages,
     loadingMore: loadingMoreMessages,
@@ -1302,7 +1304,7 @@ export default function AppShell() {
                 messages={
                   messages.length > 0
                     ? messages
-                    : !chatLoading && !chatError
+                    : chatSyncStatus === CHAT_SYNC_STATUS.READY
                       ? [
                         {
                           ...getWelcomeMessage({
@@ -1326,10 +1328,11 @@ export default function AppShell() {
                 onLoadMore={loadMoreMessages}
                 onNavigate={setActiveTab}
                 onCardAction={handleChatCardAction}
-                isFreshChat={messages.length === 0 && !chatLoading && !chatError}
+                isFreshChat={messages.length === 0 && chatSyncStatus === CHAT_SYNC_STATUS.READY}
                 error={chatError}
                 onRetry={refetchChat}
                 loading={chatLoading}
+                syncStatus={chatSyncStatus}
                 activePendingActionId={deterministicAssistant.pendingAction?.id || null}
               />
               </div>

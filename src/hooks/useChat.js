@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { neon } from '../lib/neon'
 import {
   getChatAttachmentUrls,
   removeChatAttachments,
@@ -7,31 +6,12 @@ import {
 } from '../lib/neonAttachments'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeChatMessages } from '../lib/chatHistory'
+import { requestChatApi } from '../lib/chat/chatApiClient'
+import { CHAT_SYNC_STATUS, getChatFailureState } from '../lib/chat/chatSyncState'
 
 const CHAT_BUCKET = 'chat-attachments'
-const PAGE_SIZE = 40
-const CHAT_AUTH_RETRY_DELAY_MS = 180
-
-function isRetryableChatAuthError(error) {
-  const message = String(error?.message || error || '').toLowerCase()
-  return (
-    error?.code === '42501' ||
-    message.includes('row-level security') ||
-    message.includes('auth required')
-  )
-}
-
-async function runWithChatAuthRetry(operation) {
-  const firstResult = await operation()
-
-  if (!firstResult?.error || !isRetryableChatAuthError(firstResult.error)) {
-    return firstResult
-  }
-
-  await neon.auth.getSession().catch(() => null)
-  await new Promise((resolve) => window.setTimeout(resolve, CHAT_AUTH_RETRY_DELAY_MS))
-  return operation()
-}
+const AUTO_RETRY_DELAY_MS = 700
+const MAX_AUTOMATIC_RETRIES = 1
 
 export function useChat() {
   const { user } = useAuth()
@@ -41,14 +21,23 @@ export function useChat() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState(null)
+  const [syncStatus, setSyncStatus] = useState(CHAT_SYNC_STATUS.IDLE)
+  const messagesRef = useRef(messages)
   const oldestCursorRef = useRef(null)
   const activeUserIdRef = useRef(userId)
   const requestSequenceRef = useRef(0)
   const latestRefreshRequestRef = useRef(0)
   const conversationVersionRef = useRef(0)
   const localMutationVersionRef = useRef(0)
+  const sessionGenerationRef = useRef(0)
+  const automaticRetryCountRef = useRef(0)
+  const retryTimerRef = useRef(null)
 
   activeUserIdRef.current = userId
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const removeAttachment = useCallback(async (path) => {
     if (!path) {
@@ -100,7 +89,7 @@ export function useChat() {
     }))
   }, [])
 
-  const fetchMessages = useCallback(async ({ loadMore = false } = {}) => {
+  const fetchMessages = useCallback(async ({ loadMore = false, retryAttempt = 0, manualRetry = false } = {}) => {
     const currentUserId = userId
 
     if (!currentUserId) {
@@ -110,6 +99,7 @@ export function useChat() {
       setLoadingMore(false)
       setHasMore(false)
       setError(null)
+      setSyncStatus(CHAT_SYNC_STATUS.IDLE)
       oldestCursorRef.current = null
       return { data: [], error: null }
     }
@@ -125,29 +115,19 @@ export function useChat() {
       setLoading(true)
       oldestCursorRef.current = null
       latestRefreshRequestRef.current = requestId
-    }
-
-    const executeFetch = () => {
-      let query = neon
-        .from('chat_messages')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
-        .limit(PAGE_SIZE)
-
-      if (loadMore && oldestCursorRef.current) {
-        const cursor = oldestCursorRef.current
-        query = query.or(
-          `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
-        )
-      }
-
-      return query
+      setSyncStatus(retryAttempt > 0 || manualRetry ? CHAT_SYNC_STATUS.RETRYING : CHAT_SYNC_STATUS.LOADING)
     }
 
     try {
-      const { data, error: fetchError } = await runWithChatAuthRetry(executeFetch)
+      const cursor = loadMore ? oldestCursorRef.current : null
+      const result = await requestChatApi({
+        operation: 'list_messages',
+        method: 'GET',
+        body: cursor ? { cursorCreatedAt: cursor.createdAt, cursorId: cursor.id } : {},
+        sessionGeneration: sessionGenerationRef.current,
+        retryAttempt,
+      })
+      const data = result.data?.messages
       const isCurrentConversation = () => (
         activeUserIdRef.current === currentUserId &&
         conversationVersionRef.current === conversationVersion &&
@@ -158,11 +138,12 @@ export function useChat() {
         return { data: null, error: null, stale: true }
       }
 
-      if (fetchError || !data) {
+      if (!Array.isArray(data)) {
         // Keep the last known messages visible. A transient auth refresh must
         // never replace a conversation with the welcome screen.
-        if (!loadMore) setError(fetchError || new Error('Riwayat chat belum dapat dimuat.'))
-        return { data: null, error: fetchError || new Error('Riwayat chat belum dapat dimuat.') }
+        const fetchError = new Error('Respons riwayat chat tidak valid.')
+        if (!loadMore) setError(fetchError)
+        return { data: null, error: fetchError }
       }
 
       const hydrated = await hydrateMessages(data)
@@ -180,8 +161,12 @@ export function useChat() {
           ? { createdAt: data[data.length - 1].created_at, id: data[data.length - 1].id }
           : null
       }
-      setHasMore(data.length === PAGE_SIZE)
+      setHasMore(Boolean(result.data?.hasMore))
       setError(null)
+      if (!loadMore) {
+        automaticRetryCountRef.current = 0
+        setSyncStatus(CHAT_SYNC_STATUS.READY)
+      }
 
       setMessages((previous) => {
         if (loadMore || localMutationVersionRef.current !== mutationVersion) {
@@ -199,6 +184,19 @@ export function useChat() {
         !loadMore
       ) {
         setError(caughtError)
+        const failureStatus = getChatFailureState({
+          hasSnapshot: messagesRef.current.length > 0,
+          retryAttempt,
+        })
+        setSyncStatus(failureStatus)
+        if (!manualRetry && retryAttempt < MAX_AUTOMATIC_RETRIES && automaticRetryCountRef.current < MAX_AUTOMATIC_RETRIES) {
+          automaticRetryCountRef.current += 1
+          retryTimerRef.current = window.setTimeout(() => {
+            if (activeUserIdRef.current === currentUserId) {
+              fetchMessages({ retryAttempt: retryAttempt + 1 }).catch(() => null)
+            }
+          }, AUTO_RETRY_DELAY_MS)
+        }
       }
       return { data: null, error: caughtError }
     } finally {
@@ -217,6 +215,9 @@ export function useChat() {
     conversationVersionRef.current += 1
     oldestCursorRef.current = null
     localMutationVersionRef.current += 1
+    sessionGenerationRef.current += 1
+    automaticRetryCountRef.current = 0
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current)
     setMessages([])
     setHasMore(false)
     setError(null)
@@ -225,7 +226,10 @@ export function useChat() {
       fetchMessages().catch(() => null)
     }, 0)
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      clearTimeout(timeoutId)
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current)
+    }
   }, [fetchMessages, userId])
 
   const uploadAttachment = useCallback(async (file) => {
@@ -266,18 +270,18 @@ export function useChat() {
       ...(extras.intentStatus ? { intentStatus: extras.intentStatus } : {}),
     }
 
-    const { data, error } = await runWithChatAuthRetry(() =>
-      neon
-        .from('chat_messages')
-        .insert({
-          user_id: user.id,
-          sender,
-          text,
-          metadata,
-        })
-        .select()
-        .single()
-    )
+    let data = null
+    let error = null
+    try {
+      const result = await requestChatApi({
+        operation: 'save_message',
+        body: { sender, text, metadata },
+        sessionGeneration: sessionGenerationRef.current,
+      })
+      data = result.data
+    } catch (caughtError) {
+      error = caughtError
+    }
 
     if (!error && data) {
       const formatted = {
@@ -309,60 +313,35 @@ export function useChat() {
   const clearMessages = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
 
-    const { data: storedMessages, error: fetchError } = await neon
-      .from('chat_messages')
-      .select('metadata')
-      .eq('user_id', user.id)
-
-    if (fetchError) {
-      return { error: fetchError }
-    }
-
-    const attachments = (storedMessages || [])
-      .map((message) => {
-        const metadata = message?.metadata && typeof message.metadata === 'object'
-          ? message.metadata
-          : {}
-
-        return metadata.imagePath || null
+    try {
+      await requestChatApi({
+        operation: 'clear_messages',
+        body: {},
+        sessionGeneration: sessionGenerationRef.current,
       })
-      .filter(Boolean)
-
-    if (attachments.length > 0) {
-      const { error: storageError } = await removeChatAttachments(
-        [...new Set(attachments)],
-      )
-
-      if (storageError) {
-        return { error: storageError }
-      }
+    } catch (error) {
+      return { error }
     }
-
-    const { error } = await neon
-      .from('chat_messages')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (!error) {
-      conversationVersionRef.current += 1
-      localMutationVersionRef.current += 1
-      setMessages([])
-      setHasMore(false)
-      oldestCursorRef.current = null
-    }
-
-    return { error }
+    conversationVersionRef.current += 1
+    localMutationVersionRef.current += 1
+    setMessages([])
+    setHasMore(false)
+    setError(null)
+    setSyncStatus(CHAT_SYNC_STATUS.READY)
+    oldestCursorRef.current = null
+    return { error: null }
   }, [user])
 
   return {
     messages,
     loading,
     error,
+    syncStatus,
     hasMore,
     loadingMore,
     saveMessage,
     clearMessages,
     loadMore: () => fetchMessages({ loadMore: true }),
-    refetch: fetchMessages,
+    refetch: () => fetchMessages({ manualRetry: true }),
   }
 }

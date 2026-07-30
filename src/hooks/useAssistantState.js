@@ -185,6 +185,21 @@ export function useAssistantState() {
     }
   }, [pendingAction, user])
 
+  const supersedePendingActions = useCallback(async () => {
+    if (!user) {
+      return { data: null, error: new Error('Sesi pengguna tidak tersedia.') }
+    }
+
+    try {
+      const data = await requestAssistantApi({ operation: 'supersede_actions', body: {} })
+      setPendingAction(null)
+      setDialogueState(null)
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }, [user])
+
   const correctPendingAction = useCallback(async ({
     action = pendingAction,
     payload,
@@ -268,6 +283,7 @@ export function useAssistantState() {
     stagePendingAction,
     confirmPendingAction,
     cancelPendingAction,
+    supersedePendingActions,
     correctPendingAction,
     rememberPreference,
     fetchFinancialContext,

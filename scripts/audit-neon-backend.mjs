@@ -187,7 +187,9 @@ async function main() {
       ['category_without_profile', 'categories c', 'profiles p', 'p.id = c.user_id'],
       ['transaction_without_profile', 'transactions t', 'profiles p', 'p.id = t.user_id'],
       ['transaction_without_wallet', 'transactions t', 'wallets w', 'w.id = t.wallet_id'],
-      ['transaction_without_category', 'transactions t', 'categories c', 'c.id = t.category_id'],
+      // A transaction may intentionally be uncategorized. Only a non-null
+      // category reference can be orphaned.
+      ['transaction_without_category', 'transactions t', 'categories c', 'c.id = t.category_id', 't.category_id is not null'],
       ['goal_without_profile', 'goals g', 'profiles p', 'p.id = g.user_id'],
       ['budget_without_profile', 'budgets b', 'profiles p', 'p.id = b.user_id'],
       ['budget_without_category', 'budgets b', 'categories c', 'c.id = b.category_id'],
@@ -196,12 +198,12 @@ async function main() {
       ['message_without_profile', 'chat_messages m', 'profiles p', 'p.id = m.user_id'],
       ['attachment_without_profile', 'chat_attachments a', 'profiles p', 'p.id = a.user_id'],
     ]
-    for (const [code, source, target, predicate] of orphanChecks) {
+    for (const [code, source, target, predicate, sourceFilter = 'true'] of orphanChecks) {
       const sourceTable = source.split(' ')[0]
       const targetTable = target.split(' ')[0]
       if (!tableMap.has(sourceTable) || !tableMap.has(targetTable)) continue
       const { rows: [{ count }] } = await client.query(
-        `select count(*)::int as count from public.${source} where not exists (select 1 from public.${target} where ${predicate})`
+        `select count(*)::int as count from public.${source} where ${sourceFilter} and not exists (select 1 from public.${target} where ${predicate})`
       )
       if (count > 0) addFinding('critical', code, count)
     }
