@@ -1,4 +1,5 @@
-import { ArrowUpRight, MessageCircleMore, ReceiptText, Target } from 'lucide-react'
+import { ArrowUpRight, MessageCircleMore, Target } from 'lucide-react'
+import { TransactionIcon } from '../shared/CategoryIcon'
 
 export default function DesktopRightPanel({
   analytics,
@@ -79,15 +80,37 @@ export default function DesktopRightPanel({
           {transactions.slice(0, 4).map((transaction, index) => (
             <div
               key={transaction.id}
-              className={`flex items-center gap-3 py-3 ${index > 0 ? 'border-t border-midnight/8' : ''}`}
+              className={`flex items-center gap-3 py-3.5 ${index > 0 ? 'border-t border-midnight/8' : ''}`}
             >
-              <ReceiptText size={17} className="shrink-0 text-muted" strokeWidth={1.8} />
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] ${
+                  transaction.type === 'income'
+                    ? 'bg-orange-50 text-orange-600'
+                    : 'bg-red-50 text-red-500'
+                }`}
+              >
+                <TransactionIcon
+                  iconKey={transaction.iconKey}
+                  category={transaction.category}
+                  size={17}
+                />
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-bold text-midnight">{transaction.desc}</p>
-                <p className="money-number mt-0.5 truncate text-[11px] font-medium text-muted">
-                  {formatRupiah(transaction.amount)}
+                <p className="truncate text-[12px] font-bold text-midnight">
+                  {transaction.title || transaction.desc}
+                </p>
+                <p className="mt-0.5 truncate text-[10px] font-medium text-muted">
+                  {[transaction.category, transaction.wallet].filter(Boolean).join('  •  ')}
                 </p>
               </div>
+              <p
+                className={`money-number shrink-0 text-[11px] font-bold ${
+                  transaction.type === 'income' ? 'text-orange-600' : 'text-red-500'
+                }`}
+              >
+                {transaction.type === 'income' ? '+' : '-'}
+                {formatRupiah(transaction.amount)}
+              </p>
             </div>
           ))}
           {transactions.length === 0 ? (

@@ -14,6 +14,14 @@ const FILLER_WORDS = new Set([
   'pakai',
   'pake',
   'dengan',
+  'pada',
+  'sebagai',
+  'catatan',
+  'tadi',
+  'beli',
+  'membeli',
+  'bayar',
+  'membayar',
   'saldo',
   'dompet',
   'wallet',
@@ -137,9 +145,7 @@ function buildGoalRefundPresentation({ merchant, walletName }) {
 }
 
 function buildRegularPresentation({ merchant, notes, transactionType, categoryName }) {
-  const cleanedLabel = cleanFreeformLabel(merchant || notes, {
-    categoryName,
-  })
+  const cleanedLabel = cleanFreeformLabel(merchant || notes)
 
   const fallbackTitle = transactionType === 'income'
     ? 'Pemasukan'
@@ -149,7 +155,10 @@ function buildRegularPresentation({ merchant, notes, transactionType, categoryNa
 
   return {
     title: cleanedLabel || fallbackTitle,
-    subtitle: categoryName && categoryName !== 'Lainnya'
+    subtitle:
+      categoryName &&
+      categoryName !== 'Lainnya' &&
+      normalizeForLookup(cleanedLabel) !== normalizeForLookup(categoryName)
       ? categoryName
       : transactionType === 'income'
         ? 'Pemasukan'
@@ -221,16 +230,10 @@ function inferRegularIconKey({ title = '', notes = '', transactionType = '', cat
   return 'expense_general'
 }
 
-function cleanFreeformLabel(value, { categoryName = '' } = {}) {
-  const normalizedCategoryWords = tokenizePlainText(categoryName)
-  const removableWords = new Set([
-    ...FILLER_WORDS,
-    ...normalizedCategoryWords,
-  ])
-
+function cleanFreeformLabel(value) {
   const words = tokenizeRawText(value).filter((word) => {
     const lower = word.toLowerCase()
-    return !removableWords.has(lower) && !MONEY_WORDS.has(lower) && !/^\d+$/.test(lower)
+    return !FILLER_WORDS.has(lower) && !MONEY_WORDS.has(lower) && !/^\d+$/.test(lower)
   })
 
   if (words.length === 0) {
@@ -255,15 +258,6 @@ function normalizeForLookup(value) {
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-function tokenizePlainText(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .split(/\s+/)
-    .map((word) => word.trim())
-    .filter(Boolean)
 }
 
 function formatWordSequence(words) {
