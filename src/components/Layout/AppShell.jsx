@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWallets } from '../../hooks/useWallets'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
@@ -42,6 +42,11 @@ import { buildChatQuickActions } from '../../lib/chatSuggestions'
 import { derivePendingFinanceDraft } from '../../lib/conversationalFinance'
 import { parseWalletNameReply } from '../../lib/assistant/walletCreationParser'
 import {
+  analyzeTransaction,
+  assessPendingFinanceReply,
+} from '../../lib/localAssistant'
+import { lazyWithRecovery } from '../../lib/lazyWithRecovery'
+import {
   attachResolvedWallet,
   getCurrentTimeLabel,
   getWelcomeMessage,
@@ -52,17 +57,16 @@ import {
   withWalletAttached,
 } from '../../lib/appShellChatHelpers'
 
-const loadLocalParser = () => import('../../lib/localAssistant')
 const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
 const loadWalletsView = () => import('../Wallets/WalletsView')
 const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
 const loadSettingsView = () => import('../Settings/SettingsView')
-const HistoryView = lazy(loadHistoryView)
-const EditTransactionModal = lazy(loadEditTransactionModal)
-const WalletsView = lazy(loadWalletsView)
-const AnalyticsView = lazy(loadAnalyticsView)
-const SettingsView = lazy(loadSettingsView)
+const HistoryView = lazyWithRecovery(loadHistoryView, 'history')
+const EditTransactionModal = lazyWithRecovery(loadEditTransactionModal, 'edit-transaction')
+const WalletsView = lazyWithRecovery(loadWalletsView, 'wallets')
+const AnalyticsView = lazyWithRecovery(loadAnalyticsView, 'analytics')
+const SettingsView = lazyWithRecovery(loadSettingsView, 'settings')
 function ViewLoadingFallback() {
   return (
     <div className="h-full w-full p-4 sm:p-6">
@@ -491,7 +495,6 @@ export default function AppShell() {
           }
         }
 
-        const { assessPendingFinanceReply } = await loadLocalParser()
         const pendingReplyAssessment = assessPendingFinanceReply(text)
         if (!pendingReplyAssessment.safe) {
           return {
@@ -551,7 +554,6 @@ export default function AppShell() {
           }
         }
 
-        const { assessPendingFinanceReply } = await loadLocalParser()
         const pendingReplyAssessment = assessPendingFinanceReply(text)
         const parsedWallet = parseWalletNameReply(text)
         if (!pendingReplyAssessment.safe || !parsedWallet.walletName) {
@@ -619,7 +621,6 @@ export default function AppShell() {
           }
         }
 
-        const { assessPendingFinanceReply } = await loadLocalParser()
         const pendingReplyAssessment = assessPendingFinanceReply(text)
         if (!pendingReplyAssessment.safe) {
           return {
@@ -667,7 +668,6 @@ export default function AppShell() {
           }
         }
 
-        const { assessPendingFinanceReply } = await loadLocalParser()
         const pendingReplyAssessment = assessPendingFinanceReply(text)
         if (!pendingReplyAssessment.safe) {
           return {
@@ -745,7 +745,6 @@ export default function AppShell() {
           }
         }
 
-        const { assessPendingFinanceReply } = await loadLocalParser()
         const pendingReplyAssessment = assessPendingFinanceReply(text)
         if (!pendingReplyAssessment.safe) {
           return {
@@ -876,7 +875,6 @@ export default function AppShell() {
           if (deterministicResult.handled) {
             response = deterministicResult.response
           } else {
-            const { analyzeTransaction } = await loadLocalParser()
             const analysis = await analyzeTransaction(
               text,
               imagePreview,
