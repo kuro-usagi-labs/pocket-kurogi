@@ -7,6 +7,11 @@ export function resolveWalletEntities({
   allowSingleWalletFallback = false,
 } = {}) {
   const activeWallets = wallets.filter((wallet) => !wallet?.is_archived)
+  const semanticCashWallet = resolveSemanticCashWallet(text, activeWallets)
+  if (semanticCashWallet) {
+    return [createWalletEntity(semanticCashWallet, 'wallet')]
+  }
+
   const options = activeWallets.map((wallet) => ({
     id: wallet.id,
     name: wallet.name,
@@ -67,6 +72,7 @@ export function resolveWalletEntities({
 export function resolveTransferWallets({ text = '', wallets = [] } = {}) {
   const normalized = normalizeEntityName(text)
   const activeWallets = wallets.filter((wallet) => !wallet?.is_archived)
+  const semanticCashWallet = resolveSemanticCashWallet(text, activeWallets)
   const mentions = activeWallets
     .flatMap((wallet) => {
       const names = [wallet.name, ...(wallet.aliases || [])]
@@ -89,6 +95,7 @@ export function resolveTransferWallets({ text = '', wallets = [] } = {}) {
   const destination =
     matchWalletFragment(toMatch?.[1], activeWallets) ||
     mentions.find((mention) => mention.wallet.id !== source?.id)?.wallet ||
+    semanticCashWallet ||
     null
 
   return {
@@ -100,7 +107,8 @@ export function resolveTransferWallets({ text = '', wallets = [] } = {}) {
 
 export function resolveWalletMentions({ text = '', wallets = [] } = {}) {
   const normalized = String(text || '').normalize('NFKC').toLowerCase()
-  return wallets
+  const activeWallets = wallets.filter((wallet) => !wallet?.is_archived)
+  const mentions = activeWallets
     .filter((wallet) => !wallet?.is_archived)
     .flatMap((wallet) =>
       [wallet.name, ...(wallet.aliases || [])].map((name) => ({
@@ -116,6 +124,25 @@ export function resolveWalletMentions({ text = '', wallets = [] } = {}) {
     .filter((mention, index, all) =>
       all.findIndex((candidate) => candidate.id === mention.id) === index
     )
+
+  const semanticCashWallet = resolveSemanticCashWallet(text, activeWallets)
+  if (
+    semanticCashWallet &&
+    !mentions.some((mention) => mention.id === semanticCashWallet.id)
+  ) {
+    mentions.push({
+      id: semanticCashWallet.id,
+      name: semanticCashWallet.name,
+      wallet: semanticCashWallet,
+      alias: normalized.match(/\b(?:cash|tunai|kontan|uang fisik|uang kontan)\b/iu)?.[0] || 'tunai',
+      index: Math.max(
+        normalized.search(/\b(?:cash|tunai|kontan|uang fisik|uang kontan)\b/iu),
+        0
+      ),
+    })
+  }
+
+  return mentions.sort((left, right) => left.index - right.index)
 }
 
 function resolvePreferredWallet(memory, wallets) {
@@ -133,9 +160,34 @@ function resolvePreferredWallet(memory, wallets) {
 function matchWalletFragment(fragment, wallets) {
   const normalizedFragment = normalizeEntityName(fragment)
   if (!normalizedFragment) return null
+  const semanticCashWallet = resolveSemanticCashWallet(
+    normalizedFragment,
+    wallets
+  )
+  if (semanticCashWallet) return semanticCashWallet
+
   return [...wallets]
     .sort((left, right) => String(right.name).length - String(left.name).length)
     .find((wallet) => normalizedFragment.includes(normalizeEntityName(wallet.name))) || null
+}
+
+function resolveSemanticCashWallet(text, wallets) {
+  if (!/\b(?:cash|tunai|kontan|uang fisik|uang kontan)\b/iu.test(String(text || ''))) {
+    return null
+  }
+
+  const cashWallets = wallets.filter((wallet) => {
+    const type = normalizeEntityName(
+      wallet.wallet_type ||
+      wallet.walletType ||
+      wallet.type ||
+      ''
+    )
+    const name = normalizeEntityName(wallet.name)
+    return type === 'cash' || /\b(?:cash|tunai|kontan)\b/iu.test(name)
+  })
+
+  return cashWallets.length === 1 ? cashWallets[0] : null
 }
 
 function createWalletEntity(wallet, role) {

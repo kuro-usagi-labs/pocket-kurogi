@@ -205,6 +205,15 @@ describe('conversational finance parser', () => {
     expect(mentions.map((mention) => mention.value)).toEqual([10000])
   })
 
+  it('does not mistake a short salary phrase for change arithmetic', () => {
+    const result = analyzeConversationalFinance({
+      text: 'sisa gaji',
+      walletOptions: [cashWallet, bankWallet],
+    })
+
+    expect(result).toBeNull()
+  })
+
   it('never turns a finance question into an implicit write', () => {
     const result = analyzeConversationalFinance({
       text: 'kalau bensin 20rb cukup nggak?',

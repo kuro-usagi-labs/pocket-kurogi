@@ -225,6 +225,41 @@ export const INDONESIAN_UNSAFE_LOCAL_WRITE_CORPUS = Object.freeze([
 
 export const INDONESIAN_CONVERSATION_CORPUS = Object.freeze([
   {
+    id: 'income-cash-alias-and-description-followup',
+    tags: ['multi-turn', 'wallet-alias', 'income', 'elliptical-followup'],
+    steps: [
+      {
+        text: 'masukan pemasukan 72rb ke cash',
+        expected: {
+          intent: 'record_income',
+          status: 'clarification',
+          missingSlots: ['description'],
+          pendingAction: false,
+        },
+      },
+      {
+        text: 'ke tunai',
+        expected: {
+          intent: 'record_income',
+          status: 'clarification',
+          missingSlots: ['description'],
+          pendingAction: false,
+        },
+      },
+      {
+        text: 'sisa gaji',
+        expected: {
+          intent: 'record_income',
+          status: 'pending_confirmation',
+          pendingAction: true,
+          pendingItemAmounts: [72_000],
+          pendingWalletIds: ['wallet-cash'],
+          pendingDescriptions: ['Gaji'],
+        },
+      },
+    ],
+  },
+  {
     id: 'collect-wallet-then-confirm',
     tags: ['multi-turn', 'reference', 'confirmation', 'safe-write'],
     steps: [

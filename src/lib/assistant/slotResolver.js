@@ -153,18 +153,49 @@ function deriveSlots(intent, entities, text) {
 
 function deriveDescription(text, entities) {
   const merchant = entities.merchants?.[0]?.name
-  if (merchant) return merchant
+  const walletNames = (entities.wallets || [])
+    .map((wallet) => wallet.name)
+    .filter(Boolean)
+  if (
+    merchant &&
+    !isWalletLikeDescription(merchant, walletNames)
+  ) {
+    return merchant
+  }
 
   const category = entities.categories?.[0]?.name
   if (category && category.toLowerCase() !== 'lainnya') return category
 
-  const cleaned = String(text || '')
+  let cleaned = String(text || '')
     .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:ribu|rb|k|juta|jt|miliar)?/giu, ' ')
-    .replace(/\b(?:tolong|mohon|catat|simpan|rekam|input|masukkan|tambahkan|tadi|hari ini|kemarin|pakai|pake|dari|dompet|rekening)\b/giu, ' ')
+    .replace(/\b(?:tolong|mohon|catat|masukan|masukkan|simpan|rekam|input|tambahkan|tambah|tadi|hari ini|kemarin|pakai|pake|dari|ke|via|dompet|wallet|rekening|pemasukan|pendapatan|pengeluaran|income|expense|masuk|keluar|cash|tunai|kontan|uang fisik|uang kontan)\b/giu, ' ')
+
+  for (const walletName of walletNames) {
+    cleaned = cleaned.replace(
+      new RegExp(`\\b${escapeRegExp(walletName)}\\b`, 'giu'),
+      ' '
+    )
+  }
+
+  cleaned = cleaned
     .replace(/\s+/g, ' ')
     .trim()
 
   return cleaned || null
+}
+
+function isWalletLikeDescription(value, walletNames) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return (
+    /^(?:cash|tunai|kontan|uang fisik|uang kontan)$/iu.test(normalized) ||
+    walletNames.some((name) =>
+      String(name || '').trim().toLowerCase() === normalized
+    )
+  )
+}
+
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function deriveSavingGoalDescription(text, entities) {

@@ -20,4 +20,9 @@ describe('local finance intent classifier', () => {
     expect(getFinanceTrainingCorpusStats()).toMatchObject({ labels: 7 })
     expect(getFinanceTrainingCorpusStats().examples).toBeGreaterThanOrEqual(50)
   })
+
+  it('does not classify a salary fragment as change arithmetic', () => {
+    expect(classifyFinanceIntent('sisa gaji').label)
+      .not.toBe('calculate_change')
+  })
 })

@@ -451,7 +451,7 @@ describe('deterministic assistant modules', () => {
     expect(response.text).toContain('Konfirmasi')
   })
 
-  it('varies conversational wrappers while preserving financial facts', () => {
+  it('keeps clarification concise while preserving financial facts', () => {
     const first = composeAssistantResponse({
       intent: 'record_expense',
       confidence: 0.9,
@@ -476,8 +476,8 @@ describe('deterministic assistant modules', () => {
       recentAssistantMessages: [first.text],
     })
 
-    expect(second.components.acknowledgment)
-      .not.toBe(first.components.acknowledgment)
+    expect(first.components.acknowledgment).toBeNull()
+    expect(second.components.acknowledgment).toBeNull()
     expect(second.text).toMatch(/Rp\s*20\.000/u)
     expect(second.text).toContain('Makan')
     expect(second.text).toContain('BCA')
@@ -486,7 +486,7 @@ describe('deterministic assistant modules', () => {
 })
 
 describe('assistant engine multi-turn integration', () => {
-  it('uses chat history to avoid repeating the same response wrapper', () => {
+  it('does not pad a repeated clarification with another acknowledgment', () => {
     const first = runAssistantEngine({
       text: 'Tadi makan 20rb',
       userId: 'user-1',
@@ -503,8 +503,8 @@ describe('assistant engine multi-turn integration', () => {
       now,
     })
 
-    expect(second.response.components.acknowledgment)
-      .not.toBe(first.response.components.acknowledgment)
+    expect(first.response.components.acknowledgment).toBeNull()
+    expect(second.response.components.acknowledgment).toBeNull()
     expect(second.response.text).toMatch(/Rp\s*20\.000/u)
   })
 

@@ -133,6 +133,12 @@ describe('Indonesian assistant multi-turn and reference regression corpus', () =
             label
           ).toEqual(expected.pendingWalletIds)
         }
+        if (expected.pendingDescriptions) {
+          expect(
+            result.pendingAction?.payload?.items?.map((item) => item.description),
+            label
+          ).toEqual(expected.pendingDescriptions)
+        }
         if (expected.commandItemAmounts) {
           expect(
             result.command?.payload?.items?.map((item) => item.amount),

@@ -15,7 +15,9 @@ const HYPOTHETICAL_PATTERN = /\b(kalau|jika|misal|misalnya|seandainya|andaikan|s
 const QUESTION_PATTERN = /\b(berapa|berarti|jadi berapa|hitung|apakah|cukup|bisa tidak|gimana|bagaimana|kenapa|mengapa|cara|maksudnya)\b|\?\s*$/iu
 const PERMISSION_QUESTION_PATTERN = /\b(boleh(?:kah)?|apakah|bisakah|bisa\s+tidak)\b/iu
 const TRANSACTION_VERB_PATTERN = /\b(beli|membeli|belikan|membelikan|bayar|membayar|dibayar|belanja|jajan|makan|minum|isi|topup|terima|menerima|diterima|dapat|gaji|bonus|pengeluaran|pemasukan)\b/iu
-const CHANGE_PATTERN = /\b(kembalian|kembali|susuk|uang balik|baliknya|sisa(?: pembayaran)?)\b/iu
+const CHANGE_PATTERN = /\b(kembalian|kembali|susuk|uang balik|baliknya|sisa pembayaran)\b/iu
+const CHANGE_AMOUNT_PREFIX_PATTERN =
+  /\b(kembalian|kembali|susuk|uang balik|baliknya|sisa(?:nya)?|sisa pembayaran)\b/iu
 const TENDER_TAIL_PATTERN = /\b(?:pakai|pake|bayar|kasih|bawa|serahkan)(?:\s+(?:dengan|sebesar))?(?:\s+uang)?\s*$/iu
 const NEGATED_ALTERNATIVE_PATTERN = /\bbukan\b.+\b(?:tapi|melainkan)\b/iu
 const NON_MONEY_PREFIX_PATTERN = /\b(tanggal|tgl|jam|pukul|umur|usia|nomor|no|sebanyak|jumlah|qty)\s*$/iu
@@ -29,7 +31,7 @@ const META_EXAMPLE_PATTERN = /\b(contoh(?:nya|\s+kalimat)?|sekadar contoh|cuma c
 const THIRD_PARTY_TRANSACTION_PATTERN = /\b(teman|pacar|istri|suami|adik|kakak|ibu|ayah|bos|kantor|dia|mereka)\b.{0,28}\b(beli|membeli|bayar|membayar|belanja|jajan|terima|menerima|traktir|membelikan)\b|\b(dibayari|dibayarin|ditraktir)\b.{0,18}\b(teman|pacar|kantor|bos|dia|mereka)\b/iu
 const PRICE_CHECK_PATTERN = /\b(?:cek|lihat|bandingkan|tanya)\s+(?:harga|biaya)\b|\bharga\b/iu
 const EXPLICIT_DATE_PATTERN = /\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/u
-const CASH_WORD_PATTERN = /\b(tunai|cash|uang kontan)\b/iu
+const CASH_WORD_PATTERN = /\b(tunai|cash|kontan|uang fisik|uang kontan)\b/iu
 const AFFIRMATIVE_DRAFT_PATTERN = /^(?:ya|iya|yup|betul|benar|oke|ok|sip)(?:\s+(?:catat|simpan|rekam)(?:\s+(?:ya|saja|aja))?)?$/iu
 const GENERIC_WALLET_WORDS = new Set(['uang', 'saldo', 'cash', 'tunai', 'dompet', 'rekening', 'wallet'])
 
@@ -110,7 +112,7 @@ export function extractMoneyMentions(text = '') {
 
     if (tenderBeforeChange) {
       role = 'tender'
-    } else if (CHANGE_PATTERN.test(clausePrefix)) {
+    } else if (CHANGE_AMOUNT_PREFIX_PATTERN.test(clausePrefix)) {
       const lastChangeIndex = Math.max(
         clausePrefix.lastIndexOf('kembalian'),
         clausePrefix.lastIndexOf('kembali'),
@@ -991,7 +993,14 @@ export function analyzeConversationalFinance({
   }
 
   const mentions = extractMoneyMentions(normalizedText)
-  const hasChangeLanguage = CHANGE_PATTERN.test(normalizedText)
+  const hasContextualRemainderArithmetic =
+    mentions.length >= 2 &&
+    /\b(?:bayar|uang|serahkan|kasih)\b/iu.test(normalizedText) &&
+    /\bsisa(?:nya)?\s+(?:rp\s*)?\d/iu.test(normalizedText) &&
+    QUESTION_PATTERN.test(normalizedText)
+  const hasChangeLanguage =
+    CHANGE_PATTERN.test(normalizedText) ||
+    hasContextualRemainderArithmetic
   const classifier = classifyFinanceIntent(normalizedText)
   const commitRequested = RECORD_PATTERN.test(normalizedText) && !CANCEL_DRAFT_PATTERN.test(normalizedText)
   const isQuestion = QUESTION_PATTERN.test(normalizedText)
@@ -1243,7 +1252,10 @@ export function analyzeConversationalFinance({
     }
   }
 
-  if (hasChangeLanguage || classifier.label === 'calculate_change') {
+  if (
+    hasChangeLanguage ||
+    (classifier.label === 'calculate_change' && mentions.length > 0)
+  ) {
     return {
       type: 'unknown',
       reply: 'Untuk menghitung kembalian, tulis uang bayar dan kembaliannya. Contoh: “bayar 50rb, kembali 36rb”.',

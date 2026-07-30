@@ -81,6 +81,10 @@ const TRAINING_CORPUS = {
     'kata teman catat kopi 20rb',
     'kopi 20rb belum dibayar catat',
     'beli game usd 20 catat',
+    'sisa gaji',
+    'ini sisa gaji bulan lalu',
+    'sisa bonus masih ada',
+    'berapa sisa saldo dari gaji',
   ],
 }
 

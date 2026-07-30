@@ -40,6 +40,9 @@ export function planAssistantResponse({
     status === 'blocked' ||
     status === 'clarification' ||
     (confidence > 0 && confidence < 0.62)
+  const needsWarning =
+    status === 'blocked' ||
+    (confidence > 0 && confidence < 0.62)
   const verbosity = communicationStyle === 'concise'
     ? 'concise'
     : communicationStyle === 'detailed'
@@ -57,7 +60,9 @@ export function planAssistantResponse({
         : 'friendly',
     verbosity,
     structure: {
-      acknowledgment: mutation || query,
+      acknowledgment:
+        (mutation || query) &&
+        status !== 'clarification',
       empathy: emotional,
       interpretation:
         mutation ||
@@ -65,12 +70,12 @@ export function planAssistantResponse({
         status === 'clarification',
       details: intent === 'record_multiple_transactions',
       insight: Boolean(hasInsight),
-      warning: cautious,
+      warning: needsWarning,
       clarification: Boolean(hasClarification),
       confirmation: Boolean(hasPendingAction),
       nextSuggestion:
         verbosity !== 'concise' &&
-        (status === 'clarification' || intent === 'calculate_change'),
+        intent === 'calculate_change',
     },
     constraints: {
       preserveFinancialFacts: true,

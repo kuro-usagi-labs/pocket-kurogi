@@ -54,4 +54,28 @@ describe('assistant response planner', () => {
     expect(components.interpretation).toContain('Rp14.000')
     expect(components.nextSuggestion).toBeNull()
   })
+
+  it('asks one concise follow-up without repeating acknowledgments or warnings', () => {
+    const plan = planAssistantResponse({
+      intent: 'record_income',
+      status: 'clarification',
+      confidence: 0.9,
+      hasClarification: true,
+    })
+    const components = applyResponsePlan({
+      acknowledgment: 'Pemasukannya sudah aku pahami.',
+      interpretation: 'Pemasukan Rp72.000 melalui Tunai.',
+      warning: 'Aku perlu satu detail.',
+      clarification: 'Uang itu diterima untuk apa?',
+      nextSuggestion: 'Tidak perlu mengulang semuanya.',
+    }, plan)
+
+    expect(components).toMatchObject({
+      acknowledgment: null,
+      interpretation: 'Pemasukan Rp72.000 melalui Tunai.',
+      warning: null,
+      clarification: 'Uang itu diterima untuk apa?',
+      nextSuggestion: null,
+    })
+  })
 })
