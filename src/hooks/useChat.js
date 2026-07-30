@@ -6,6 +6,7 @@ import {
   uploadChatAttachment,
 } from '../lib/neonAttachments'
 import { useAuth } from '../contexts/AuthContext'
+import { mergeChatMessages } from '../lib/chatHistory'
 
 const CHAT_BUCKET = 'chat-attachments'
 const PAGE_SIZE = 40
@@ -34,12 +35,20 @@ async function runWithChatAuthRetry(operation) {
 
 export function useChat() {
   const { user } = useAuth()
+  const userId = user?.id || null
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState(null)
   const oldestCursorRef = useRef(null)
+  const activeUserIdRef = useRef(userId)
+  const requestSequenceRef = useRef(0)
+  const latestRefreshRequestRef = useRef(0)
+  const conversationVersionRef = useRef(0)
+  const localMutationVersionRef = useRef(0)
+
+  activeUserIdRef.current = userId
 
   const removeAttachment = useCallback(async (path) => {
     if (!path) {
@@ -92,78 +101,132 @@ export function useChat() {
   }, [])
 
   const fetchMessages = useCallback(async ({ loadMore = false } = {}) => {
-    if (!user) {
+    const currentUserId = userId
+
+    if (!currentUserId) {
+      conversationVersionRef.current += 1
       setMessages([])
       setLoading(false)
       setLoadingMore(false)
       setHasMore(false)
       setError(null)
       oldestCursorRef.current = null
-      return
+      return { data: [], error: null }
     }
 
+    const requestId = ++requestSequenceRef.current
+    const conversationVersion = conversationVersionRef.current
+    const mutationVersion = localMutationVersionRef.current
+
     if (loadMore) {
-      if (!oldestCursorRef.current) return
+      if (!oldestCursorRef.current) return { data: [], error: null }
       setLoadingMore(true)
     } else {
       setLoading(true)
       oldestCursorRef.current = null
+      latestRefreshRequestRef.current = requestId
     }
 
     const executeFetch = () => {
       let query = neon
         .from('chat_messages')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(PAGE_SIZE)
 
       if (loadMore && oldestCursorRef.current) {
-        query = query.lt('created_at', oldestCursorRef.current)
+        const cursor = oldestCursorRef.current
+        query = query.or(
+          `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
+        )
       }
 
       return query
     }
 
-    const { data, error: fetchError } = await runWithChatAuthRetry(executeFetch)
+    try {
+      const { data, error: fetchError } = await runWithChatAuthRetry(executeFetch)
+      const isCurrentConversation = () => (
+        activeUserIdRef.current === currentUserId &&
+        conversationVersionRef.current === conversationVersion &&
+        (loadMore || latestRefreshRequestRef.current === requestId)
+      )
 
-    if (!fetchError && data) {
+      if (!isCurrentConversation()) {
+        return { data: null, error: null, stale: true }
+      }
+
+      if (fetchError || !data) {
+        // Keep the last known messages visible. A transient auth refresh must
+        // never replace a conversation with the welcome screen.
+        if (!loadMore) setError(fetchError || new Error('Riwayat chat belum dapat dimuat.'))
+        return { data: null, error: fetchError || new Error('Riwayat chat belum dapat dimuat.') }
+      }
+
       const hydrated = await hydrateMessages(data)
+      if (!isCurrentConversation()) {
+        return { data: null, error: null, stale: true }
+      }
+
       const ordered = [...hydrated].reverse()
-      oldestCursorRef.current = data[data.length - 1]?.created_at || null
+      if (loadMore) {
+        oldestCursorRef.current = data[data.length - 1]
+          ? { createdAt: data[data.length - 1].created_at, id: data[data.length - 1].id }
+          : oldestCursorRef.current
+      } else {
+        oldestCursorRef.current = data[data.length - 1]
+          ? { createdAt: data[data.length - 1].created_at, id: data[data.length - 1].id }
+          : null
+      }
       setHasMore(data.length === PAGE_SIZE)
       setError(null)
 
-      if (loadMore) {
-        setMessages((prev) => {
-          const merged = [...ordered, ...prev]
-          return merged.filter(
-            (message, index, all) => all.findIndex((candidate) => candidate.id === message.id) === index
-          )
-        })
-      } else {
-        setMessages(ordered)
-      }
-    } else if (!loadMore) {
-      setMessages([])
-      setHasMore(false)
-      setError(fetchError || new Error('Riwayat chat belum dapat dimuat.'))
-    }
+      setMessages((previous) => {
+        if (loadMore || localMutationVersionRef.current !== mutationVersion) {
+          return mergeChatMessages(previous, ordered)
+        }
+        return ordered
+      })
 
-    if (loadMore) {
-      setLoadingMore(false)
-    } else {
-      setLoading(false)
+      return { data: ordered, error: null }
+    } catch (caughtError) {
+      if (
+        activeUserIdRef.current === currentUserId &&
+        conversationVersionRef.current === conversationVersion &&
+        (loadMore || latestRefreshRequestRef.current === requestId) &&
+        !loadMore
+      ) {
+        setError(caughtError)
+      }
+      return { data: null, error: caughtError }
+    } finally {
+      if (
+        activeUserIdRef.current === currentUserId &&
+        conversationVersionRef.current === conversationVersion &&
+        (loadMore || latestRefreshRequestRef.current === requestId)
+      ) {
+        if (loadMore) setLoadingMore(false)
+        else setLoading(false)
+      }
     }
-  }, [hydrateMessages, user])
+  }, [hydrateMessages, userId])
 
   useEffect(() => {
+    conversationVersionRef.current += 1
+    oldestCursorRef.current = null
+    localMutationVersionRef.current += 1
+    setMessages([])
+    setHasMore(false)
+    setError(null)
+
     const timeoutId = setTimeout(() => {
       fetchMessages().catch(() => null)
     }, 0)
 
     return () => clearTimeout(timeoutId)
-  }, [fetchMessages])
+  }, [fetchMessages, userId])
 
   const uploadAttachment = useCallback(async (file) => {
     if (!user || !file) {
@@ -230,7 +293,8 @@ export function useChat() {
         image: imageUrl,
         metadata,
       }
-      setMessages((prev) => [...prev, formatted])
+      localMutationVersionRef.current += 1
+      setMessages((prev) => mergeChatMessages(prev, [formatted]))
       setError(null)
       return { data: formatted, error: null }
     }
@@ -280,6 +344,8 @@ export function useChat() {
       .eq('user_id', user.id)
 
     if (!error) {
+      conversationVersionRef.current += 1
+      localMutationVersionRef.current += 1
       setMessages([])
       setHasMore(false)
       oldestCursorRef.current = null

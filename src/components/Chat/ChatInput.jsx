@@ -29,7 +29,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
   }, [inputValue])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault()
     if ((!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy) return
     if (selectedImage && !inputValue.trim()) {
@@ -37,11 +37,12 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
       textareaRef.current?.focus()
       return
     }
-    onSend({
+    const accepted = await onSend?.({
       text: inputValue.trim(),
       imageFile: selectedImage?.file || null,
       imagePreview: selectedImage?.previewUrl || null,
     })
+    if (accepted === false) return
     setInputValue('')
     setSelectedImage(null)
   }
@@ -52,7 +53,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
     }
 
     event.preventDefault()
-    handleSubmit(event)
+    void handleSubmit(event)
   }
 
   const handleImageUpload = (e) => {

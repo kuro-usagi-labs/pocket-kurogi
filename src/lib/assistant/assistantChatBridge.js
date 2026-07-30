@@ -107,6 +107,15 @@ export function isAssistantInsightIntent(intent) {
   return HANDLED_QUERY_INTENTS.has(intent)
 }
 
+export function shouldSupersedePendingAction(engineResult) {
+  const command = engineResult?.command?.type
+  return ![
+    'confirm_pending_action',
+    'cancel_pending_action',
+    'correct_pending_action',
+  ].includes(command)
+}
+
 export function buildAssistantPendingResponse(result, persistedAction = null) {
   const pendingAction = persistedAction || result.pendingAction
   const card = result.response?.card

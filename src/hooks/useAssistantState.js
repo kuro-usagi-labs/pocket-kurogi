@@ -1,38 +1,76 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { requestAssistantApi } from '../lib/assistant/assistantApiClient'
 
 export function useAssistantState() {
   const { user } = useAuth()
+  const userId = user?.id || null
   const [dialogueState, setDialogueState] = useState(null)
   const [pendingAction, setPendingAction] = useState(null)
   const [memories, setMemories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const activeUserIdRef = useRef(userId)
+  const requestSequenceRef = useRef(0)
+  const activeRequestRef = useRef(null)
+
+  activeUserIdRef.current = userId
 
   const fetchAssistantState = useCallback(async () => {
-    if (!user) {
+    const currentUserId = userId
+    if (!currentUserId) {
+      requestSequenceRef.current += 1
+      activeRequestRef.current = null
       setDialogueState(null)
       setPendingAction(null)
       setMemories([])
+      setError(null)
       setLoading(false)
-      return
+      return { data: null, error: null }
     }
 
+    const requestId = ++requestSequenceRef.current
     setLoading(true)
-    const data = await requestAssistantApi({
+    const request = requestAssistantApi({
       operation: 'get_state',
       method: 'GET',
     })
-    setDialogueState(data?.dialogueState?.state || null)
-    setPendingAction(mapPendingAction(data?.pendingAction || null))
-    setMemories(
-      Array.isArray(data?.memories)
-        ? data.memories.map(mapMemory)
-        : []
-    )
+    activeRequestRef.current = { userId: currentUserId, requestId, request }
 
-    setLoading(false)
-  }, [user])
+    try {
+      const data = await request
+      const isCurrent = (
+        activeUserIdRef.current === currentUserId &&
+        requestSequenceRef.current === requestId
+      )
+      if (!isCurrent) return { data: null, error: null, stale: true }
+
+      setDialogueState(data?.dialogueState?.state || null)
+      setPendingAction(mapPendingAction(data?.pendingAction || null))
+      setMemories(
+        Array.isArray(data?.memories)
+          ? data.memories.map(mapMemory)
+          : []
+      )
+      setError(null)
+      return { data, error: null }
+    } catch (caughtError) {
+      if (
+        activeUserIdRef.current === currentUserId &&
+        requestSequenceRef.current === requestId
+      ) {
+        setError(caughtError)
+      }
+      return { data: null, error: caughtError }
+    } finally {
+      if (
+        activeUserIdRef.current === currentUserId &&
+        requestSequenceRef.current === requestId
+      ) {
+        setLoading(false)
+      }
+    }
+  }, [userId])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -40,6 +78,27 @@ export function useAssistantState() {
     }, 0)
     return () => clearTimeout(timeoutId)
   }, [fetchAssistantState])
+
+  const ensureReady = useCallback(async () => {
+    if (!userId) {
+      return { data: null, error: new Error('Sesi pengguna tidak tersedia.') }
+    }
+
+    const activeRequest = activeRequestRef.current
+    if (
+      loading &&
+      activeRequest?.userId === userId &&
+      activeRequest?.request
+    ) {
+      return activeRequest.request
+        .then((data) => ({ data, error: null }))
+        .catch((caughtError) => ({ data: null, error: caughtError }))
+    }
+
+    if (loading) return fetchAssistantState()
+    if (error) return fetchAssistantState()
+    return { data: { dialogueState, pendingAction, memories }, error: null }
+  }, [dialogueState, error, fetchAssistantState, loading, memories, pendingAction, userId])
 
   const saveDialogueState = useCallback(async (nextState) => {
     if (!user || !nextState?.expiresAt) {
@@ -51,7 +110,6 @@ export function useAssistantState() {
         operation: 'save_dialogue',
         body: {
           state: nextState,
-          expiresAt: nextState.expiresAt,
         },
       })
       setDialogueState(data?.state || nextState)
@@ -73,7 +131,6 @@ export function useAssistantState() {
           idempotencyKey: action.idempotencyKey,
           actionType: action.actionType,
           payload: action.payload,
-          expiresAt: action.expiresAt,
         },
       })
       const mapped = mapPendingAction({
@@ -205,6 +262,8 @@ export function useAssistantState() {
     pendingAction,
     memories,
     loading,
+    error,
+    ensureReady,
     saveDialogueState,
     stagePendingAction,
     confirmPendingAction,

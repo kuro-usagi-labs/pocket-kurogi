@@ -9,6 +9,7 @@ export default function MessageBubble({
   onReply,
   onCardAction,
   disabled = false,
+  pendingActionActive = true,
   isFirstInGroup = true,
   isLastInGroup = true,
 }) {
@@ -95,7 +96,7 @@ export default function MessageBubble({
             msg.card.type === 'pending_action' ? (
               <PendingActionCard
                 card={msg.card}
-                disabled={disabled}
+                disabled={disabled || !pendingActionActive}
                 formatRupiah={formatRupiah}
                 onAction={onCardAction}
               />

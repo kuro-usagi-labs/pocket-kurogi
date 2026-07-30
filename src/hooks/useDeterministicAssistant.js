@@ -12,6 +12,7 @@ import {
   buildAssistantPendingResponse,
   isAssistantInsightIntent,
   shouldHandleAssistantEngineResult,
+  shouldSupersedePendingAction,
 } from '../lib/assistant/assistantChatBridge'
 import { useAssistantState } from './useAssistantState'
 
@@ -54,14 +55,25 @@ export function useDeterministicAssistant({
         ...commonInput,
         pendingAction: assistantState.pendingAction,
       })
-      return {
-        handled: true,
-        response: await processExistingPendingAction({
-          assistantState,
-          engineResult,
-          syncFinancialViews,
-        }),
+      if (!shouldSupersedePendingAction(engineResult)) {
+        return {
+          handled: true,
+          response: await processExistingPendingAction({
+            assistantState,
+            engineResult,
+            syncFinancialViews,
+          }),
+        }
       }
+
+      // A fresh message starts a fresh turn. Leaving an old draft active here
+      // made ordinary questions repeatedly resurrect an unrelated action.
+      const cancellationResult = await assistantState.cancelPendingAction(
+        assistantState.pendingAction
+      )
+      if (cancellationResult.error) throw cancellationResult.error
+      commonInput.pendingAction = null
+      commonInput.dialogueState = null
     }
 
     let engineResult = runAssistantEngine(commonInput)

@@ -3,8 +3,8 @@ import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { assessMemorySafety } from '../../src/lib/assistant/memoryLifecycle.js'
 
 const MAX_BODY_BYTES = 65_536
-const MAX_PENDING_ACTION_TTL_MS = 30 * 60 * 1000
-const MAX_DIALOGUE_TTL_MS = 24 * 60 * 60 * 1000
+const ASSISTANT_ACTION_TTL_MS = 15 * 60 * 1000
+const ASSISTANT_DIALOGUE_TTL_MS = 30 * 60 * 1000
 const PRODUCTION_ORIGINS = Object.freeze([
   'https://pocket.kurousagi.web.id',
 ])
@@ -194,7 +194,7 @@ export async function runAssistantDatabaseOperation({
     queries.push(sql`
       select public.save_assistant_dialogue_state(
         ${JSON.stringify(body.state)}::jsonb,
-        ${body.expiresAt}::timestamptz
+        ${new Date(Date.now() + ASSISTANT_DIALOGUE_TTL_MS).toISOString()}::timestamptz
       ) as result
     `)
   } else if (operation === 'stage_action') {
@@ -203,7 +203,7 @@ export async function runAssistantDatabaseOperation({
         ${body.idempotencyKey},
         ${body.actionType},
         ${JSON.stringify(body.payload)}::jsonb,
-        ${body.expiresAt}::timestamptz
+        ${new Date(Date.now() + ASSISTANT_ACTION_TTL_MS).toISOString()}::timestamptz
       ) as result
     `)
   } else if (operation === 'confirm_action') {
@@ -280,11 +280,6 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
   }
   if (normalizedOperation === 'save_dialogue') {
     requirePlainObject(body.state, 'Dialogue state')
-    requireFutureDateWithin(
-      body.expiresAt,
-      'Masa berlaku dialogue state',
-      MAX_DIALOGUE_TTL_MS
-    )
   }
   if (normalizedOperation === 'stage_action') {
     if (
@@ -305,11 +300,6 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
     }
     requirePlainObject(body.payload, 'Payload pending action')
     validateActionPayload(body.actionType, body.payload)
-    requireFutureDateWithin(
-      body.expiresAt,
-      'Masa berlaku pending action',
-      MAX_PENDING_ACTION_TTL_MS
-    )
   }
   if (['confirm_action', 'correct_action'].includes(normalizedOperation)) {
     requireUuid(body.actionId, 'Action ID')
@@ -379,21 +369,6 @@ function getAllowedOrigins() {
 function requirePlainObject(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throwRequestError(`${label} harus berupa object.`)
-  }
-}
-
-function requireValidDate(value, label) {
-  if (!value || Number.isNaN(new Date(value).getTime())) {
-    throwRequestError(`${label} tidak valid.`)
-  }
-}
-
-function requireFutureDateWithin(value, label, maximumTtlMs) {
-  requireValidDate(value, label)
-  const timestamp = new Date(value).getTime()
-  const now = Date.now()
-  if (timestamp <= now || timestamp > now + maximumTtlMs) {
-    throwRequestError(`${label} berada di luar rentang yang diizinkan.`)
   }
 }
 

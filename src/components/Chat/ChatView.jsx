@@ -56,6 +56,8 @@ export default function ChatView({
   isFreshChat = false,
   error = null,
   onRetry,
+  loading = false,
+  activePendingActionId = null,
 }) {
   const containerRef = useRef(null)
   const messagesEndRef = useRef(null)
@@ -142,7 +144,9 @@ export default function ChatView({
       >
         {error ? <ChatSyncNotice onRetry={onRetry} /> : null}
 
-        {isFreshChat ? (
+        {loading ? <ChatHistoryLoading /> : null}
+
+        {isFreshChat && !loading ? (
           <>
             <SavingsOpening
               balance={balance}
@@ -175,13 +179,13 @@ export default function ChatView({
           </button>
         ) : null}
 
-        <div className="mb-5 flex items-center gap-3" aria-hidden="true">
+        {!loading ? <div className="mb-5 flex items-center gap-3" aria-hidden="true">
           <span className="h-px flex-1 bg-midnight/[0.08]" />
           <p className="text-[10px] font-bold text-muted">
             {isFreshChat ? 'Mulai percakapan' : 'Percakapan terbaru'}
           </p>
           <span className="h-px flex-1 bg-midnight/[0.08]" />
-        </div>
+        </div> : null}
 
         {messages.map((message, index) => {
           const previousMessage = messages[index - 1]
@@ -200,6 +204,10 @@ export default function ChatView({
                 onReply={onSend}
                 onCardAction={onCardAction}
                 disabled={isTyping}
+                pendingActionActive={
+                  message.card?.type !== 'pending_action' ||
+                  message.card?.id === activePendingActionId
+                }
                 isFirstInGroup={previousMessage?.sender !== message.sender}
                 isLastInGroup={nextMessage?.sender !== message.sender}
               />
@@ -336,6 +344,15 @@ function ChatSyncNotice({ onRetry }) {
         <RefreshCw size={14} strokeWidth={2.3} />
         Coba lagi
       </button>
+    </div>
+  )
+}
+
+function ChatHistoryLoading() {
+  return (
+    <div className="mb-5 flex items-center gap-2.5 px-1 py-3 text-muted" role="status">
+      <RefreshCw size={15} className="animate-spin" strokeWidth={2} />
+      <span className="text-[11px] font-bold">Memuat riwayat percakapan…</span>
     </div>
   )
 }

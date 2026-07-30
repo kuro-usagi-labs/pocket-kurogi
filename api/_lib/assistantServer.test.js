@@ -66,12 +66,11 @@ describe('assistant Vercel API safety', () => {
       .not.toThrow()
   })
 
-  it('rejects unsafe pending payloads, excessive expiry, and uncurated memory', () => {
+  it('rejects unsafe pending payloads and uncurated memory', () => {
     expect(() => validateAssistantOperationRequest('stage_action', {
       idempotencyKey: 'request-1',
       actionType: 'record_transactions',
       payload: { items: [] },
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     })).toThrow(/1 sampai 20 item/)
 
     expect(() => validateAssistantOperationRequest('stage_action', {
@@ -82,9 +81,10 @@ describe('assistant Vercel API safety', () => {
         destinationWalletId: '11111111-1111-4111-8111-111111111111',
         amount: 10_000,
       },
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     })).toThrow(/harus berbeda/)
 
+    // Expiry is calculated on the server. A device clock must never make a
+    // valid finance action fail before it reaches the database.
     expect(() => validateAssistantOperationRequest('stage_action', {
       idempotencyKey: 'request-3',
       actionType: 'upsert_budget',
@@ -92,8 +92,8 @@ describe('assistant Vercel API safety', () => {
         categoryId: '33333333-3333-4333-8333-333333333333',
         amount: 100_000,
       },
-      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    })).toThrow(/di luar rentang/)
+      expiresAt: '1970-01-01T00:00:00.000Z',
+    })).not.toThrow()
 
     expect(() => validateAssistantOperationRequest('remember', {
       key: 'arbitrary_secret',
@@ -146,7 +146,6 @@ describe('assistant Vercel API safety', () => {
             amount: 72_000,
           }],
         },
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       },
     })
 

@@ -850,18 +850,23 @@ export default function AppShell() {
 
       if (
         (!text.trim() && !imageFile && !imagePreview) ||
-        sendInFlightRef.current ||
-        chatLoading ||
-        deterministicAssistant.loading
+        sendInFlightRef.current
       ) {
-        return
+        return false
       }
 
       const userMessageText = text.trim() || 'Lampiran gambar'
       sendInFlightRef.current = true
       setIsTyping(true)
+      let userMessageSaved = false
 
       try {
+        const assistantReady = await deterministicAssistant.ensureReady()
+        if (assistantReady?.error) {
+          showNotice('Asisten belum tersambung. Coba kirim lagi sebentar lagi.', 'error')
+          return false
+        }
+
         const savedUserMessage = await saveMessage('user', userMessageText, {
           imageFile,
           imagePreview,
@@ -870,6 +875,7 @@ export default function AppShell() {
         if (savedUserMessage?.error) {
           throw savedUserMessage.error
         }
+        userMessageSaved = true
 
         const messageRequestId = savedUserMessage.data?.id || null
         const orchestration = orchestrateAssistantMessage({
@@ -1013,6 +1019,7 @@ export default function AppShell() {
             actualEngine,
           })
         )
+        return true
       } catch (error) {
         console.error('Chat Error:', error)
         try {
@@ -1022,6 +1029,7 @@ export default function AppShell() {
         } catch {
           showNotice('Pesan gagal diproses dan balasan belum tersimpan. Coba lagi.', 'error')
         }
+        return userMessageSaved
       } finally {
         sendInFlightRef.current = false
         setIsTyping(false)
@@ -1033,7 +1041,6 @@ export default function AppShell() {
       categories,
       walletRules,
       budgets,
-      chatLoading,
       deterministicAssistant,
       executeIntent,
       financeDraft,
@@ -1295,7 +1302,8 @@ export default function AppShell() {
                 messages={
                   messages.length > 0
                     ? messages
-                    : [
+                    : !chatLoading && !chatError
+                      ? [
                         {
                           ...getWelcomeMessage({
                             balance: grandTotalBalance,
@@ -1304,8 +1312,9 @@ export default function AppShell() {
                           time: getCurrentTimeLabel(),
                         },
                       ]
+                      : []
                 }
-                isTyping={isTyping || chatLoading || deterministicAssistant.loading}
+                isTyping={isTyping}
                 onSend={handleSend}
                 onNotify={showNotice}
                 formatRupiah={formatRupiah}
@@ -1317,9 +1326,11 @@ export default function AppShell() {
                 onLoadMore={loadMoreMessages}
                 onNavigate={setActiveTab}
                 onCardAction={handleChatCardAction}
-                isFreshChat={messages.length === 0}
+                isFreshChat={messages.length === 0 && !chatLoading && !chatError}
                 error={chatError}
                 onRetry={refetchChat}
+                loading={chatLoading}
+                activePendingActionId={deterministicAssistant.pendingAction?.id || null}
               />
               </div>
             ) : null}
