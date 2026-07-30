@@ -254,7 +254,7 @@ export const INDONESIAN_CONVERSATION_CORPUS = Object.freeze([
           pendingAction: true,
           pendingItemAmounts: [72_000],
           pendingWalletIds: ['wallet-cash'],
-          pendingDescriptions: ['Gaji'],
+          pendingDescriptions: ['Sisa gaji'],
         },
       },
     ],

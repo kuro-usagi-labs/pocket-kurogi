@@ -165,6 +165,25 @@ describe('deterministic assistant modules', () => {
     }))
   })
 
+  it('keeps a meaningful modifier in an income description', () => {
+    const entities = extractAssistantEntities({
+      text: 'sisa gaji',
+      wallets,
+      categories,
+      now,
+    })
+    const resolved = resolveIntentSlots({
+      intent: 'record_income',
+      entities,
+      text: 'sisa gaji',
+    })
+
+    expect(resolved.slots).toEqual(expect.objectContaining({
+      description: 'Sisa gaji',
+      category: { id: 'cat-salary', name: 'Gaji' },
+    }))
+  })
+
   it('detects emotional context without inventing financial facts', () => {
     expect(detectEmotionalContext('Aku stres, uang tinggal sedikit sampai gajian', {
       totalBalance: 400_000,
@@ -449,6 +468,9 @@ describe('deterministic assistant modules', () => {
       actions: ['confirm', 'edit', 'cancel'],
     }))
     expect(response.text).toContain('Konfirmasi')
+    expect(response.text).not.toMatch(/perlu (?:satu )?detail/iu)
+    expect(response.components.acknowledgment).toBeNull()
+    expect(response.components.warning).toBeNull()
   })
 
   it('keeps clarification concise while preserving financial facts', () => {

@@ -39,10 +39,10 @@ export function planAssistantResponse({
   const cautious =
     status === 'blocked' ||
     status === 'clarification' ||
-    (confidence > 0 && confidence < 0.62)
+    (!hasPendingAction && confidence > 0 && confidence < 0.62)
   const needsWarning =
     status === 'blocked' ||
-    (confidence > 0 && confidence < 0.62)
+    (!hasPendingAction && confidence > 0 && confidence < 0.62)
   const verbosity = communicationStyle === 'concise'
     ? 'concise'
     : communicationStyle === 'detailed'
@@ -62,7 +62,8 @@ export function planAssistantResponse({
     structure: {
       acknowledgment:
         (mutation || query) &&
-        status !== 'clarification',
+        status !== 'clarification' &&
+        !hasPendingAction,
       empathy: emotional,
       interpretation:
         mutation ||

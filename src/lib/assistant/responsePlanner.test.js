@@ -16,14 +16,33 @@ describe('assistant response planner', () => {
     expect(plan).toMatchObject({
       tone: 'friendly',
       structure: {
-        acknowledgment: true,
+        acknowledgment: false,
         interpretation: true,
         confirmation: true,
+        warning: false,
       },
       constraints: {
         preserveFinancialFacts: true,
         neverClaimWriteBeforeConfirmation: true,
       },
+    })
+  })
+
+  it('does not ask for more detail when a low-confidence action is already complete', () => {
+    const plan = planAssistantResponse({
+      intent: 'record_income',
+      status: 'pending_confirmation',
+      confidence: 0.55,
+      hasPendingAction: true,
+    })
+
+    expect(plan.tone).toBe('friendly')
+    expect(plan.structure).toMatchObject({
+      acknowledgment: false,
+      interpretation: true,
+      warning: false,
+      clarification: false,
+      confirmation: true,
     })
   })
 

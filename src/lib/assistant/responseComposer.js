@@ -108,9 +108,9 @@ const ACKNOWLEDGMENTS = Object.freeze({
 })
 
 const CONFIRMATION_PROMPTS = [
-  'Periksa ringkasannya, lalu pilih Konfirmasi, Ubah, atau Batal.',
-  'Cek dulu detailnya. Kalau sudah tepat, pilih Konfirmasi; kamu juga bisa Ubah atau Batal.',
-  'Pastikan rinciannya sesuai sebelum memilih Konfirmasi. Opsi Ubah dan Batal tetap tersedia.',
+  'Sudah benar? Pilih Konfirmasi untuk mencatat, atau Ubah jika ada yang keliru.',
+  'Cek ringkasannya. Jika sudah tepat, pilih Konfirmasi.',
+  'Pastikan rinciannya sesuai, lalu pilih Konfirmasi.',
 ]
 
 export function composeAssistantResponse({
@@ -259,11 +259,15 @@ function composeInterpretation(intent, slots) {
     }
   }
   if (intent === 'record_expense' || intent === 'record_income') {
-    const direction = intent === 'record_income' ? 'pemasukan' : 'pengeluaran'
-    const description = slots.description ? ` untuk ${slots.description}` : ''
-    const wallet = slots.wallet?.name ? ` melalui ${slots.wallet.name}` : ''
+    const direction = intent === 'record_income' ? 'Pemasukan' : 'Pengeluaran'
     const amount = slots.amount ? ` ${formatRupiah(slots.amount)}` : ''
-    return `Pemahamanku: ${direction}${amount}${description}${wallet}.`
+    const description = slots.description
+      ? ` dengan catatan "${slots.description}"`
+      : ''
+    const wallet = slots.wallet?.name
+      ? `${intent === 'record_income' ? ' ke' : ' dari'} ${slots.wallet.name}`
+      : ''
+    return `${direction}${amount}${wallet}${description}.`
   }
   if (intent === 'transfer_money') {
     return `Pemahamanku: pindahkan ${formatRupiah(slots.amount)} dari ${slots.sourceWallet?.name || 'dompet sumber'} ke ${slots.destinationWallet?.name || 'dompet tujuan'}.`

@@ -163,9 +163,6 @@ function deriveDescription(text, entities) {
     return merchant
   }
 
-  const category = entities.categories?.[0]?.name
-  if (category && category.toLowerCase() !== 'lainnya') return category
-
   let cleaned = String(text || '')
     .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:ribu|rb|k|juta|jt|miliar)?/giu, ' ')
     .replace(/\b(?:tolong|mohon|catat|masukan|masukkan|simpan|rekam|input|tambahkan|tambah|tadi|hari ini|kemarin|pakai|pake|dari|ke|via|dompet|wallet|rekening|pemasukan|pendapatan|pengeluaran|income|expense|masuk|keluar|cash|tunai|kontan|uang fisik|uang kontan)\b/giu, ' ')
@@ -181,7 +178,12 @@ function deriveDescription(text, entities) {
     .replace(/\s+/g, ' ')
     .trim()
 
-  return cleaned || null
+  if (cleaned) return toSentenceCase(cleaned)
+
+  const category = entities.categories?.[0]?.name
+  return category && category.toLowerCase() !== 'lainnya'
+    ? category
+    : null
 }
 
 function isWalletLikeDescription(value, walletNames) {
@@ -196,6 +198,13 @@ function isWalletLikeDescription(value, walletNames) {
 
 function escapeRegExp(value) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function toSentenceCase(value) {
+  const text = String(value || '').trim()
+  return text
+    ? `${text.charAt(0).toLocaleUpperCase('id-ID')}${text.slice(1)}`
+    : null
 }
 
 function deriveSavingGoalDescription(text, entities) {

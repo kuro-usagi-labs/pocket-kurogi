@@ -19,6 +19,12 @@ export default function MessageBubble({
   const candidates = Array.isArray(msg.metadata?.candidates) ? msg.metadata.candidates : []
   const confirmationMode = msg.metadata?.confirmationMode || (candidates.length > 0 ? 'choice' : 'input')
   const confirmationHint = msg.metadata?.confirmationHint || getConfirmationHint(confirmationMode)
+  const hasPendingActionCard = msg.card?.type === 'pending_action'
+  const showInlineConfirmation =
+    !isUser &&
+    msg.metadata?.intentStatus === 'needs_confirmation' &&
+    confirmationMode !== 'card' &&
+    !hasPendingActionCard
 
   return (
     <div className={`${groupSpacing} flex w-full ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
@@ -60,7 +66,7 @@ export default function MessageBubble({
             </div>
           ) : null}
 
-          {!isUser && msg.metadata?.intentStatus === 'needs_confirmation' ? (
+          {showInlineConfirmation ? (
             <div className="mt-3 rounded-[12px] border border-amber-100 bg-amber-50 px-3.5 py-2.5">
               <p className="font-jakarta text-[12px] font-bold leading-relaxed text-amber-800">
                 {confirmationHint}
