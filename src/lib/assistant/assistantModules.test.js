@@ -467,10 +467,13 @@ describe('deterministic assistant modules', () => {
       type: 'pending_action',
       actions: ['confirm', 'edit', 'cancel'],
     }))
-    expect(response.text).toContain('Konfirmasi')
+    expect(response.text).toBe(
+      'Pengeluaran Rp\u00a020.000 dari BCA dengan catatan "Makan".'
+    )
     expect(response.text).not.toMatch(/perlu (?:satu )?detail/iu)
     expect(response.components.acknowledgment).toBeNull()
     expect(response.components.warning).toBeNull()
+    expect(response.components.confirmation).toBeNull()
   })
 
   it('keeps clarification concise while preserving financial facts', () => {
@@ -568,6 +571,44 @@ describe('assistant engine multi-turn integration', () => {
     expect(third.command).toEqual({
       type: 'confirm_pending_action',
       pendingActionId: second.pendingAction.id,
+    })
+  })
+
+  it('cleans Indonesian connector words and accepts "iya konfirmasi"', () => {
+    const review = runAssistantEngine({
+      text: 'masukan 100k pada dompet bca, sisa gaji',
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+
+    expect(review.dialogue.status).toBe('pending_confirmation')
+    expect(review.slots.slots).toEqual(expect.objectContaining({
+      amount: 100_000,
+      description: 'Sisa gaji',
+      wallet: { id: 'wallet-bca', name: 'BCA' },
+      category: { id: 'cat-salary', name: 'Gaji' },
+    }))
+    expect(review.response.text).toBe(
+      'Pemasukan Rp\u00a0100.000 ke BCA dengan catatan "Sisa gaji".'
+    )
+    expect(review.response.components.confirmation).toBeNull()
+
+    const confirmed = runAssistantEngine({
+      text: 'iya konfirmasi',
+      userId: 'user-1',
+      wallets,
+      categories,
+      dialogueState: review.dialogueState,
+      pendingAction: review.pendingAction,
+      now,
+    })
+
+    expect(confirmed.route.intent).toBe('confirm_pending_action')
+    expect(confirmed.command).toEqual({
+      type: 'confirm_pending_action',
+      pendingActionId: review.pendingAction.id,
     })
   })
 

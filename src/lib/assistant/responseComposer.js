@@ -107,12 +107,6 @@ const ACKNOWLEDGMENTS = Object.freeze({
   ],
 })
 
-const CONFIRMATION_PROMPTS = [
-  'Sudah benar? Pilih Konfirmasi untuk mencatat, atau Ubah jika ada yang keliru.',
-  'Cek ringkasannya. Jika sudah tepat, pilih Konfirmasi.',
-  'Pastikan rinciannya sesuai, lalu pilih Konfirmasi.',
-]
-
 export function composeAssistantResponse({
   intent,
   confidence = 0,
@@ -150,12 +144,7 @@ export function composeAssistantResponse({
       seed,
     }),
     clarification: clarification?.question || null,
-    confirmation: pendingAction
-      ? selectFreshResponse(CONFIRMATION_PROMPTS, {
-          recentMessages: recentAssistantMessages,
-          seed: `${seed}:confirmation`,
-        })
-      : null,
+    confirmation: null,
     nextSuggestion: composeNextSuggestion(
       intent,
       status,

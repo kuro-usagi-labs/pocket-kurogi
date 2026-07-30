@@ -21,7 +21,7 @@ const SIGNALS = Object.freeze({
   update: /\b(?:ubah(?:kan|in)?|ganti(?:kan|in)?|update|naikkan|naikin|turunkan|turunin|revisi)\b/iu,
   advice: /\b(?:saran|strategi|rekomendasi|sebaiknya|menurutmu|aman|cukup|atur|hemat|prioritas)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
-  confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
+  confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
   cancel: /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu,
   greeting: /^(?:halo|hai|hi|pagi|siang|sore|malam|apa kabar)\b/iu,
   emotional: /\b(?:stres|stress|khawatir|cemas|takut|menyesal|nyesel|bingung|pusing|bangga|senang|semangat|panik|tertekan|boros banget|uang menipis|saldo tinggal|sisa uang)\b/iu,

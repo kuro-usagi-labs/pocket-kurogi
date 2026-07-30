@@ -13,7 +13,7 @@ import {
 } from './walletResolver'
 
 const CONFIRMATION_PATTERN =
-  /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|lanjut(?:kan)?|saja|aja|sekarang))?$/iu
+  /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu
 const CANCELLATION_PATTERN = /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu
 const HYPOTHETICAL_PATTERN =
   /\b(?:kalau|andaikan|misal(?:nya)?|seandainya|rencana|berencana|akan|besok|lusa|nanti|hampir|nyaris)\b|\b(?:mau|ingin|pengen|pingin)\b(?!\s+(?:tolong\s+)?(?:catat|simpan|rekam|input|masukkan|tambahkan|buat(?:kan)?|bikin(?:kan)?|transfer|ubah|ganti)\b)/iu

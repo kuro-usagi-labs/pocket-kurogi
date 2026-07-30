@@ -165,7 +165,7 @@ function deriveDescription(text, entities) {
 
   let cleaned = String(text || '')
     .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:ribu|rb|k|juta|jt|miliar)?/giu, ' ')
-    .replace(/\b(?:tolong|mohon|catat|masukan|masukkan|simpan|rekam|input|tambahkan|tambah|tadi|hari ini|kemarin|pakai|pake|dari|ke|via|dompet|wallet|rekening|pemasukan|pendapatan|pengeluaran|income|expense|masuk|keluar|cash|tunai|kontan|uang fisik|uang kontan)\b/giu, ' ')
+    .replace(/\b(?:tolong|mohon|catat|masukan|masukkan|simpan|rekam|input|tambahkan|tambah|tadi|hari ini|kemarin|pakai|pake|dari|ke|via|pada|untuk|sebagai|dengan|catatan|dompet|wallet|rekening|pemasukan|pendapatan|pengeluaran|income|expense|masuk|keluar|cash|tunai|kontan|uang fisik|uang kontan)\b/giu, ' ')
 
   for (const walletName of walletNames) {
     cleaned = cleaned.replace(
@@ -176,6 +176,7 @@ function deriveDescription(text, entities) {
 
   cleaned = cleaned
     .replace(/\s+/g, ' ')
+    .replace(/^[\s,.;:!?-]+|[\s,.;:!?-]+$/gu, '')
     .trim()
 
   if (cleaned) return toSentenceCase(cleaned)

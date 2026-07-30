@@ -18,7 +18,7 @@ describe('assistant response planner', () => {
       structure: {
         acknowledgment: false,
         interpretation: true,
-        confirmation: true,
+        confirmation: false,
         warning: false,
       },
       constraints: {
@@ -42,7 +42,7 @@ describe('assistant response planner', () => {
       interpretation: true,
       warning: false,
       clarification: false,
-      confirmation: true,
+      confirmation: false,
     })
   })
 

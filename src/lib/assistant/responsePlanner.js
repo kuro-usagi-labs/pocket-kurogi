@@ -73,7 +73,7 @@ export function planAssistantResponse({
       insight: Boolean(hasInsight),
       warning: needsWarning,
       clarification: Boolean(hasClarification),
-      confirmation: Boolean(hasPendingAction),
+      confirmation: false,
       nextSuggestion:
         verbosity !== 'concise' &&
         intent === 'calculate_change',
