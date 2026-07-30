@@ -98,7 +98,7 @@ const DIRECT_ACTION_PATTERN = new RegExp(
 const TRANSACTION_PATTERN = /\b(?:beli|dibeli|bayar|dibayar|belanja|jajan|makan|minum|terima|diterima|dapat|gaji|bonus|pemasukan|pengeluaran|top\s?up|isi saldo|transfer|setor|tarik|pinjam|utang|hutang)\b/iu
 const OCCURRENCE_PATTERN = /\b(?:tadi|barusan|baru saja|kemarin|sudah|telah)\b/iu
 const CONTEXT_REFERENCE_PATTERN = /\b(?:yang\s+)?(?:itu|tersebut|barusan|sebelumnya|hasilnya|draft|yang sama)\b/iu
-const AFFIRMATIVE_RECORD_ONLY_PATTERN = /^(?:ok|oke|iya|ya|sip)?\s*(?:catat|simpan|rekam)(?:\s+(?:yang\s+)?(?:tadi|itu|tersebut|barusan))?(?:\s+(?:ya|saja|aja))?\s*$/iu
+const AFFIRMATIVE_RECORD_ONLY_PATTERN = /^(?:ok|oke|iya|ya|sip)?\s*(?:catat|simpan|rekam)(?:\s+(?:(?:transaksi|catatan|draft)\s+)?(?:yang\s+)?(?:tadi|itu|tersebut|barusan))?(?:\s+(?:ya|saja|aja))?\s*$/iu
 
 const THIRD_PARTY_WORD = '(?:(?:teman|temen|istri|suami|adik|kakak|ibu|ayah|mama|papa|pacar|anak|saudara|rekan)(?:ku|nya)?|dia|doi|mereka|bos|kantor|perusahaan|orang lain)'
 const TRANSACTION_VERB_WORD = '(?:beli|membeli|bayar|membayar|belanja|jajan|terima|menerima|dapat|transfer|kirim|top\\s?up)'

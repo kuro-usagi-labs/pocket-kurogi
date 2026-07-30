@@ -847,7 +847,7 @@ function resumeDraftFromContext({ text, context, walletOptions }) {
   const commitsPrevious = RECORD_PATTERN.test(normalizedDraftText) && (
     RECORD_REFERENCE_PATTERN.test(normalizedDraftText) ||
     /^(?:(?:ok|oke|sip|ya sudah|sudah)\s+)?(?:catat|simpan|rekam|masukkan)(?:\s+(?:ya|saja|aja))?$/iu.test(normalizedDraftText.trim())
-  )
+  ) || AFFIRMATIVE_DRAFT_PATTERN.test(normalizedDraftText)
   const confirmsWithWallet = context.status === 'needs_wallet' &&
     walletResolution.wallet &&
     RECORD_PATTERN.test(normalizedDraftText)

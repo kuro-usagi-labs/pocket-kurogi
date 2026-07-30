@@ -301,6 +301,10 @@ function finalizeChatFinanceAnalysis({ text, result, walletOptions = [], context
   if (!assessment.evidence.explicitWriteRequested || onlyMissingWriteRequest) {
     const wallet = walletOptions.find((option) => option.id === transactionCandidate.walletId) || null
     const direction = transactionCandidate.transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'
+    const description = transactionCandidate.desc || transactionCandidate.category || 'Transaksi'
+    const walletPhrase = wallet
+      ? `${transactionCandidate.transactionType === 'income' ? ' ke' : ' dari'} ${wallet.name}`
+      : ''
     return {
       type: 'finance_calculation',
       draft: {
@@ -325,7 +329,7 @@ function finalizeChatFinanceAnalysis({ text, result, walletOptions = [], context
           evidence: assessment.evidence,
         },
       },
-      reply: `Saya memahami ini sebagai ${direction.toLowerCase()} ${formatRupiahLocal(transactionCandidate.amount)} untuk ${transactionCandidate.desc || transactionCandidate.category || 'transaksi'}${wallet ? ` dari dompet ${wallet.name}` : ''}. Saya belum mencatat apa pun. Jika rangkuman ini benar, bilang "catat transaksi tadi".`,
+      reply: `${direction} ${formatRupiahLocal(transactionCandidate.amount)}${walletPhrase} untuk ${description}. Saya belum mencatatnya. Jika sudah benar, pilih Ya atau bilang "catat transaksi tadi".`,
     }
   }
 
@@ -657,7 +661,13 @@ export function analyzeWithRegex(
     desc = desc.replace(new RegExp(`\\b${escapeRegExp(resolvedWalletName)}\\b`, 'i'), '')
   }
   desc = desc.replace(new RegExp(`\\b${category}\\b`, 'i'), '')
+  desc = desc
+    .replace(/^(?:tolong|mohon|bantu)\s+/i, '')
+    .replace(/^(?:(?:di|men)?catat|simpan|rekam|masukkan|input|tambah(?:kan)?)\s+/i, '')
+    .replace(/^(?:pengeluaran|pemasukan|expense|income)\b\s*/i, '')
+    .replace(/^(?:untuk|buat)\b\s*/i, '')
   desc = desc.replace(/^(beli|bayar|buat|dari|terima|dapat|pake|pakai|-|\+)\s+/gi, '').trim()
+  desc = desc.replace(/\b(?:dari|ke|pakai|pake|via)\s*$/i, '').trim()
   if (/^(dari|ke|pakai|pake|via|bank)$/i.test(desc)) {
     desc = ''
   }

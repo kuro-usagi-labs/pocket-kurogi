@@ -21,6 +21,15 @@ const categoryOptions = buildCategoryOptions([
   { id: 'cat-lainnya', name: 'Lainnya', category_type: 'both' },
 ])
 
+const cashWalletOptions = buildWalletOptions([
+  {
+    id: 'wallet-cash',
+    name: 'Tunai',
+    wallet_type: 'cash',
+    current_balance: 500000,
+  },
+])
+
 describe('analyzeWithRegex', () => {
   it('responds naturally to small talk without falling back to a ledger error', () => {
     expect(analyzeWithRegex('makasih ya', walletOptions, goalOptions)).toEqual(
@@ -223,6 +232,60 @@ describe('analyzeWithRegex', () => {
       },
     })
     expect(result.draft.items[0].transactionType).toBe('expense')
+  })
+
+  it('reviews and commits the exact natural expense flow without losing its description', async () => {
+    const review = await analyzeTransaction(
+      'pengeluaran 25k tunai untuk point coffee',
+      null,
+      cashWalletOptions,
+      goalOptions,
+      categoryOptions
+    )
+
+    expect(review).toMatchObject({
+      type: 'finance_calculation',
+      draft: {
+        status: 'proposed',
+        walletId: 'wallet-cash',
+        items: [{
+          transactionType: 'expense',
+          amount: 25000,
+          desc: 'Point coffee',
+          category: 'kopi',
+        }],
+      },
+    })
+    expect(review.reply.replace(/\s/gu, '')).toContain(
+      'PengeluaranRp25.000dariTunaiuntukPointcoffee.'
+    )
+    expect(review.reply).not.toContain('untuk Pengeluaran')
+
+    const persistedDraft = {
+      ...review.draft,
+      id: 'draft-point-coffee',
+      requestId: 'draft-point-coffee',
+    }
+    const committed = await analyzeTransaction(
+      'catat transaksi tadi',
+      null,
+      cashWalletOptions,
+      goalOptions,
+      categoryOptions,
+      '',
+      { financeDraft: persistedDraft }
+    )
+
+    expect(committed).toMatchObject({
+      type: 'transaction_batch',
+      writeDecision: 'commit',
+      walletId: 'wallet-cash',
+      draftId: 'draft-point-coffee',
+      items: [{
+        amount: 25000,
+        desc: 'Point coffee',
+      }],
+    })
   })
 
   it('uses structured balance context for low-liquidity advice', async () => {

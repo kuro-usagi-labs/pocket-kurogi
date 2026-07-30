@@ -159,26 +159,35 @@ export function useLegacyIntentExecutor(dependencies) {
       if (analysis.type === 'finance_calculation' || analysis.type === 'finance_draft') {
         const draft = materializeFinanceDraft(analysis.draft, analysis.requestId || requestId)
         const needsSemanticConfirmation = draft.missingSlots?.includes('semantic_confirmation')
+        const needsWallet = draft.missingSlots?.includes('wallet')
+        const isCompleteDraft =
+          !needsSemanticConfirmation &&
+          !needsWallet &&
+          Array.isArray(draft.items) &&
+          draft.items.length > 0
+        const needsConfirmation = analysis.type === 'finance_draft' || isCompleteDraft
         return {
           text: analysis.reply || 'Rincian transaksi sudah saya siapkan, tetapi belum saya catat.',
-          ...(analysis.type === 'finance_draft'
+          ...(needsConfirmation
             ? { intentStatus: 'needs_confirmation' }
             : {}),
           metadata: {
             financeDraft: draft,
-            ...(analysis.type === 'finance_draft'
+            ...(needsConfirmation
               ? {
                   confirmationMode: needsSemanticConfirmation
                     ? 'binary'
-                    : draft.missingSlots?.includes('wallet')
+                    : needsWallet
                       ? 'choice'
-                      : 'input',
+                      : 'binary',
                   ...(needsSemanticConfirmation
                     ? { confirmationHint: 'Pastikan jenis, nominal, kategori, dompet, dan waktu pada rangkuman di atas semuanya benar.' }
+                    : isCompleteDraft
+                      ? { confirmationHint: 'Catat transaksi ini?' }
                     : {}),
                   candidates: needsSemanticConfirmation
                     ? []
-                    : draft.missingSlots?.includes('wallet')
+                    : needsWallet
                       ? walletCatalog.slice(0, 5).map((wallet) => ({ id: wallet.id, name: wallet.name }))
                       : [],
                 }

@@ -100,6 +100,39 @@ describe('conversational finance parser', () => {
     expect(result.items[0].amount).toBe(14000)
   })
 
+  it('accepts a short affirmative reply for a complete reviewed draft', () => {
+    const pendingDraft = {
+      id: '34343434-3434-4434-8434-343434343434',
+      requestId: '34343434-3434-4434-8434-343434343434',
+      status: 'proposed',
+      missingSlots: [],
+      walletId: cashWallet.id,
+      wallet: cashWallet.name,
+      items: [{
+        clientItemId: 'item-1',
+        transactionType: 'expense',
+        amount: 25000,
+        desc: 'Point coffee',
+        category: 'Kopi',
+        walletId: cashWallet.id,
+        wallet: cashWallet.name,
+      }],
+    }
+
+    const result = analyzeConversationalFinance({
+      text: 'ya',
+      walletOptions: [cashWallet],
+      context: pendingDraft,
+    })
+
+    expect(result).toMatchObject({
+      type: 'transaction_batch',
+      writeDecision: 'commit',
+      draftId: pendingDraft.id,
+      walletId: cashWallet.id,
+    })
+  })
+
   it('asks for a wallet while retaining the draft when multiple wallets exist', () => {
     const pendingDraft = {
       id: '44444444-4444-4444-8444-444444444444',
