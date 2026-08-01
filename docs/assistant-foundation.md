@@ -88,3 +88,15 @@ dan response composer tetap tunggal. Kemampuan yang sudah canonical:
 Golden corpus sekarang memuat sedikitnya 550 tuturan Indonesia, termasuk typo,
 slang, urutan kata bebas, kasus multi-turn, dan kontrak unsafe-write. Tidak ada
 lagi kemampuan runtime yang memakai adapter assistant legacy.
+
+## Status P4
+
+- Preferensi eksplisit dan aturan istilah tersimpan dalam scope akun dan hanya
+  dapat diubah melalui RPC tervalidasi.
+- Settings menyediakan halaman **Yang Kurogi Ingat** untuk melihat, mengubah,
+  menghapus satu, atau menghapus seluruh preferensi dan aturan istilah.
+- Penghapusan seluruh ingatan mencakup `assistant_memories`, aturan kategori,
+  dan aturan dompet tanpa menghapus transaksi atau data keuangan lain.
+- Role anonymous tidak mempunyai akses eksekusi ke RPC pengelolaan memori.
+- Jika memori menentukan dompet atau kategori suatu interpretasi, balasan
+  menjelaskan asumsi tersebut sebelum pengguna mengonfirmasi tindakan.

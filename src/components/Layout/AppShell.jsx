@@ -103,6 +103,7 @@ export default function AppShell() {
     walletRules,
     learnFromInput,
     forgetRule,
+    refetch: refetchLearningRules,
   } = useInputLearning()
   const {
     messages,
@@ -328,6 +329,25 @@ export default function AppShell() {
       },
     }
   }, [forgetRule, learnFromInput])
+
+  const handleUpdateMemory = useCallback(async ({ key, value }) => {
+    return deterministicAssistant.rememberPreference({
+      key,
+      value,
+      confidence: 1,
+      source: 'correction',
+    })
+  }, [deterministicAssistant])
+
+  const handleDeleteLearningRule = useCallback(async ({ keyword, ruleType }) => {
+    return forgetRule({ keyword, ruleType })
+  }, [forgetRule])
+
+  const handleClearAllMemory = useCallback(async () => {
+    const result = await deterministicAssistant.forgetAllMemory()
+    if (!result.error) await refetchLearningRules()
+    return result
+  }, [deterministicAssistant, refetchLearningRules])
   const handleSend = useCallback(
     async (payload) => {
       const text =
@@ -849,7 +869,17 @@ export default function AppShell() {
             {activeTab === 'settings' ? (
               <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-hidden animate-fade-in lg:bottom-0">
                 <Suspense fallback={<ViewLoadingFallback />}>
-                  <SettingsView />
+                  <SettingsView
+                    memories={deterministicAssistant.memories}
+                    categoryRules={categoryRules}
+                    walletRules={walletRules}
+                    wallets={wallets}
+                    categories={categories}
+                    onUpdateMemory={handleUpdateMemory}
+                    onDeleteMemory={deterministicAssistant.forgetPreference}
+                    onDeleteLearningRule={handleDeleteLearningRule}
+                    onClearAllMemory={handleClearAllMemory}
+                  />
                 </Suspense>
               </div>
             ) : null}

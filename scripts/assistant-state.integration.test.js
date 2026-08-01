@@ -104,6 +104,48 @@ describeWithDatabase('deterministic assistant persisted state', () => {
     }
   })
 
+  it('lets an authenticated owner forget one or all memories but denies anonymous callers', async () => {
+    await client.query('begin')
+    try {
+      await setAuthenticatedRole(client, existingUserId)
+      await client.query(
+        `select public.remember_assistant_preference(
+          'preferred_communication_style',
+          '"concise"'::jsonb,
+          1,
+          'explicit'
+        )`,
+      )
+      const removed = await client.query(
+        `select public.forget_assistant_memory(
+          'preferred_communication_style',
+          false
+        ) as result`,
+      )
+      const remaining = await client.query(
+        `select count(*)::integer as count
+         from public.assistant_memories
+         where memory_key = 'preferred_communication_style'`,
+      )
+
+      expect(removed.rows[0].result).toMatchObject({ memoriesDeleted: 1 })
+      expect(remaining.rows[0].count).toBe(0)
+    } finally {
+      await client.query('rollback')
+    }
+
+    await client.query('begin')
+    try {
+      await client.query('set local role anonymous')
+      await expectPrivilegeDenied(
+        client,
+        `select public.forget_assistant_memory(null, true)`,
+      )
+    } finally {
+      await client.query('rollback')
+    }
+  })
+
   it('rejects pending actions whose expiry exceeds the short confirmation window', async () => {
     await client.query('begin')
     try {

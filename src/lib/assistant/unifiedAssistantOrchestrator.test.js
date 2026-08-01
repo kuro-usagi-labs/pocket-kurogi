@@ -3,6 +3,7 @@ import {
   attachAssistantUnderstanding,
   orchestrateAssistantMessage,
 } from './unifiedAssistantOrchestrator'
+import { runAssistantEngine } from './assistantEngine'
 
 const wallets = [
   { id: 'wallet-bca', name: 'BCA', current_balance: 1_000_000 },
@@ -229,6 +230,40 @@ describe('unified assistant orchestrator', () => {
       source: 'learned_rule',
       matchedKeyword: 'ngopi',
     })
+  })
+
+  it('discloses when a remembered wallet changes the interpretation', () => {
+    const result = orchestrateAssistantMessage({
+      text: 'catat pengeluaran makan 20rb',
+      wallets,
+      categories,
+      memory: [{
+        key: 'preferred_wallet',
+        value: 'wallet-bca',
+        confidence: 0.96,
+        source: 'explicit',
+      }],
+    })
+
+    expect(result.frame.entities.wallets[0]).toMatchObject({
+      id: 'wallet-bca',
+      source: 'memory',
+    })
+    const engine = runAssistantEngine({
+      text: result.resolvedText,
+      userId: 'memory-disclosure-user',
+      wallets,
+      categories,
+      memory: [{
+        key: 'preferred_wallet',
+        value: 'wallet-bca',
+        confidence: 0.96,
+        source: 'explicit',
+      }],
+      semanticFrame: result.frame,
+    })
+    expect(engine.memoryInfluence).toMatchObject({ type: 'preferred_wallet' })
+    expect(engine.response.text).toContain('tersimpan sebagai dompet utamamu')
   })
 
   it('resolves an explicit preferred-wallet reference without guessing', () => {

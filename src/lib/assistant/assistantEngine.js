@@ -109,6 +109,7 @@ export function runAssistantEngine({
     slotResult,
     entities,
   })
+  const memoryInfluence = describeMemoryInfluence(entities)
   const response = composeAssistantResponse({
     intent: route.intent,
     confidence: route.score,
@@ -119,6 +120,7 @@ export function runAssistantEngine({
     insight,
     status: dialogue.status,
     memory,
+    memoryInfluence,
     recentAssistantMessages: getRecentAssistantMessages(messages),
   })
 
@@ -137,8 +139,33 @@ export function runAssistantEngine({
     query: dialogue.query || null,
     command: dialogue.command || null,
     insight,
+    memoryInfluence,
     processing: buildProcessingOutcome({ route, dialogue, safety }),
   }
+}
+
+function describeMemoryInfluence(entities = {}) {
+  const wallet = (entities.wallets || []).find((entry) =>
+    ['memory', 'learned_rule'].includes(entry.source)
+  )
+  if (wallet) {
+    return {
+      type: wallet.source === 'memory' ? 'preferred_wallet' : 'wallet_rule',
+      text: wallet.source === 'memory'
+        ? `Aku memakai dompet ${wallet.name} karena tersimpan sebagai dompet utamamu.`
+        : `Aku memakai dompet ${wallet.name} berdasarkan aturan “${wallet.matchedKeyword}” yang kamu ajarkan.`,
+    }
+  }
+  const category = (entities.categories || []).find((entry) =>
+    entry.source === 'learned_rule'
+  )
+  if (category) {
+    return {
+      type: 'category_rule',
+      text: `Aku memakai kategori ${category.name} berdasarkan aturan “${category.matchedKeyword}” yang kamu ajarkan.`,
+    }
+  }
+  return null
 }
 
 function buildProcessingOutcome({ route, dialogue, safety }) {

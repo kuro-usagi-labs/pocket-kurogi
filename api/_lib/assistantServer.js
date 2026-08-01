@@ -18,6 +18,8 @@ const WRITE_OPERATIONS = new Set([
   'cancel_action',
   'supersede_actions',
   'remember',
+  'forget_memory',
+  'forget_all_memory',
 ])
 const MEMORY_KEYS = new Set([
   'preferred_wallet',
@@ -244,6 +246,20 @@ export async function runAssistantDatabaseOperation({
         ${body.source}
       ) as result
     `)
+  } else if (operation === 'forget_memory') {
+    queries.push(sql`
+      select public.forget_assistant_memory(
+        ${body.key},
+        false
+      ) as result
+    `)
+  } else if (operation === 'forget_all_memory') {
+    queries.push(sql`
+      select public.forget_assistant_memory(
+        null,
+        true
+      ) as result
+    `)
   } else {
     const error = new Error('Operasi assistant API tidak dikenal.')
     error.statusCode = 400
@@ -344,6 +360,12 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
     ) {
       throwRequestError('Memory assistant tidak valid.')
     }
+  }
+  if (
+    normalizedOperation === 'forget_memory' &&
+    !MEMORY_KEYS.has(String(body.key || ''))
+  ) {
+    throwRequestError('Memory assistant tidak didukung.')
   }
 }
 
@@ -487,7 +509,6 @@ function validateActionPayload(actionType, payload) {
     requirePositiveAmount(payload.amount, 'Nominal target tabungan')
     return
   }
-
   if (actionType === 'create_wallet') {
     requireEntityName(payload.walletName, 'Nama dompet')
     const initialBalance = Number(payload.initialBalance || 0)

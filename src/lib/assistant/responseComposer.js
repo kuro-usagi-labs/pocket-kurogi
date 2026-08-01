@@ -145,6 +145,7 @@ export function composeAssistantResponse({
   insight = null,
   status = 'ready',
   memory = [],
+  memoryInfluence = null,
   recentAssistantMessages = [],
 } = {}) {
   const style = resolveCommunicationStyle(memory)
@@ -171,6 +172,7 @@ export function composeAssistantResponse({
       recentAssistantMessages,
       seed,
     }),
+    memoryDisclosure: memoryInfluence?.text || null,
     clarification: clarification?.question || null,
     confirmation: null,
     nextSuggestion: composeNextSuggestion(
@@ -206,6 +208,7 @@ export function joinResponseComponents(components, style = 'balanced') {
     details,
     components.insight,
     components.warning,
+    components.memoryDisclosure,
     components.clarification,
     components.confirmation,
     style === 'concise' ? null : components.nextSuggestion,

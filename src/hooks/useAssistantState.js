@@ -287,6 +287,42 @@ export function useAssistantState() {
     }
   }, [user])
 
+  const forgetPreference = useCallback(async (key) => {
+    if (!user || !String(key || '').trim()) {
+      return { data: null, error: new Error('Memory yang ingin dihapus belum valid.') }
+    }
+    try {
+      const data = await requestAssistantApi({
+        operation: 'forget_memory',
+        body: { key },
+      })
+      memoriesRef.current = memoriesRef.current.filter(
+        (memory) => memory.key !== key
+      )
+      setMemories((current) => current.filter((memory) => memory.key !== key))
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }, [user])
+
+  const forgetAllMemory = useCallback(async () => {
+    if (!user) {
+      return { data: null, error: new Error('Sesi pengguna tidak tersedia.') }
+    }
+    try {
+      const data = await requestAssistantApi({
+        operation: 'forget_all_memory',
+        body: {},
+      })
+      memoriesRef.current = []
+      setMemories([])
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }, [user])
+
   const getSnapshot = useCallback(() => ({
     dialogueState: dialogueStateRef.current,
     pendingAction: pendingActionRef.current,
@@ -323,6 +359,8 @@ export function useAssistantState() {
     supersedePendingActions,
     correctPendingAction,
     rememberPreference,
+    forgetPreference,
+    forgetAllMemory,
     fetchFinancialContext,
     getSnapshot,
     refetch: fetchAssistantState,

@@ -66,6 +66,14 @@ describe('assistant Vercel API safety', () => {
       .not.toThrow()
     expect(() => validateAssistantOperationRequest('supersede_actions', {}))
       .not.toThrow()
+    expect(() => validateAssistantOperationRequest('forget_memory', {
+      key: 'preferred_wallet',
+    })).not.toThrow()
+    expect(() => validateAssistantOperationRequest('forget_all_memory', {}))
+      .not.toThrow()
+    expect(() => validateAssistantOperationRequest('forget_memory', {
+      key: 'arbitrary_secret',
+    })).toThrow(/Memory assistant/)
   })
 
   it('rejects unsafe pending payloads and uncurated memory', () => {
