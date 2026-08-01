@@ -32,7 +32,16 @@ describe('unified assistant orchestrator', () => {
         wallet: { id: 'wallet-bca', name: 'BCA' },
       },
       safety: { safe: true },
-      engine: 'deterministic',
+    })
+    expect(result.frame).toMatchObject({
+      version: 2,
+      canonicalIntent: 'record_expense',
+      legacyIntent: 'record_expense',
+    })
+    expect(result.decision).toMatchObject({
+      handler: 'canonical_pipeline',
+      final: true,
+      allowFallback: false,
     })
   })
 
@@ -43,6 +52,7 @@ describe('unified assistant orchestrator', () => {
     })
 
     expect(walletCreation.preferredEngine).toBe('local')
+    expect(walletCreation.decision.handler).toBe('legacy_adapter')
     expect(walletCreation.frame.action).toMatchObject({
       kind: 'mutation',
       actionType: 'create_wallet',
@@ -151,6 +161,23 @@ describe('unified assistant orchestrator', () => {
         engine: 'local',
         preferredEngine: 'deterministic',
       },
+    })
+  })
+
+  it('chooses exactly one final handler and prioritizes backend pending state', () => {
+    const result = orchestrateAssistantMessage({
+      text: 'iya konfirmasi',
+      wallets,
+      pendingAction: { id: 'backend-action' },
+      legacyPendingAction: { type: 'resolve_intent' },
+    })
+
+    expect(result.decision).toMatchObject({
+      handler: 'canonical_pipeline',
+      reason: 'canonical_pending_action',
+      stateConflict: true,
+      final: true,
+      allowFallback: false,
     })
   })
 

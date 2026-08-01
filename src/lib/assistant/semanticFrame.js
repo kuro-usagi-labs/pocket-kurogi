@@ -1,6 +1,9 @@
 import { detectEmotionalContext } from './emotionalContext'
 import { extractAssistantEntities } from './entityExtractor'
-import { getIntentDefinition } from './intentDefinitions'
+import {
+  getIntentDefinition,
+  toCanonicalAssistantIntent,
+} from './intentDefinitions'
 import { routeAssistantIntent } from './intentRouter'
 import { resolveIntentSlots } from './slotResolver'
 import { validateAssistantInterpretation } from './safetyValidator'
@@ -8,6 +11,8 @@ import {
   getChatWriteCandidate,
   isChatWriteIntentType,
 } from '../chatWriteSafety'
+
+const SEMANTIC_FRAME_ANALYSIS = Symbol('semanticFrameAnalysis')
 
 export function buildAssistantSemanticFrame({
   text = '',
@@ -76,8 +81,8 @@ export function buildAssistantSemanticFrame({
     intent: route.intent,
   })
 
-  return {
-    version: 1,
+  const frame = {
+    version: 2,
     utterance: {
       original: String(originalText || ''),
       resolved: String(text || ''),
@@ -85,6 +90,8 @@ export function buildAssistantSemanticFrame({
     },
     dialogueAct,
     intent: route.intent,
+    canonicalIntent: toCanonicalAssistantIntent(route.intent),
+    legacyIntent: route.intent,
     confidence: route.score,
     ambiguous: route.ambiguous,
     evidence: route.evidence || [],
@@ -125,6 +132,23 @@ export function buildAssistantSemanticFrame({
       ),
     },
   }
+
+  Object.defineProperty(frame, SEMANTIC_FRAME_ANALYSIS, {
+    value: Object.freeze({
+      entities,
+      route,
+      slotResult: slots,
+      safety,
+      emotion,
+    }),
+    enumerable: false,
+  })
+
+  return frame
+}
+
+export function getSemanticFrameAnalysis(frame) {
+  return frame?.[SEMANTIC_FRAME_ANALYSIS] || null
 }
 
 function detectAttemptedMutation(text, entities, definition, localAction) {
@@ -303,6 +327,8 @@ export function summarizeSemanticFrame(frame) {
   return {
     version: frame.version,
     intent: frame.intent,
+    canonicalIntent: frame.canonicalIntent || frame.intent,
+    legacyIntent: frame.legacyIntent || frame.intent,
     confidence: frame.confidence,
     dialogueAct: frame.dialogueAct,
     action: frame.action,

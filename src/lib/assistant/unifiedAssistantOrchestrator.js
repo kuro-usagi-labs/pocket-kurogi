@@ -4,9 +4,7 @@ import {
   buildAssistantSemanticFrame,
   summarizeSemanticFrame,
 } from './semanticFrame'
-
-const LOCAL_FIRST_PATTERN =
-  /\b(?:buat(?:kan)?|bikin(?:kan)?|tambah(?:kan)?)\s+(?:dompet|wallet|rekening)\b|\b(?:hapus|arsipkan|pulihkan|restore|rename|ganti nama|ubah nama)\s+(?:dompet|wallet|rekening)\b|\b(?:ajari|ajarkan|lupakan aturan|kalau (?:aku|saya) bilang)\b|\b(?:setor|tabung|nabung|simpan|alokasi|pindah(?:kan)?|transfer|geser|cairkan|tarik)\b.{0,48}\b(?:target|tabungan|simpanan|goal|milestone)\b|\b(?:kembalian|susuk)\b/iu
+import { decideAssistantHandler } from './assistantDecisionPolicy'
 
 export function orchestrateAssistantMessage({
   text = '',
@@ -17,6 +15,9 @@ export function orchestrateAssistantMessage({
   memory = [],
   dialogueState = null,
   pendingAction = null,
+  legacyPendingAction = null,
+  pendingMemoryProposal = null,
+  memoryProposalDecision = null,
   financialState = {},
   now = new Date(),
 } = {}) {
@@ -41,11 +42,6 @@ export function orchestrateAssistantMessage({
     financialState,
     now,
   })
-  const engine = selectAssistantEngine({
-    frame,
-    text: referenceResolution.resolvedText,
-    pendingAction,
-  })
   const memoryCandidates = canProposeMemory({
     frame,
     pendingAction,
@@ -65,16 +61,26 @@ export function orchestrateAssistantMessage({
       }))
     : []
 
+  const decision = decideAssistantHandler({
+    frame,
+    canonicalPendingAction: pendingAction,
+    legacyPendingAction,
+    pendingMemoryProposal,
+    memoryProposalDecision,
+    memoryCandidates,
+  })
+
   return {
-    version: 1,
+    version: 2,
     originalText: referenceResolution.originalText,
     resolvedText: referenceResolution.resolvedText,
     referenceResolution,
-    frame: {
-      ...frame,
-      engine,
-    },
-    preferredEngine: engine,
+    frame,
+    decision,
+    // Temporary compatibility metadata. Runtime routing uses decision.handler.
+    preferredEngine: decision.handler === 'canonical_pipeline'
+      ? 'deterministic'
+      : 'local',
     memoryCandidates,
   }
 }
@@ -102,21 +108,13 @@ export function attachAssistantUnderstanding(response, orchestration, {
   }
 }
 
-export function selectAssistantEngine({ frame, text, pendingAction }) {
-  if (pendingAction) return 'deterministic'
-  if (frame.dialogueAct === 'teaching') return 'local'
-  if (LOCAL_FIRST_PATTERN.test(text)) return 'local'
-  if (frame.intent === 'general_chat' || frame.intent === 'unknown') return 'local'
-  if (
-    frame.intent === 'calculate_change' ||
-    (
-      frame.intent === 'record_multiple_transactions' &&
-      /\b(?:pakai|dari|bawa)\s+uang\b/iu.test(text)
-    )
-  ) {
-    return 'local'
-  }
-  return 'deterministic'
+export function selectAssistantEngine({ frame, pendingAction }) {
+  return decideAssistantHandler({
+    frame,
+    canonicalPendingAction: pendingAction,
+  }).handler === 'canonical_pipeline'
+    ? 'deterministic'
+    : 'local'
 }
 
 function canProposeMemory({ frame, pendingAction, text }) {

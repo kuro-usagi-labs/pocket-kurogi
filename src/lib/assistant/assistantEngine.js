@@ -11,6 +11,7 @@ import { routeAssistantIntent } from './intentRouter'
 import { composeAssistantResponse } from './responseComposer'
 import { validateAssistantInterpretation } from './safetyValidator'
 import { resolveIntentSlots } from './slotResolver'
+import { getSemanticFrameAnalysis } from './semanticFrame'
 
 export function runAssistantEngine({
   text = '',
@@ -27,11 +28,13 @@ export function runAssistantEngine({
   pendingAction = null,
   financialState = {},
   now = new Date(),
+  semanticFrame = null,
 } = {}) {
   const context = dialogueState ||
     collectConversationContext(messages, now) ||
     createDialogueState({ now })
-  const entities = extractAssistantEntities({
+  const prepared = getSemanticFrameAnalysis(semanticFrame)
+  const entities = prepared?.entities || extractAssistantEntities({
     text,
     wallets,
     categories,
@@ -39,7 +42,7 @@ export function runAssistantEngine({
     memory,
     now,
   })
-  const initialRoute = routeAssistantIntent({
+  const initialRoute = prepared?.route || routeAssistantIntent({
     text,
     entities,
     dialogueState: pendingAction
@@ -47,19 +50,24 @@ export function runAssistantEngine({
       : context,
   })
   const route = resolveRouteWithContext(initialRoute, context, entities, pendingAction)
-  const slotResult = resolveIntentSlots({
+  const routeChanged = route.intent !== initialRoute.intent
+  const slotResult = !routeChanged && prepared?.slotResult
+    ? prepared.slotResult
+    : resolveIntentSlots({
     intent: route.intent,
     entities,
     dialogueState: context,
     text,
   })
-  const safety = validateAssistantInterpretation({
+  const safety = !routeChanged && prepared?.safety
+    ? prepared.safety
+    : validateAssistantInterpretation({
     intent: route.intent,
     entities,
     slots: slotResult.slots,
     route,
   })
-  const emotion = detectEmotionalContext(text, financialState)
+  const emotion = prepared?.emotion || detectEmotionalContext(text, financialState)
   const dialogue = manageAssistantDialogue({
     userId,
     sourceMessageId,

@@ -31,6 +31,7 @@ export function useDeterministicAssistant({
   const processMessage = useCallback(async ({
     text,
     sourceMessageId = null,
+    semanticFrame = null,
   } = {}) => {
     const commonInput = {
       text,
@@ -48,6 +49,7 @@ export function useDeterministicAssistant({
         totalBalance,
         budgets,
       },
+      semanticFrame,
     }
 
     if (assistantState.pendingAction) {

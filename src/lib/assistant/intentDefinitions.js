@@ -27,6 +27,49 @@ export const ASSISTANT_INTENTS = Object.freeze([
   'unknown',
 ])
 
+export const CANONICAL_ASSISTANT_INTENTS = Object.freeze([
+  'record_expense',
+  'record_income',
+  'record_multiple_transactions',
+  'transfer_wallet',
+  'deposit_goal',
+  'withdraw_goal',
+  'correct_transaction',
+  'cancel_transaction',
+  'query_balance',
+  'query_summary',
+  'query_affordability',
+  'manage_budget',
+  'manage_goal',
+  'manage_memory',
+  'calculate_change',
+  'general_conversation',
+  'unknown',
+])
+
+const CANONICAL_INTENT_ALIASES = Object.freeze({
+  transfer_money: 'transfer_wallet',
+  query_transactions: 'query_summary',
+  query_income: 'query_summary',
+  query_expenses: 'query_summary',
+  query_spending_summary: 'query_summary',
+  query_category_summary: 'query_summary',
+  query_wallet: 'query_summary',
+  query_budget: 'query_summary',
+  query_saving_goal: 'query_summary',
+  financial_advice: 'query_affordability',
+  emotional_support: 'query_affordability',
+  create_budget: 'manage_budget',
+  update_budget: 'manage_budget',
+  create_saving_goal: 'manage_goal',
+  update_saving_goal: 'manage_goal',
+  confirm_pending_action: 'general_conversation',
+  cancel_pending_action: 'cancel_transaction',
+  correct_pending_action: 'correct_transaction',
+  select_wallet: 'general_conversation',
+  general_chat: 'general_conversation',
+})
+
 export const MUTATING_ASSISTANT_INTENTS = Object.freeze([
   'record_expense',
   'record_income',
@@ -198,4 +241,10 @@ export function getIntentDefinition(intent) {
 
 export function isMutatingAssistantIntent(intent) {
   return MUTATING_ASSISTANT_INTENTS.includes(intent)
+}
+
+export function toCanonicalAssistantIntent(intent) {
+  const normalized = String(intent || 'unknown')
+  if (CANONICAL_ASSISTANT_INTENTS.includes(normalized)) return normalized
+  return CANONICAL_INTENT_ALIASES[normalized] || 'unknown'
 }

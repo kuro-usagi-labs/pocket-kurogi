@@ -144,6 +144,15 @@ describe('deterministic assistant modules', () => {
       missingSlots: firstSlots.missingSlots,
       now,
     })
+    expect(state).toMatchObject({
+      version: 2,
+      activeFrame: {
+        intent: 'record_expense',
+        slots: expect.objectContaining({ amount: 20_000 }),
+      },
+      lastResolvedIntent: 'record_expense',
+      referencedTransactionIds: [],
+    })
     const walletEntities = extractAssistantEntities({
       text: 'BCA saja',
       wallets,

@@ -46,6 +46,7 @@ import {
   attachAssistantUnderstanding,
   orchestrateAssistantMessage,
 } from '../../lib/assistant/unifiedAssistantOrchestrator'
+import { ASSISTANT_DECISION_HANDLERS } from '../../lib/assistant/assistantDecisionPolicy'
 import { reconcileSemanticFrameWithLocalAnalysis } from '../../lib/assistant/semanticFrame'
 import {
   buildMemoryProposalResolutionResponse,
@@ -880,6 +881,13 @@ export default function AppShell() {
         userMessageSaved = true
 
         const messageRequestId = savedUserMessage.data?.id || null
+        const pendingMemoryProposal =
+          !pendingAction && !deterministicAssistant.pendingAction
+            ? getPendingMemoryProposal(messages)
+            : null
+        const memoryProposalDecision = pendingMemoryProposal
+          ? classifyMemoryProposalReply(userMessageText)
+          : null
         const orchestration = orchestrateAssistantMessage({
           text: userMessageText,
           messages,
@@ -888,24 +896,18 @@ export default function AppShell() {
           goals,
           memory: deterministicAssistant.memories,
           dialogueState: deterministicAssistant.dialogueState,
-          pendingAction:
-            deterministicAssistant.pendingAction ||
-            pendingAction,
+          pendingAction: deterministicAssistant.pendingAction,
+          legacyPendingAction: pendingAction,
+          pendingMemoryProposal,
+          memoryProposalDecision,
           financialState: {
             totalBalance,
             budgets,
           },
         })
         const assistantInputText = orchestration.resolvedText
-        const pendingMemoryProposal =
-          !pendingAction &&
-          !deterministicAssistant.pendingAction
-            ? getPendingMemoryProposal(messages)
-            : null
-        const memoryProposalDecision = pendingMemoryProposal
-          ? classifyMemoryProposalReply(userMessageText)
-          : null
-        let actualEngine = orchestration.preferredEngine
+        const handler = orchestration.decision.handler
+        let actualEngine = handler
 
         const processLocalAssistant = async () => {
           const analysis = await analyzeTransaction(
@@ -957,7 +959,10 @@ export default function AppShell() {
 
         let response
 
-        if (memoryProposalDecision === 'confirm') {
+        if (
+          handler === ASSISTANT_DECISION_HANDLERS.MEMORY_CONFIRMATION &&
+          memoryProposalDecision === 'confirm'
+        ) {
           await deterministicAssistant.confirmMemoryProposal({
             proposal: pendingMemoryProposal,
             sourceMessageId: messageRequestId,
@@ -967,19 +972,16 @@ export default function AppShell() {
             pendingMemoryProposal,
             'confirm'
           )
-        } else if (memoryProposalDecision === 'cancel') {
+        } else if (
+          handler === ASSISTANT_DECISION_HANDLERS.MEMORY_CONFIRMATION &&
+          memoryProposalDecision === 'cancel'
+        ) {
           actualEngine = 'memory-lifecycle'
           response = buildMemoryProposalResolutionResponse(
             pendingMemoryProposal,
             'cancel'
           )
-        } else if (
-          !pendingAction &&
-          !deterministicAssistant.pendingAction &&
-          orchestration.frame.action.kind === 'conversation' &&
-          ['general_chat', 'unknown'].includes(orchestration.frame.intent) &&
-          orchestration.memoryCandidates.length > 0
-        ) {
+        } else if (handler === ASSISTANT_DECISION_HANDLERS.MEMORY_PROPOSAL) {
           const proposalResult =
             deterministicAssistant.proposeMemoryCandidates({
               candidates: orchestration.memoryCandidates,
@@ -989,24 +991,39 @@ export default function AppShell() {
             actualEngine = 'memory-lifecycle'
             response = buildMemoryProposalResponse(proposalResult.data)
           } else {
-            response = await processLocalAssistant()
+            actualEngine = 'memory-lifecycle'
+            response = {
+              text: 'Saya belum menyimpan preferensi itu karena buktinya belum cukup aman. Tidak ada data yang diubah.',
+              metadata: {
+                conversationStatus: 'memory_proposal_rejected',
+              },
+            }
           }
-        } else if (pendingAction) {
+        } else if (handler === ASSISTANT_DECISION_HANDLERS.LEGACY_PENDING) {
           actualEngine = 'local-pending'
           response = await processPendingAction({ text: assistantInputText })
-        } else if (orchestration.preferredEngine === 'local') {
+        } else if (handler === ASSISTANT_DECISION_HANDLERS.LEGACY_ADAPTER) {
+          actualEngine = 'legacy-adapter'
           response = await processLocalAssistant()
         } else {
           const deterministicResult = await deterministicAssistant.processMessage({
             text: assistantInputText,
             sourceMessageId: messageRequestId,
+            semanticFrame: orchestration.frame,
           })
 
           if (deterministicResult.handled) {
-            actualEngine = 'deterministic'
+            actualEngine = 'canonical-pipeline'
             response = deterministicResult.response
           } else {
-            response = await processLocalAssistant()
+            actualEngine = 'canonical-pipeline'
+            response = {
+              text: 'Maaf, permintaan ini belum dapat diproses melalui jalur yang aman. Tidak ada data yang diubah.',
+              metadata: {
+                conversationStatus: 'pipeline_invariant_blocked',
+                assistantDecisionReason: orchestration.decision.reason,
+              },
+            }
           }
         }
 
@@ -1014,7 +1031,7 @@ export default function AppShell() {
         orchestration.frame = {
           ...orchestration.frame,
           engine: actualEngine,
-          preferredEngine: orchestration.preferredEngine,
+          decision: orchestration.decision,
         }
         await persistBotResponse(
           attachAssistantUnderstanding(response, orchestration, {

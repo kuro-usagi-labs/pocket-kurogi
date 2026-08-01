@@ -3,8 +3,30 @@ import {
   buildAssistantSemanticFrame,
   reconcileSemanticFrameWithLocalAnalysis,
 } from './semanticFrame'
+import { runAssistantEngine } from './assistantEngine'
 
 describe('assistant semantic frame local reconciliation', () => {
+  it('reuses the canonical extraction when the dialogue engine decides', () => {
+    const frame = buildAssistantSemanticFrame({
+      text: 'catat makan 20rb dari BCA',
+      wallets: [{ id: 'wallet-bca', name: 'BCA' }],
+    })
+    const result = runAssistantEngine({
+      text: frame.utterance.resolved,
+      semanticFrame: frame,
+      userId: 'user-1',
+      wallets: [{ id: 'wallet-bca', name: 'BCA' }],
+    })
+
+    expect(result.route.intent).toBe(frame.legacyIntent)
+    expect(result.slots.slots).toEqual(frame.slots)
+    expect(frame).toMatchObject({
+      version: 2,
+      canonicalIntent: 'record_expense',
+      legacyIntent: 'record_expense',
+    })
+  })
+
   it('recognizes a local wallet mutation before execution', () => {
     const frame = buildAssistantSemanticFrame({
       text: 'tolong buatkan dompet bernama BCA',
