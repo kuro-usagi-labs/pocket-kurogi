@@ -37,12 +37,15 @@ export function planClarification({
   }
 
   const ambiguousWallet = entities.wallets?.find((wallet) => wallet.source === 'ambiguous')
-  if (ambiguousWallet) {
+  const missingWalletField = (slotResult?.missingSlots || []).find((slot) =>
+    ['wallet', 'sourceWallet', 'destinationWallet'].includes(slot)
+  )
+  if (ambiguousWallet && missingWalletField) {
     const candidates = ambiguousWallet.candidates?.map((candidate) => candidate.name) || []
     return {
       type: 'entity',
-      field: 'wallet',
-      question: `Dompetnya masih ambigu. Pilih ${formatCompactList(candidates)}.`,
+      field: missingWalletField,
+      question: `${missingWalletField === 'sourceWallet' ? 'Dompet sumbernya' : 'Dompetnya'} masih ambigu. Pilih ${formatCompactList(candidates)}.`,
       candidates,
     }
   }

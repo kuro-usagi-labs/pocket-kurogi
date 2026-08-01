@@ -75,6 +75,41 @@ describe('assistant P2 Indonesian specialist candidates', () => {
     expect(result.pendingAction.payload.description).toMatch(/Laptop/iu)
   })
 
+  it.each([
+    'buat target simpanan 70jt dengan nama bibit',
+    'buat simpanan bernama Bibit target 70jt',
+  ])('extracts only the explicit saving-goal name: %s', (text) => {
+    const { result } = run(text, {
+      wallets: [
+        ...wallets,
+        { id: 'wallet-bibit', name: 'Tabungan Bibit', current_balance: 1_000_000 },
+      ],
+    })
+
+    expect(result.route.intent).toBe('create_saving_goal')
+    expect(result.slots.missingSlots).toEqual([])
+    expect(result.pendingAction.payload).toMatchObject({
+      description: 'Bibit',
+      amount: 70_000_000,
+      initialAmount: 0,
+      sourceWalletId: null,
+    })
+    expect(result.response.text).toMatch(/target Bibit sebesar Rp\s?70\.000\.000/iu)
+    expect(result.response.text).not.toMatch(/dompet.+ambigu/iu)
+    expect(result.response.card.missingFields).toEqual([])
+  })
+
+  it('asks for a source wallet only when a goal has an opening deposit', () => {
+    const { result } = run('buat target Nikah 20jt dengan setoran awal 500rb', {
+      wallets: [],
+    })
+
+    expect(result.route.intent).toBe('create_saving_goal')
+    expect(result.slots.missingSlots).toEqual(['sourceWallet'])
+    expect(result.pendingAction).toBeNull()
+    expect(result.dialogue.clarification).toMatchObject({ field: 'sourceWallet' })
+  })
+
   it('preserves the regular change calculation path', () => {
     const { result } = run('tadi bayar 50rb kembali 36rb')
     expect(result.dialogue).toMatchObject({

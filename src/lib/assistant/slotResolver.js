@@ -40,7 +40,15 @@ export function resolveIntentSlots({
     ...contextualDerived,
   }
   const definition = getIntentDefinition(intent)
-  const missingSlots = definition.required.filter((slot) => {
+  const requiredSlots = [...definition.required]
+  if (
+    intent === 'create_saving_goal' &&
+    Number(slots.initialAmount || 0) > 0 &&
+    !requiredSlots.includes('sourceWallet')
+  ) {
+    requiredSlots.push('sourceWallet')
+  }
+  const missingSlots = requiredSlots.filter((slot) => {
     if (
       intent === 'record_multiple_transactions' &&
       slot === 'wallet' &&
@@ -56,7 +64,7 @@ export function resolveIntentSlots({
   return {
     intent,
     slots,
-    requiredSlots: definition.required,
+    requiredSlots,
     optionalSlots: definition.optional,
     missingSlots,
     complete: missingSlots.length === 0,
@@ -316,13 +324,28 @@ function toSentenceCase(value) {
 }
 
 function deriveSavingGoalDescription(text, entities) {
+  const explicitName = String(text || '').match(
+    /\b(?:dengan\s+nama|bernama|namanya)\s+(.+?)(?=\s+(?:(?:dengan\s+)?(?:target|nilai|nominal|sebesar|senilai)|setoran\s+awal|modal\s+awal|mulai\s+dengan|(?:rp\s*)?\d)|[,.;!?]|$)/iu
+  )?.[1]
+  if (explicitName) {
+    return toSentenceCase(cleanGoalName(explicitName))
+  }
+
   const cleaned = String(text || '')
     .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:rupiah|ribu|rb|k|juta|jt|miliar)?/giu, ' ')
-    .replace(/\b(?:tolong|mohon|buat|bikin|tambahkan|tambah|pasang|target|goal|tabungan|menabung|nabung|sebesar|senilai|dengan|setoran|modal|isi|saldo|awal|mulai|dari|pakai)\b/giu, ' ')
+    .replace(/\b(?:tolong|mohon|buat|bikin|tambahkan|tambah|pasang|target|goal|tabungan|simpanan|menabung|nabung|sebesar|senilai|dengan|bernama|nama|namanya|setoran|modal|isi|saldo|awal|mulai|dari|pakai)\b/giu, ' ')
     .replace(/\b(?:hari ini|kemarin|besok|tanggal)\b/giu, ' ')
     .replace(/\s+/gu, ' ')
     .trim()
-  return cleaned || deriveDescription(text, entities)
+  return cleanGoalName(cleaned) || deriveDescription(text, entities)
+}
+
+function cleanGoalName(value) {
+  return String(value || '')
+    .replace(/\b(?:dong|ya|yah|deh|aja|saja)\b\s*$/iu, '')
+    .replace(/^[\s,.;:!?-]+|[\s,.;:!?-]+$/gu, '')
+    .replace(/\s+/gu, ' ')
+    .trim()
 }
 
 function deriveMultipleItems(entities, text) {

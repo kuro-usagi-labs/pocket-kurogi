@@ -304,6 +304,12 @@ function composeInterpretation(intent, slots) {
   if (intent === 'withdraw_goal') {
     return `Pindahkan ${formatRupiah(slots.amount)} dari target ${slots.goal?.name || 'tabungan'} ke ${slots.destinationWallet?.name || 'dompet tujuan'}.`
   }
+  if (intent === 'create_saving_goal') {
+    const opening = Number(slots.initialAmount || 0) > 0
+      ? ` dengan setoran awal ${formatRupiah(slots.initialAmount)}${slots.sourceWallet?.name ? ` dari ${slots.sourceWallet.name}` : ''}`
+      : ''
+    return `Buat target ${slots.description || 'tabungan baru'} sebesar ${formatRupiah(slots.amount)}${opening}.`
+  }
   if (intent === 'record_multiple_transactions') {
     const total = (slots.items || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
     return `Total ${slots.items?.length || 0} transaksi adalah ${formatRupiah(total)}.`
