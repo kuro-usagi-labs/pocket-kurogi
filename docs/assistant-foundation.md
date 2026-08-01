@@ -35,10 +35,6 @@ untuk adapter kompatibilitas.
 `legacy_adapter` masih menangani kemampuan yang belum dipindahkan:
 
 - aturan pengajaran keyword lokal;
-- transaksi majemuk yang mencampur nominal pembayaran dan kembalian;
-- skenario runway hipotetis yang belum memakai data affordability canonical;
-- pemasukan pihak ketiga dengan struktur kepemilikan kompleks;
-- pembuatan target dengan target total sekaligus setoran awal.
 
 Adapter tersebut adalah tujuan migrasi, bukan tempat menambah fitur. Tidak ada
 fallback dari pipeline canonical ke adapter legacy. Kegagalan invariant diblok
@@ -65,3 +61,26 @@ yang sama:
 - menghitung nilai belanja dari pembayaran dan kembalian;
 - melanjutkan hasil perhitungan tersebut menjadi draft pengeluaran multi-turn;
 - sapaan dan percakapan dasar.
+
+## Status P2
+
+Pemahaman Bahasa Indonesia memakai specialist candidate extractor yang hanya
+menghasilkan kandidat ter-grounding. Router, safety, dialogue, pending action,
+dan response composer tetap tunggal. Kemampuan yang sudah canonical:
+
+- transaksi majemuk memisahkan harga item, uang pembayaran, dan kembalian;
+- transfer masuk dari pihak ketiga dipahami sebagai pemasukan pengguna bila
+  arah kepemilikannya eksplisit;
+- angka pada skenario "uang tinggal" dipisahkan dari saldo akun dan selalu
+  diberi label sebagai skenario pada saran runway;
+- target total dan setoran awal tabungan dipetakan ke field berbeda;
+- jawaban kontekstual pendek seperti `BCA`, `iya`, `catat yang tadi`, dan
+  `jadi 150rb` dilanjutkan dari state backend;
+- setiap kandidat membawa `source`, `confidence`, dan rentang `evidence`;
+- semantic frame memisahkan fakta hasil ekstraksi, asumsi bahasa, dan fakta
+  akun; hasil yang tidak diproses membawa reason code eksplisit.
+
+Golden corpus sekarang memuat sedikitnya 100 tuturan Indonesia, termasuk typo,
+slang, urutan kata bebas, kasus multi-turn, dan kontrak unsafe-write. Satu-satunya
+kemampuan yang masih memakai `legacy_adapter` adalah aturan pengajaran keyword
+lokal.

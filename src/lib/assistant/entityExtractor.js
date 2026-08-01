@@ -12,6 +12,7 @@ import {
   resolveWalletMentions,
 } from './walletResolver'
 import { extractWalletCreationDetails } from './walletCreationParser'
+import { extractIndonesianCandidates } from './indonesianCandidateExtractors'
 
 const CONFIRMATION_PATTERN =
   /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu
@@ -60,6 +61,12 @@ export function extractAssistantEntities({
     })),
   })
 
+  const specialistCandidates = extractIndonesianCandidates({
+    text: normalizedText,
+    amounts,
+    wallets: walletEntities,
+  })
+
   return {
     normalizedText,
     amounts,
@@ -101,6 +108,7 @@ export function extractAssistantEntities({
       THIRD_PARTY_PATTERN.test(normalizedText) &&
       !CLEAR_INCOMING_THIRD_PARTY_PATTERN.test(normalizedText),
     negated: NEGATION_PATTERN.test(normalizedText),
+    specialistCandidates,
   }
 }
 

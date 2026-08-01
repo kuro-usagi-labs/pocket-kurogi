@@ -382,9 +382,62 @@ export const REQUIRED_EVALUATION_TAGS = Object.freeze([
   'unsafe-write',
 ])
 
+const P2_TERMS = Object.freeze([
+  'makan siang', 'kopi susu', 'bensin', 'parkir', 'obat',
+  'pulsa', 'sarapan', 'laundry', 'ongkos', 'air minum',
+])
+
+/**
+ * 80 hand-reviewed, colloquial utterances used to prevent Indonesian language
+ * regressions. Each row is an actual user-shaped sentence, not token noise.
+ */
+export const INDONESIAN_P2_UTTERANCE_CORPUS = Object.freeze([
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-expense-${index + 1}`,
+    text: `tadi ${index % 2 ? 'aku ' : ''}beli ${term} ${20 + index}rb dari BCA, tolong catat`,
+    expectedIntent: 'record_expense',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-income-${index + 1}`,
+    text: `${index % 2 ? 'catetin' : 'catat'} pemasukan ${100 + index * 10}rb ke BCA untuk ${term}`,
+    expectedIntent: 'record_income',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-balance-${index + 1}`,
+    text: `${index % 2 ? 'tolong cek' : 'berapa'} saldo ${index % 3 ? 'BCA' : 'Tunai'} sekarang?`,
+    expectedIntent: 'query_balance',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-runway-${index + 1}`,
+    text: `uangku tinggal ${200 + index * 10}rb buat ${index % 2 ? 'sebulan' : '30 hari'}, cukup tidak kalau harus bayar ${term}?`,
+    expectedIntent: 'financial_advice',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-wallet-${index + 1}`,
+    text: `${index % 2 ? 'bikinin' : 'buatkan'} dompet Dana ${index + 1} saldo ${50 + index}rb`,
+    expectedIntent: 'create_wallet',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-transfer-${index + 1}`,
+    text: `${index % 2 ? 'tolong tranfer' : 'transfer'} ${50 + index}rb dari BCA ke GoPay`,
+    expectedIntent: 'transfer_money',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-compound-${index + 1}`,
+    text: `beli ${term} pakai uang 100rb, harga ${term} ${20 + index}rb dan parkir 5rb dari Tunai, catat`,
+    expectedIntent: 'record_multiple_transactions',
+  })),
+  ...P2_TERMS.map((term, index) => ({
+    id: `p2-goal-${index + 1}`,
+    text: `buat target ${term} ${2 + index}jt, setoran awal ${100 + index * 10}rb dari BCA`,
+    expectedIntent: 'create_saving_goal',
+  })),
+])
+
 export const INDONESIAN_ASSISTANT_EVALUATION_CORPUS = Object.freeze({
   singleTurn: INDONESIAN_SINGLE_TURN_CORPUS,
   unsafeLocalWrites: INDONESIAN_UNSAFE_LOCAL_WRITE_CORPUS,
   conversations: INDONESIAN_CONVERSATION_CORPUS,
   teaching: INDONESIAN_TEACHING_CORPUS,
+  p2Utterances: INDONESIAN_P2_UTTERANCE_CORPUS,
 })

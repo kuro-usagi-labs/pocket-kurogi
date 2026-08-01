@@ -103,7 +103,7 @@ export function decideAssistantHandler({
 
 export function canCanonicalPipelineHandle(frame) {
   const intent = frame?.legacyIntent || frame?.intent
-  if (requiresLegacyCapability(frame, intent)) return false
+  if (requiresLegacyCapability(frame)) return false
   if (CANONICAL_PIPELINE_INTENTS.has(intent)) return true
 
   if (
@@ -131,31 +131,9 @@ export function canCanonicalPipelineHandle(frame) {
   return Boolean(frame?.action?.mutates && frame?.safety?.blocksWrite)
 }
 
-function requiresLegacyCapability(frame, intent) {
+function requiresLegacyCapability(frame) {
   const text = String(frame?.utterance?.normalized || '')
-
-  if (LEGACY_CAPABILITY_PATTERN.test(text)) return true
-  if (
-    intent === 'record_multiple_transactions' &&
-    /\b(?:pakai|dari|bawa|kasih|serahkan)(?:\s+(?:dengan|sebesar))?\s+uang\b/iu.test(text)
-  ) {
-    return true
-  }
-  if (
-    intent === 'create_saving_goal' &&
-    (
-      (frame?.entities?.amounts?.length || 0) > 1 ||
-      /\b(?:setoran awal|modal awal|mulai dengan|isi awal)\b/iu.test(text)
-    )
-  ) {
-    return true
-  }
-
-  const lowBalanceScenario =
-    /(?:\b(?:saldo|uang|dompet|rekening)\b.{0,45}\b(?:tinggal|sisa|cuma|hanya|menipis)\b|\b(?:tinggal|sisa|cuma|hanya)\b.{0,30}\b(?:rp\s*)?\d)/iu.test(text)
-  const runwayHorizon =
-    /\b(?:hari|minggu|pekan|bulan|sebulan|akhir bulan|sampai gajian|gajian|hemat|prioritas|cukup|gimana|bagaimana)\b/iu.test(text)
-  return lowBalanceScenario && runwayHorizon
+  return LEGACY_CAPABILITY_PATTERN.test(text)
 }
 
 function buildDecision(handler, frame, details) {

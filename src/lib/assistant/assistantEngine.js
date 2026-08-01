@@ -133,6 +133,24 @@ export function runAssistantEngine({
     query: dialogue.query || null,
     command: dialogue.command || null,
     insight,
+    processing: buildProcessingOutcome({ route, dialogue, safety }),
+  }
+}
+
+function buildProcessingOutcome({ route, dialogue, safety }) {
+  const safetyCodes = (safety?.errors || []).map((error) => error.code)
+  const processed = route.intent !== 'unknown' && dialogue.status !== 'blocked'
+  return {
+    processed,
+    reason: processed
+      ? 'handled_by_canonical_pipeline'
+      : safetyCodes.length > 0
+        ? `blocked:${safetyCodes.join(',')}`
+        : route.ambiguous
+          ? 'unprocessed:ambiguous_intent'
+          : 'unprocessed:unsupported_intent',
+    evidence: route.evidence || [],
+    conflictingEvidence: route.conflictingEvidence || [],
   }
 }
 

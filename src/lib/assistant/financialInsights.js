@@ -272,6 +272,25 @@ export function composeFinancialQueryResult({
   }
 
   if (intent === 'financial_advice') {
+    if (Number(slots.scenarioBalance) > 0) {
+      const days = Number(slots.horizonDays) > 0 ? Number(slots.horizonDays) : 30
+      const runway = buildRunwayInsight({
+        balance: Number(slots.scenarioBalance),
+        requiredExpenses: 0,
+        daysUntilIncome: days,
+      })
+      const actualBalance = wallets
+        .filter((wallet) => !wallet.is_archived)
+        .reduce((sum, wallet) => sum + Number(wallet.current_balance || 0), 0)
+      return createQueryInsight(
+        `Jika memakai skenario ${formatRupiah(slots.scenarioBalance)}, batas kasarnya ${formatRupiah(runway.dailyLimit)} per hari selama ${days} hari. Dahulukan makan dasar, transport kerja, kesehatan, dan tagihan wajib; tahan jajan sementara bila ruang hariannya sempit.`,
+        [
+          'Angka skenario dari pesanmu tidak mengubah saldo akun.',
+          `Saldo aktif yang tercatat di database saat ini ${formatRupiah(actualBalance)}.`,
+          'Batas harian ini belum mengurangi tagihan wajib yang belum dicatat.',
+        ]
+      )
+    }
     const reasoning = reasonAboutFinancialHealth({
       snapshot,
       wallets,

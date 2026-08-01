@@ -122,6 +122,7 @@ export function buildAssistantSemanticFrame({
     slots: slots.slots,
     missingSlots: slots.missingSlots,
     entities: summarizeEntities(entities),
+    provenance: buildProvenance(entities, slots.slots),
     references,
     emotion,
     safety: {
@@ -339,6 +340,7 @@ export function summarizeSemanticFrame(frame) {
     references: frame.references,
     emotion: frame.emotion,
     safety: frame.safety,
+    provenance: frame.provenance,
     engine: frame.engine || null,
   }
 }
@@ -375,6 +377,8 @@ function summarizeEntities(entities) {
       value: amount.value,
       raw: amount.raw,
       confidence: amount.confidence,
+      source: 'utterance',
+      evidence: amount.evidence || [],
     })),
     wallets: (entities.wallets || []).map((wallet) => ({
       id: wallet.id || null,
@@ -403,5 +407,47 @@ function summarizeEntities(entities) {
       negated: entities.negated,
       thirdParty: entities.thirdParty,
     },
+    candidates: (entities.specialistCandidates || []).map((candidate) => ({
+      kind: candidate.kind,
+      source: candidate.source,
+      confidence: candidate.confidence,
+      evidence: candidate.evidence,
+    })),
   }
+}
+
+function buildProvenance(entities, slots) {
+  const extracted = (entities.specialistCandidates || []).flatMap((candidate) =>
+    candidate.evidence.map((evidence) => ({
+      ...evidence,
+      candidate: candidate.kind,
+      source: candidate.source,
+      confidence: candidate.confidence,
+    }))
+  )
+  const assumptions = []
+  for (const amount of entities.amounts || []) {
+    if (amount.inferredUnit) {
+      assumptions.push({
+        field: 'amount',
+        source: 'language_inference',
+        value: amount.value,
+        reason: amount.evidence?.find((entry) => entry.startsWith('inferred_')) || 'contextual_amount',
+        confidence: amount.confidence,
+      })
+    }
+  }
+  const accountFacts = [
+    ...(slots.wallet?.id || slots.sourceWallet?.id || slots.destinationWallet?.id
+      ? [{
+          field: 'wallet',
+          source: 'account',
+          value: slots.wallet || slots.sourceWallet || slots.destinationWallet,
+        }]
+      : []),
+    ...(slots.goal?.id
+      ? [{ field: 'goal', source: 'account', value: slots.goal }]
+      : []),
+  ]
+  return { extracted, assumptions, accountFacts }
 }

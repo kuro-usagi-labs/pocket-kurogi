@@ -87,7 +87,7 @@ describe('assistant decision policy', () => {
   it.each([
     ['record_multiple_transactions', 'beli bensin 20rb dan makan 10rb pakai uang 50rb'],
     ['financial_advice', 'uangku tinggal 200rb buat sebulan, cukup tidak?'],
-  ])('keeps %s in the compatibility adapter until contextual parity exists', (intent, text) => {
+  ])('routes migrated P2 capability %s through the canonical pipeline', (intent, text) => {
     const result = decideAssistantHandler({
       frame: frame({
         intent,
@@ -99,7 +99,7 @@ describe('assistant decision policy', () => {
       }),
     })
 
-    expect(result.handler).toBe(ASSISTANT_DECISION_HANDLERS.LEGACY_ADAPTER)
+    expect(result.handler).toBe(ASSISTANT_DECISION_HANDLERS.CANONICAL)
     expect(result.allowFallback).toBe(false)
   })
 })

@@ -678,7 +678,7 @@ describe('assistant engine multi-turn integration', () => {
     expect(result.pendingAction).toBeNull()
   })
 
-  it('handles change canonically while retaining contextual adapters without parity', () => {
+  it('handles migrated P2 contextual capabilities canonically', () => {
     const change = runAssistantEngine({
       text: 'Bayar 100rb kembali 35rb',
       userId: 'user-1',
@@ -702,8 +702,8 @@ describe('assistant engine multi-turn integration', () => {
       })
       expect(
         shouldHandleAssistantEngineResult(result),
-        `${text} should use the contextual parser`
-      ).toBe(false)
+        `${text} should use the canonical pipeline`
+      ).toBe(true)
     }
   })
 
@@ -806,7 +806,7 @@ describe('assistant engine multi-turn integration', () => {
     ['Beli kabel 5 meter seharga 20rb', 'record_expense', 'clarification'],
     ['Bayar 100rb kembali 35rb', 'calculate_change', 'calculation'],
     ['Rp500', 'unknown', 'blocked'],
-    ['Saldo tinggal 400rb sampai gajian', 'emotional_support', 'query'],
+    ['Saldo tinggal 400rb sampai gajian', 'financial_advice', 'query'],
     ['Pindahkan 200rb dari BCA ke GoPay', 'transfer_money', 'pending_confirmation'],
     ['Aku stres karena boros terus', 'emotional_support', 'query'],
     ['Menurutmu keuanganku bulan ini bagaimana?', 'financial_advice', 'query'],

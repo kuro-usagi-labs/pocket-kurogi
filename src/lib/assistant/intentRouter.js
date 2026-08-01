@@ -27,6 +27,8 @@ const SIGNALS = Object.freeze({
   advice: /\b(?:saran|strategi|rekomendasi|sebaiknya|menurutmu|aman|cukup|atur|hemat|prioritas)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
   confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
+  contextualConfirm: /^(?:(?:ya|iya|oke|sip)\s+)?(?:catat|simpan|rekam)(?:\s+(?:transaksi|catatan|draft))?\s+(?:(?:yang\s+)?(?:tadi|itu|tersebut|barusan))$/iu,
+  contextualCorrection: /^(?:jadi|harusnya|seharusnya)\s+(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:rb|ribu|k|jt|juta)?$/iu,
   cancel: /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu,
   greeting: /^(?:halo|hai|hi|pagi|siang|sore|malam|apa kabar)\b/iu,
   emotional: /\b(?:stres|stress|khawatir|cemas|takut|menyesal|nyesel|bingung|pusing|bangga|senang|semangat|panik|tertekan|boros banget|uang menipis|saldo tinggal|sisa uang)\b/iu,
@@ -48,6 +50,7 @@ export function routeAssistantIntent({
   scoreMutations(scores, normalizedText, entities)
   scoreQueries(scores, normalizedText, entities)
   scoreSupport(scores, normalizedText, entities)
+  scoreSpecialistCandidates(scores, entities)
 
   if (entities.question || entities.hypothetical) {
     penalizeMutationIntents(scores, entities)
@@ -92,18 +95,48 @@ export function routeAssistantIntent({
   }
 }
 
+function scoreSpecialistCandidates(scores, entities) {
+  for (const candidate of entities.specialistCandidates || []) {
+    const intent = {
+      compound_purchase: candidate.fields?.items?.length > 1
+        ? 'record_multiple_transactions'
+        : 'record_expense',
+      incoming_transfer: 'record_income',
+      runway_scenario: 'financial_advice',
+      goal_with_opening_deposit: 'create_saving_goal',
+    }[candidate.kind]
+    if (!intent) continue
+    add(scores, intent, Math.max(0.82, candidate.confidence), `specialist:${candidate.kind}`)
+    if (candidate.kind === 'incoming_transfer') {
+      addConflict(scores, ['transfer_money'], 'specialist:incoming_ownership', 0.62)
+    }
+    if (candidate.kind === 'compound_purchase') {
+      addConflict(scores, ['calculate_change', 'record_income'], 'specialist:item_prices', 0.45)
+    }
+    if (candidate.kind === 'goal_with_opening_deposit') {
+      addConflict(scores, ['record_multiple_transactions'], 'specialist:goal_funding', 0.55)
+    }
+    if (candidate.kind === 'runway_scenario') {
+      addConflict(scores, ['emotional_support'], 'specialist:explicit_runway', 0.22)
+    }
+  }
+}
+
 function scoreDialogueActs(scores, text, entities, state) {
   if (state?.activeIntent && (entities.cancellation || SIGNALS.cancel.test(text))) {
     add(scores, 'cancel_pending_action', 0.98, 'dialogue_state:cancellation')
   }
   if (state?.pendingActionId || state?.pendingAction?.id) {
-    if (entities.confirmation || SIGNALS.confirm.test(text)) {
+    if (entities.confirmation || SIGNALS.confirm.test(text) || SIGNALS.contextualConfirm.test(text)) {
       add(scores, 'confirm_pending_action', 0.96, 'pending_action:affirmative')
     }
     if (entities.cancellation || SIGNALS.cancel.test(text)) {
       add(scores, 'cancel_pending_action', 0.98, 'pending_action:cancellation')
     }
-    if (SIGNALS.correction.test(text)) {
+    if (
+      !SIGNALS.contextualConfirm.test(text) &&
+      (SIGNALS.correction.test(text) || SIGNALS.contextualCorrection.test(text))
+    ) {
       add(scores, 'correct_pending_action', 0.86, 'pending_action:correction')
     }
     if (state.missingSlots?.includes('wallet') && entities.wallets?.[0]?.id) {
@@ -163,6 +196,14 @@ function scoreMutations(scores, text, entities) {
   if (hasRecordVerb) {
     add(scores, 'record_expense', 0.25, 'record_verb')
     add(scores, 'record_income', 0.2, 'record_verb')
+  }
+  if (hasRecordVerb && SIGNALS.income.test(text)) {
+    add(scores, 'record_income', 0.38, 'explicit_income_label')
+    addConflict(scores, ['record_expense'], 'explicit_income_label', 0.28)
+  }
+  if (hasRecordVerb && SIGNALS.expense.test(text)) {
+    add(scores, 'record_expense', 0.38, 'explicit_expense_label')
+    addConflict(scores, ['record_income'], 'explicit_expense_label', 0.28)
   }
   if (amountCount === 1) {
     add(scores, 'record_expense', 0.18, 'money:single')

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   INDONESIAN_ASSISTANT_EVALUATION_CORPUS,
+  INDONESIAN_P2_UTTERANCE_CORPUS,
+  EVALUATION_NOW,
   REQUIRED_EVALUATION_TAGS,
 } from './indonesianEvaluationCorpus'
 import {
@@ -11,6 +13,7 @@ import {
   getEngineWriteState,
   runIndonesianAssistantEvaluation,
 } from './indonesianEvaluationHarness'
+import { runAssistantEngine } from './assistantEngine'
 
 describe('Indonesian assistant evaluation corpus integrity', () => {
   it('uses unique stable ids and covers every required language and safety class', () => {
@@ -22,7 +25,42 @@ describe('Indonesian assistant evaluation corpus integrity', () => {
     expect(ids.every(Boolean)).toBe(true)
     expect(REQUIRED_EVALUATION_TAGS.filter((tag) => !tags.has(tag))).toEqual([])
   })
+
+  it('contains at least 100 actual Indonesian utterances including multi-turn steps', () => {
+    const utteranceCount =
+      INDONESIAN_ASSISTANT_EVALUATION_CORPUS.singleTurn.length +
+      INDONESIAN_ASSISTANT_EVALUATION_CORPUS.unsafeLocalWrites.length +
+      INDONESIAN_ASSISTANT_EVALUATION_CORPUS.teaching.length +
+      INDONESIAN_ASSISTANT_EVALUATION_CORPUS.conversations.reduce(
+        (sum, conversation) => sum + conversation.steps.length,
+        0
+      ) +
+      INDONESIAN_P2_UTTERANCE_CORPUS.length
+    expect(utteranceCount).toBeGreaterThanOrEqual(100)
+  })
 })
+
+describe('Indonesian assistant P2 language corpus', () => {
+  it.each(INDONESIAN_P2_UTTERANCE_CORPUS)('$id', ({ text, expectedIntent }) => {
+    const result = runAssistantEngine({
+      ...buildP2Context(),
+      text,
+    })
+    expect(result.route.intent).toBe(expectedIntent)
+  })
+})
+
+function buildP2Context() {
+  return {
+    userId: 'p2-corpus-user',
+    wallets: [
+      { id: 'wallet-bca', name: 'BCA', current_balance: 1_000_000 },
+      { id: 'wallet-gopay', name: 'GoPay', current_balance: 250_000 },
+      { id: 'wallet-cash', name: 'Tunai', current_balance: 300_000 },
+    ],
+    now: new Date(EVALUATION_NOW),
+  }
+}
 
 describe('Indonesian assistant single-turn regression corpus', () => {
   it.each(INDONESIAN_ASSISTANT_EVALUATION_CORPUS.singleTurn)(

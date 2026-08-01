@@ -64,6 +64,12 @@ export function resolveIntentSlots({
 }
 
 function deriveSlots(intent, entities, text) {
+  const candidate = (kind) => (entities.specialistCandidates || [])
+    .find((entry) => entry.kind === kind)?.fields || null
+  const compoundPurchase = candidate('compound_purchase')
+  const incomingTransfer = candidate('incoming_transfer')
+  const runwayScenario = candidate('runway_scenario')
+  const goalPlan = candidate('goal_with_opening_deposit')
   const amount = entities.amounts?.[0]?.value || null
   const wallet = entities.wallets?.[0]?.id
     ? {
@@ -160,7 +166,7 @@ function deriveSlots(intent, entities, text) {
 
   if (intent === 'record_multiple_transactions') {
     return compactObject({
-      items: deriveMultipleItems(entities, text),
+      items: compoundPurchase?.items || deriveMultipleItems(entities, text),
       wallet,
       occurredAt,
     })
@@ -172,10 +178,19 @@ function deriveSlots(intent, entities, text) {
 
   if (intent === 'create_saving_goal') {
     return compactObject({
-      amount,
+      amount: goalPlan?.targetAmount || amount,
       description: deriveSavingGoalDescription(text, entities),
       deadline: occurredAt,
-      sourceWallet: wallet,
+      initialAmount: goalPlan?.initialAmount || null,
+      sourceWallet: goalPlan?.sourceWallet || wallet,
+    })
+  }
+
+  if (intent === 'financial_advice' && runwayScenario) {
+    return compactObject({
+      scenarioBalance: runwayScenario.scenarioBalance,
+      horizonDays: runwayScenario.horizonDays,
+      wallet,
     })
   }
 
@@ -197,13 +212,13 @@ function deriveSlots(intent, entities, text) {
 
   if (intent.startsWith('record_')) {
     return compactObject({
-      amount,
-      description,
+      amount: incomingTransfer?.amount || compoundPurchase?.items?.[0]?.amount || amount,
+      description: incomingTransfer?.description || compoundPurchase?.items?.[0]?.description || description,
       wallet,
       category,
       merchant: entities.merchants?.[0]?.name || null,
       occurredAt,
-      transactionType,
+      transactionType: incomingTransfer?.transactionType || transactionType,
     })
   }
 
@@ -303,7 +318,7 @@ function toSentenceCase(value) {
 function deriveSavingGoalDescription(text, entities) {
   const cleaned = String(text || '')
     .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:rupiah|ribu|rb|k|juta|jt|miliar)?/giu, ' ')
-    .replace(/\b(?:tolong|mohon|buat|bikin|tambahkan|tambah|pasang|target|goal|tabungan|menabung|nabung|sebesar|senilai|dengan)\b/giu, ' ')
+    .replace(/\b(?:tolong|mohon|buat|bikin|tambahkan|tambah|pasang|target|goal|tabungan|menabung|nabung|sebesar|senilai|dengan|setoran|modal|isi|saldo|awal|mulai|dari|pakai)\b/giu, ' ')
     .replace(/\b(?:hari ini|kemarin|besok|tanggal)\b/giu, ' ')
     .replace(/\s+/gu, ' ')
     .trim()

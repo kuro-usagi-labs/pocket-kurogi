@@ -36,6 +36,7 @@ export function orchestrateAssistantMessage({
     originalText: referenceResolution.originalText,
     references: referenceResolution.references,
     wallets,
+    archivedWallets,
     categories,
     goals,
     memory,
@@ -104,6 +105,7 @@ export function attachAssistantUnderstanding(response, orchestration, {
       },
       assistantEngine: actualEngine,
       assistantPreferredEngine: orchestration.preferredEngine,
+      assistantProcessingDecision: orchestration.decision,
       assistantInputResolved:
         orchestration.resolvedText !== orchestration.originalText,
     },
