@@ -678,9 +678,17 @@ describe('assistant engine multi-turn integration', () => {
     expect(result.pendingAction).toBeNull()
   })
 
-  it('delegates change, tendered cash, runway, and incoming transfers to the contextual parser', () => {
+  it('handles change canonically while retaining contextual adapters without parity', () => {
+    const change = runAssistantEngine({
+      text: 'Bayar 100rb kembali 35rb',
+      userId: 'user-1',
+      wallets,
+      categories,
+      now,
+    })
+    expect(shouldHandleAssistantEngineResult(change)).toBe(true)
+
     for (const text of [
-      'Bayar 100rb kembali 35rb',
       'Beli bensin 20 dan makan 10 pakai uang 50rb',
       'Sisa uangku 200rb buat sebulan, gimana?',
       'Ibu transfer 200rb ke aku',

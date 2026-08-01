@@ -18,6 +18,7 @@ import { useAssistantState } from './useAssistantState'
 
 export function useDeterministicAssistant({
   wallets = [],
+  archivedWallets = [],
   categories = [],
   budgets = [],
   goals = [],
@@ -38,6 +39,7 @@ export function useDeterministicAssistant({
       userId: assistantState.userId,
       sourceMessageId,
       wallets,
+      archivedWallets,
       categories,
       budgets,
       goals,
@@ -145,6 +147,7 @@ export function useDeterministicAssistant({
     totalBalance,
     transactions,
     wallets,
+    archivedWallets,
   ])
 
   const proposeMemoryCandidates = useCallback(({

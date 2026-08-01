@@ -226,6 +226,7 @@ export default function AppShell() {
 
   const deterministicAssistant = useDeterministicAssistant({
     wallets,
+    archivedWallets,
     categories,
     budgets,
     goals,
@@ -892,6 +893,7 @@ export default function AppShell() {
           text: userMessageText,
           messages,
           wallets,
+          archivedWallets,
           categories,
           goals,
           memory: deterministicAssistant.memories,
@@ -1056,6 +1058,7 @@ export default function AppShell() {
     },
     [
       categoryOptions,
+      archivedWallets,
       categoryRules,
       categories,
       walletRules,

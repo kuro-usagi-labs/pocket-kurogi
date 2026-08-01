@@ -11,6 +11,7 @@ import {
   resolveWalletEntities,
   resolveWalletMentions,
 } from './walletResolver'
+import { extractWalletCreationDetails } from './walletCreationParser'
 
 const CONFIRMATION_PATTERN =
   /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu
@@ -31,6 +32,7 @@ const MERCHANT_PATTERN = /\b(?:di|ke)\s+([\p{L}\p{N}][\p{L}\p{N}\s.&'-]{1,40}?)(
 export function extractAssistantEntities({
   text = '',
   wallets = [],
+  archivedWallets = [],
   categories = [],
   goals = [],
   memory = [],
@@ -49,6 +51,14 @@ export function extractAssistantEntities({
     text: normalizedText,
     wallets,
   })
+  const walletCreation = extractWalletCreationDetails(normalizedText)
+  const archivedWalletEntities = resolveWalletEntities({
+    text: normalizedText,
+    wallets: archivedWallets.map((wallet) => ({
+      ...wallet,
+      is_archived: false,
+    })),
+  })
 
   return {
     normalizedText,
@@ -60,6 +70,8 @@ export function extractAssistantEntities({
       wallets,
     }),
     transferWallets,
+    walletCreation,
+    archivedWallets: archivedWalletEntities,
     categories: resolveCategoryEntities({
       text: normalizedText,
       categories,

@@ -1,4 +1,5 @@
 import { getIntentDefinition } from './intentDefinitions'
+import { sanitizeWalletName } from './walletCreationParser'
 
 export function resolveIntentSlots({
   intent,
@@ -10,6 +11,9 @@ export function resolveIntentSlots({
     ? dialogueState.collectedSlots || {}
     : {}
   const derived = deriveSlots(intent, entities, text)
+  const isCalculationFollowup =
+    dialogueState?.activeIntent === 'calculate_change' &&
+    intent === 'record_expense'
   const contextualDerived =
     dialogueState?.activeIntent === intent && dialogueState.missingSlots?.length
       ? Object.fromEntries(
@@ -18,9 +22,21 @@ export function resolveIntentSlots({
             key === 'transactionType'
           )
         )
-      : derived
+      : isCalculationFollowup
+        ? Object.fromEntries(
+            Object.entries(derived).filter(([key]) =>
+              !['amount', 'description'].includes(key)
+            )
+          )
+        : derived
+  const calculationFollowup = deriveCalculationFollowup(
+    intent,
+    dialogueState,
+    text
+  )
   const slots = {
     ...inherited,
+    ...calculationFollowup,
     ...contextualDerived,
   }
   const definition = getIntentDefinition(intent)
@@ -85,11 +101,59 @@ function deriveSlots(intent, entities, text) {
     })
   }
 
+  if (intent === 'create_wallet') {
+    return compactObject({
+      walletName: entities.walletCreation?.walletName || null,
+      walletType: entities.walletCreation?.walletType || 'cash',
+      initialBalance: amount || 0,
+    })
+  }
+
+  if (intent === 'rename_wallet') {
+    return compactObject({
+      wallet,
+      nextWalletName: deriveRenamedWalletName(text),
+    })
+  }
+
+  if (intent === 'archive_wallet') {
+    return compactObject({ wallet })
+  }
+
+  if (intent === 'restore_wallet') {
+    const archivedWallet = entities.archivedWallets?.[0]?.id
+      ? {
+          id: entities.archivedWallets[0].id,
+          name: entities.archivedWallets[0].name,
+        }
+      : null
+    return compactObject({ wallet: archivedWallet })
+  }
+
+  if (intent === 'deposit_goal') {
+    return compactObject({ amount, goal, sourceWallet: wallet })
+  }
+
+  if (intent === 'withdraw_goal') {
+    return compactObject({
+      amount,
+      goal,
+      destinationWallet: wallet,
+      description,
+      occurredAt,
+    })
+  }
+
   if (intent === 'calculate_change') {
+    const changeDescription = /^(?:bayar|kembali|kembalian|susuk|uang|pakai)(?:\s+(?:bayar|kembali|kembalian|susuk|uang|pakai))*$/iu.test(
+      String(description || '')
+    )
+      ? null
+      : description
     return compactObject({
       tenderedAmount: entities.amounts?.[0]?.value || null,
       changeAmount: entities.amounts?.[1]?.value || null,
-      description,
+      description: changeDescription,
       wallet,
     })
   }
@@ -185,6 +249,34 @@ function deriveDescription(text, entities) {
   return category && category.toLowerCase() !== 'lainnya'
     ? category
     : null
+}
+
+function deriveRenamedWalletName(text) {
+  const match = String(text || '').match(
+    /\b(?:menjadi|jadi|ke|dengan nama)\s+(.+?)\s*(?:dong|ya|yah|deh)?$/iu
+  )
+  return sanitizeWalletName(match?.[1] || '')
+}
+
+function deriveCalculationFollowup(intent, dialogueState, text) {
+  if (
+    intent !== 'record_expense' ||
+    dialogueState?.activeIntent !== 'calculate_change' ||
+    !/\b(?:catat|simpan|rekam|masukkan|pengeluaran)\b/iu.test(String(text || ''))
+  ) {
+    return {}
+  }
+  const previous = dialogueState.collectedSlots || {}
+  const spentAmount = Number(
+    previous.spentAmount ||
+    Number(previous.tenderedAmount || 0) - Number(previous.changeAmount || 0)
+  )
+  if (!Number.isFinite(spentAmount) || spentAmount <= 0) return {}
+  return compactObject({
+    amount: spentAmount,
+    description: previous.description || 'Belanja tadi',
+    wallet: previous.wallet || null,
+  })
 }
 
 function isWalletLikeDescription(value, walletNames) {

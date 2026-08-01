@@ -141,7 +141,10 @@ export function manageAssistantDialogue({
         : [{ code: 'NEGATIVE_CHANGE_RESULT', message: 'Kembalian tidak boleh melebihi uang yang dibayarkan.' }],
       dialogueState: createDialogueState({
         activeIntent: 'calculate_change',
-        collectedSlots: slotResult.slots,
+        collectedSlots: {
+          ...slotResult.slots,
+          spentAmount,
+        },
         now,
       }),
     }
@@ -192,6 +195,7 @@ function planSafetyClarification(errors = []) {
     'THIRD_PARTY_OWNERSHIP',
     'FOREIGN_CURRENCY',
     'SAME_TRANSFER_WALLET',
+    'WALLET_ALREADY_EXISTS',
   ].includes(entry.code))
   if (!issue) return null
 
@@ -208,6 +212,8 @@ function planSafetyClarification(errors = []) {
       'Perubahan data saat ini hanya aman untuk rupiah. Ubah nominalnya ke IDR terlebih dahulu.',
     SAME_TRANSFER_WALLET:
       'Dompet sumber dan tujuan transfer harus berbeda. Sebutkan dua dompet yang benar.',
+    WALLET_ALREADY_EXISTS:
+      'Dompet dengan nama itu sudah aktif, jadi aku tidak membuat duplikatnya. Pilih nama lain jika memang ingin dompet baru.',
   }[issue.code]
 
   return {
@@ -257,6 +263,51 @@ export function buildActionPayload(intent, slots) {
       destinationWallet: slots.destinationWallet.name,
       occurredAt: slots.occurredAt || null,
       notes: slots.notes || null,
+    }
+  }
+
+  if (intent === 'create_wallet') {
+    return {
+      walletName: slots.walletName,
+      initialBalance: Number(slots.initialBalance || 0),
+      walletType: slots.walletType || 'cash',
+    }
+  }
+
+  if (intent === 'rename_wallet') {
+    return {
+      walletId: slots.wallet.id,
+      walletName: slots.wallet.name,
+      nextWalletName: slots.nextWalletName,
+    }
+  }
+
+  if (intent === 'archive_wallet' || intent === 'restore_wallet') {
+    return {
+      walletId: slots.wallet.id,
+      walletName: slots.wallet.name,
+    }
+  }
+
+  if (intent === 'deposit_goal') {
+    return {
+      amount: slots.amount,
+      goalId: slots.goal.id,
+      goalName: slots.goal.name,
+      sourceWalletId: slots.sourceWallet.id,
+      sourceWallet: slots.sourceWallet.name,
+    }
+  }
+
+  if (intent === 'withdraw_goal') {
+    return {
+      amount: slots.amount,
+      goalId: slots.goal.id,
+      goalName: slots.goal.name,
+      destinationWalletId: slots.destinationWallet.id,
+      destinationWallet: slots.destinationWallet.name,
+      description: slots.description || null,
+      occurredAt: slots.occurredAt || null,
     }
   }
 

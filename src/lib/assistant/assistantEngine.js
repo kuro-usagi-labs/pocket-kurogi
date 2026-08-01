@@ -18,6 +18,7 @@ export function runAssistantEngine({
   userId,
   sourceMessageId = null,
   wallets = [],
+  archivedWallets = [],
   categories = [],
   budgets = [],
   goals = [],
@@ -37,6 +38,7 @@ export function runAssistantEngine({
   const entities = prepared?.entities || extractAssistantEntities({
     text,
     wallets,
+    archivedWallets,
     categories,
     goals,
     memory,
@@ -185,6 +187,23 @@ function resolveRouteWithContext(route, context, entities, pendingAction) {
       }
     }
     return route
+  }
+  if (
+    context?.activeIntent === 'calculate_change' &&
+    /\b(?:catat|simpan|rekam|masukkan|pengeluaran)\b/iu.test(
+      String(entities.normalizedText || '')
+    )
+  ) {
+    return {
+      ...route,
+      intent: 'record_expense',
+      score: Math.max(route.score, 0.94),
+      ambiguous: false,
+      evidence: [...new Set([
+        ...(route.evidence || []),
+        'dialogue_state:calculation_to_expense',
+      ])],
+    }
   }
   if (!context?.activeIntent || !context.missingSlots?.length) return route
   if (

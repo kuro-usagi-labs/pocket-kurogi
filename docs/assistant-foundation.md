@@ -34,11 +34,11 @@ untuk adapter kompatibilitas.
 
 `legacy_adapter` masih menangani kemampuan yang belum dipindahkan:
 
-- membuat, menghapus, memulihkan, dan mengganti nama dompet;
-- setoran atau penarikan target yang memakai flow lama;
 - aturan pengajaran keyword lokal;
-- percakapan umum yang belum memiliki response composer canonical;
-- kalkulasi atau draft percakapan khusus yang belum tercakup semantic slots.
+- transaksi majemuk yang mencampur nominal pembayaran dan kembalian;
+- skenario runway hipotetis yang belum memakai data affordability canonical;
+- pemasukan pihak ketiga dengan struktur kepemilikan kompleks;
+- pembuatan target dengan target total sekaligus setoran awal.
 
 Adapter tersebut adalah tujuan migrasi, bukan tempat menambah fitur. Tidak ada
 fallback dari pipeline canonical ke adapter legacy. Kegagalan invariant diblok
@@ -53,3 +53,15 @@ dengan aman dan tidak mengubah data.
   policy, response composer, dan golden corpus.
 - Setiap kegagalan nyata wajib menjadi regression test multi-turn.
 - Hapus adapter legacy per kemampuan hanya setelah parity test lulus.
+
+## Status P1
+
+Kemampuan berikut sudah keluar dari adapter dan memakai semantic frame,
+dialogue policy, pending action backend, executor atomik, serta response composer
+yang sama:
+
+- membuat, mengganti nama, mengarsipkan, dan memulihkan dompet;
+- menyetor dana dari dompet ke target dan mencairkan target ke dompet;
+- menghitung nilai belanja dari pembayaran dan kembalian;
+- melanjutkan hasil perhitungan tersebut menjadi draft pengeluaran multi-turn;
+- sapaan dan percakapan dasar.

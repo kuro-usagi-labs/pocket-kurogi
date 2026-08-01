@@ -6,6 +6,8 @@ const SLOT_QUESTIONS = Object.freeze({
   wallet: 'Pakai dompet mana?',
   sourceWallet: 'Uangnya dipindahkan dari dompet mana?',
   destinationWallet: 'Uangnya dipindahkan ke dompet mana?',
+  walletName: 'Dompet barunya ingin diberi nama apa?',
+  nextWalletName: 'Nama baru dompetnya apa?',
   category: 'Kategori mana yang ingin kamu gunakan?',
   items: 'Tolong pisahkan tiap transaksi beserta nominalnya.',
   goal: 'Target tabungan yang mana?',

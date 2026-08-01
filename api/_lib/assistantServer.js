@@ -303,6 +303,12 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
       'upsert_budget',
       'create_saving_goal',
       'update_saving_goal',
+      'create_wallet',
+      'rename_wallet',
+      'archive_wallet',
+      'restore_wallet',
+      'deposit_goal',
+      'withdraw_goal',
     ].includes(body.actionType)) {
       throwRequestError('Jenis pending action tidak didukung.')
     }
@@ -479,6 +485,53 @@ function validateActionPayload(actionType, payload) {
   if (actionType === 'update_saving_goal') {
     requireUuid(payload.goalId, 'Target tabungan')
     requirePositiveAmount(payload.amount, 'Nominal target tabungan')
+    return
+  }
+
+  if (actionType === 'create_wallet') {
+    requireEntityName(payload.walletName, 'Nama dompet')
+    const initialBalance = Number(payload.initialBalance || 0)
+    if (!Number.isFinite(initialBalance) || initialBalance < 0) {
+      throwRequestError('Saldo awal dompet tidak valid.')
+    }
+    if (!['cash', 'bank', 'e_wallet'].includes(payload.walletType || 'cash')) {
+      throwRequestError('Jenis dompet tidak valid.')
+    }
+    return
+  }
+
+  if (actionType === 'rename_wallet') {
+    requireUuid(payload.walletId, 'Dompet')
+    requireEntityName(payload.nextWalletName, 'Nama baru dompet')
+    return
+  }
+
+  if (['archive_wallet', 'restore_wallet'].includes(actionType)) {
+    requireUuid(payload.walletId, 'Dompet')
+    return
+  }
+
+  if (actionType === 'deposit_goal') {
+    requireUuid(payload.goalId, 'Target tabungan')
+    requireUuid(payload.sourceWalletId, 'Dompet sumber')
+    requirePositiveAmount(payload.amount, 'Nominal setoran target')
+    return
+  }
+
+  if (actionType === 'withdraw_goal') {
+    requireUuid(payload.goalId, 'Target tabungan')
+    requireUuid(payload.destinationWalletId, 'Dompet tujuan')
+    requirePositiveAmount(payload.amount, 'Nominal pencairan target')
+  }
+}
+
+function requireEntityName(value, label) {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length === 0 ||
+    value.trim().length > 64
+  ) {
+    throwRequestError(`${label} tidak valid.`)
   }
 }
 

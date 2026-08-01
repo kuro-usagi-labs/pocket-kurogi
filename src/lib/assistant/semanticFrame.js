@@ -19,6 +19,7 @@ export function buildAssistantSemanticFrame({
   originalText = text,
   references = [],
   wallets = [],
+  archivedWallets = [],
   categories = [],
   goals = [],
   memory = [],
@@ -30,6 +31,7 @@ export function buildAssistantSemanticFrame({
   const entities = extractAssistantEntities({
     text,
     wallets,
+    archivedWallets,
     categories,
     goals,
     memory,

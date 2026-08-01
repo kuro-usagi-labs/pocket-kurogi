@@ -45,14 +45,14 @@ describe('unified assistant orchestrator', () => {
     })
   })
 
-  it('routes wallet management and user teaching to the local specialist', () => {
+  it('routes wallet management to canonical and teaching to the local specialist', () => {
     const walletCreation = orchestrateAssistantMessage({
       text: 'buatkan dompet BCA',
       wallets: [],
     })
 
-    expect(walletCreation.preferredEngine).toBe('local')
-    expect(walletCreation.decision.handler).toBe('legacy_adapter')
+    expect(walletCreation.preferredEngine).toBe('deterministic')
+    expect(walletCreation.decision.handler).toBe('canonical_pipeline')
     expect(walletCreation.frame.action).toMatchObject({
       kind: 'mutation',
       actionType: 'create_wallet',
@@ -65,7 +65,7 @@ describe('unified assistant orchestrator', () => {
     }).preferredEngine).toBe('local')
   })
 
-  it('routes transfers into a savings goal to the goal specialist', () => {
+  it('routes transfers into a savings goal to the canonical pipeline', () => {
     const result = orchestrateAssistantMessage({
       text: 'pindahkan 1jt tabungan bibit ke simpanan nikah',
       wallets: [{
@@ -82,7 +82,13 @@ describe('unified assistant orchestrator', () => {
       }],
     })
 
-    expect(result.preferredEngine).toBe('local')
+    expect(result.preferredEngine).toBe('deterministic')
+    expect(result.frame.intent).toBe('deposit_goal')
+    expect(result.frame.slots).toMatchObject({
+      amount: 1_000_000,
+      goal: { id: 'goal-nikah' },
+      sourceWallet: { id: 'wallet-bibit' },
+    })
   })
 
   it('captures explicit preferences independently from the selected engine', () => {

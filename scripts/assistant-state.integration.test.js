@@ -277,6 +277,110 @@ describeWithDatabase('deterministic assistant persisted state', () => {
     }
   })
 
+  it('creates a wallet exactly once through a P1 pending action', async () => {
+    await client.query('begin')
+    try {
+      await setAuthenticatedRole(client, existingUserId)
+      const walletName = `P1 Wallet ${crypto.randomUUID()}`
+      const staged = await client.query(
+        `select public.create_pending_finance_action(
+          $1,
+          'create_wallet',
+          $2::jsonb,
+          now() + interval '15 minutes'
+        ) as result`,
+        [
+          `assistant-${crypto.randomUUID()}`,
+          JSON.stringify({
+            walletName,
+            initialBalance: 125000,
+            walletType: 'bank',
+          }),
+        ],
+      )
+      const action = staged.rows[0].result
+      const first = await client.query(
+        `select public.execute_assistant_pending_finance_action($1::uuid, $2) as result`,
+        [action.id, action.payload_hash],
+      )
+      const replay = await client.query(
+        `select public.execute_assistant_pending_finance_action($1::uuid, $2) as result`,
+        [action.id, action.payload_hash],
+      )
+      const count = await client.query(
+        'select count(*)::integer as count from public.wallets where user_id = $1 and name = $2',
+        [existingUserId, walletName],
+      )
+
+      expect(first.rows[0].result).toMatchObject({
+        action_type: 'create_wallet',
+        replayed: false,
+      })
+      expect(replay.rows[0].result).toMatchObject({ replayed: true })
+      expect(count.rows[0].count).toBe(1)
+    } finally {
+      await client.query('rollback')
+    }
+  })
+
+  it('moves money into a goal exactly once through a P1 pending action', async () => {
+    await client.query('begin')
+    try {
+      const wallet = await client.query(
+        `insert into public.wallets (
+          user_id, name, wallet_type, initial_balance, current_balance
+        ) values ($1, $2, 'cash', 500000, 500000)
+        returning id::text`,
+        [existingUserId, `P1 Source ${crypto.randomUUID()}`],
+      )
+      const goal = await client.query(
+        `insert into public.goals (
+          user_id, name, target_amount, current_amount, status
+        ) values ($1, $2, 1000000, 0, 'active')
+        returning id::text`,
+        [existingUserId, `P1 Goal ${crypto.randomUUID()}`],
+      )
+      await setAuthenticatedRole(client, existingUserId)
+      const staged = await client.query(
+        `select public.create_pending_finance_action(
+          $1,
+          'deposit_goal',
+          $2::jsonb,
+          now() + interval '15 minutes'
+        ) as result`,
+        [
+          `assistant-${crypto.randomUUID()}`,
+          JSON.stringify({
+            goalId: goal.rows[0].id,
+            sourceWalletId: wallet.rows[0].id,
+            amount: 100000,
+          }),
+        ],
+      )
+      const action = staged.rows[0].result
+      await client.query(
+        `select public.execute_assistant_pending_finance_action($1::uuid, $2)`,
+        [action.id, action.payload_hash],
+      )
+      const replay = await client.query(
+        `select public.execute_assistant_pending_finance_action($1::uuid, $2) as result`,
+        [action.id, action.payload_hash],
+      )
+      const balances = await client.query(
+        `select
+          (select current_balance::numeric from public.wallets where id = $1) as wallet_balance,
+          (select current_amount::numeric from public.goals where id = $2) as goal_amount`,
+        [wallet.rows[0].id, goal.rows[0].id],
+      )
+
+      expect(replay.rows[0].result).toMatchObject({ replayed: true })
+      expect(Number(balances.rows[0].wallet_balance)).toBe(400000)
+      expect(Number(balances.rows[0].goal_amount)).toBe(100000)
+    } finally {
+      await client.query('rollback')
+    }
+  })
+
   it('isolates assistant rows by JWT subject and denies anonymous execution', async () => {
     await client.query('begin')
     try {

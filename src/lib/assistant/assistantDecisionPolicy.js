@@ -3,6 +3,13 @@ const CANONICAL_PIPELINE_INTENTS = new Set([
   'record_income',
   'record_multiple_transactions',
   'transfer_money',
+  'create_wallet',
+  'rename_wallet',
+  'archive_wallet',
+  'restore_wallet',
+  'deposit_goal',
+  'withdraw_goal',
+  'calculate_change',
   'query_balance',
   'query_transactions',
   'query_income',
@@ -21,10 +28,11 @@ const CANONICAL_PIPELINE_INTENTS = new Set([
   'confirm_pending_action',
   'cancel_pending_action',
   'correct_pending_action',
+  'general_chat',
 ])
 
 const LEGACY_CAPABILITY_PATTERN =
-  /\b(?:buat(?:kan)?|bikin(?:kan)?|tambah(?:kan)?)\s+(?:dompet|wallet|rekening)\b|\b(?:hapus|arsipkan|pulihkan|restore|rename|ganti nama|ubah nama)\s+(?:dompet|wallet|rekening)\b|\b(?:ajari|ajarkan|lupakan aturan|kalau (?:aku|saya) bilang)\b|\b(?:setor|tabung|nabung|simpan|alokasi|pindah(?:kan)?|transfer|geser|cairkan|tarik)\b.{0,48}\b(?:target|tabungan|simpanan|goal|milestone)\b|\b(?:kembalian|susuk)\b/iu
+  /\b(?:ajari|ajarkan|lupakan aturan|kalau (?:aku|saya) bilang)\b/iu
 
 export const ASSISTANT_DECISION_HANDLERS = Object.freeze({
   CANONICAL: 'canonical_pipeline',
@@ -106,6 +114,12 @@ export function canCanonicalPipelineHandle(frame) {
       'upsert_budget',
       'create_saving_goal',
       'update_saving_goal',
+      'create_wallet',
+      'rename_wallet',
+      'archive_wallet',
+      'restore_wallet',
+      'deposit_goal',
+      'withdraw_goal',
       'correct_pending_action',
     ].includes(frame.action.actionType)
   ) {
@@ -121,7 +135,6 @@ function requiresLegacyCapability(frame, intent) {
   const text = String(frame?.utterance?.normalized || '')
 
   if (LEGACY_CAPABILITY_PATTERN.test(text)) return true
-  if (intent === 'calculate_change') return true
   if (
     intent === 'record_multiple_transactions' &&
     /\b(?:pakai|dari|bawa|kasih|serahkan)(?:\s+(?:dengan|sebesar))?\s+uang\b/iu.test(text)

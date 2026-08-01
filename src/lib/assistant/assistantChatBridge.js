@@ -3,6 +3,12 @@ const HANDLED_MUTATION_INTENTS = new Set([
   'record_income',
   'record_multiple_transactions',
   'transfer_money',
+  'create_wallet',
+  'rename_wallet',
+  'archive_wallet',
+  'restore_wallet',
+  'deposit_goal',
+  'withdraw_goal',
   'create_budget',
   'update_budget',
   'create_saving_goal',
@@ -55,10 +61,6 @@ function shouldDelegateToConversationalParser(result) {
     result.entities?.normalizedText || result.text || ''
   ).toLowerCase()
   const intent = result.route?.intent
-
-  // The conversational parser preserves a draft, so "catat yang tadi" can
-  // safely record the spending amount derived from tender and change.
-  if (intent === 'calculate_change') return true
 
   if (
     /\b(?:teman|temen|istri|suami|adik|kakak|ibu|ayah|mama|papa|pacar|anak|saudara|rekan|dia|mereka|bos)(?:ku|nya)?\b.{0,45}\b(?:transfer|kirim(?:kan)?|kasih|beri)\b.{0,35}\b(?:ke|kepada|buat)\s+(?:saya|aku|gue|gw)\b/iu.test(
@@ -193,6 +195,38 @@ export function buildAssistantExecutionResponse(action, executionResult) {
       text: replayed
         ? 'Transfer ini sudah pernah diproses. Saldo tidak dipindahkan dua kali.'
         : `Transfer ${formatRupiah(payload.amount)} dari ${payload.sourceWallet} ke ${payload.destinationWallet} berhasil.`,
+      metadata: {
+        conversationStatus: 'completed',
+        pendingActionResolved: action.id,
+        idempotentReplay: replayed,
+      },
+    }
+  }
+
+  const completionCopy = {
+    create_wallet: replayed
+      ? 'Dompet ini sudah dibuat sebelumnya dan tidak diduplikasi.'
+      : `Dompet ${payload.walletName} berhasil dibuat dengan saldo awal ${formatRupiah(payload.initialBalance)}.`,
+    rename_wallet: replayed
+      ? 'Perubahan nama dompet ini sudah diproses sebelumnya.'
+      : `Dompet ${payload.walletName} berhasil diubah menjadi ${payload.nextWalletName}.`,
+    archive_wallet: replayed
+      ? 'Pengarsipan dompet ini sudah diproses sebelumnya.'
+      : `Dompet ${payload.walletName} berhasil diarsipkan.`,
+    restore_wallet: replayed
+      ? 'Pemulihan dompet ini sudah diproses sebelumnya.'
+      : `Dompet ${payload.walletName} berhasil dipulihkan.`,
+    deposit_goal: replayed
+      ? 'Setoran target ini sudah diproses sebelumnya dan saldo tidak dikurangi dua kali.'
+      : `${formatRupiah(payload.amount)} berhasil dipindahkan dari ${payload.sourceWallet} ke target ${payload.goalName}.`,
+    withdraw_goal: replayed
+      ? 'Pencairan target ini sudah diproses sebelumnya dan saldo tidak ditambah dua kali.'
+      : `${formatRupiah(payload.amount)} berhasil dipindahkan dari target ${payload.goalName} ke ${payload.destinationWallet}.`,
+  }[action?.actionType]
+
+  if (completionCopy) {
+    return {
+      text: completionCopy,
       metadata: {
         conversationStatus: 'completed',
         pendingActionResolved: action.id,

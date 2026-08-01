@@ -119,6 +119,35 @@ describe('assistant Vercel API safety', () => {
     })).toThrow(/Memory assistant/)
   })
 
+  it('accepts validated P1 wallet and goal pending actions', () => {
+    const walletId = '11111111-1111-4111-8111-111111111111'
+    const goalId = '22222222-2222-4222-8222-222222222222'
+
+    expect(() => validateAssistantOperationRequest('stage_action', {
+      idempotencyKey: 'create-wallet',
+      actionType: 'create_wallet',
+      payload: {
+        walletName: 'GoPay',
+        initialBalance: 100_000,
+        walletType: 'e_wallet',
+      },
+    })).not.toThrow()
+    expect(() => validateAssistantOperationRequest('stage_action', {
+      idempotencyKey: 'deposit-goal',
+      actionType: 'deposit_goal',
+      payload: {
+        goalId,
+        sourceWalletId: walletId,
+        amount: 50_000,
+      },
+    })).not.toThrow()
+    expect(() => validateAssistantOperationRequest('stage_action', {
+      idempotencyKey: 'bad-wallet',
+      actionType: 'create_wallet',
+      payload: { walletName: '', initialBalance: -1 },
+    })).toThrow(/Nama dompet/)
+  })
+
   it('sets both supported JWT subject claims before calling assistant functions', async () => {
     const queries = []
     const sql = (strings, ...values) => ({

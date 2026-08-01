@@ -19,6 +19,11 @@ const SIGNALS = Object.freeze({
   savingGoal: /\b(?:target|goal|tabungan|menabung|nabung)\b/iu,
   create: /\b(?:buat(?:kan)?|buatin|membuat(?:kan)?|bikin(?:kan)?|bikinin|tambahkan|tambah(?:kan|in)?|pasang)\b/iu,
   update: /\b(?:ubah(?:kan|in)?|ganti(?:kan|in)?|update|naikkan|naikin|turunkan|turunin|revisi)\b/iu,
+  renameWallet: /\b(?:rename|ganti nama|ubah nama)\b/iu,
+  archiveWallet: /\b(?:hapus|buang|delete|hilangkan|arsipkan)\b/iu,
+  restoreWallet: /\b(?:pulihkan|kembalikan|restore|aktifkan kembali)\b/iu,
+  goalDeposit: /\b(?:setor|tabung|nabung|sisih|simpan|alokasi|masukkan|masukin)\b/iu,
+  goalWithdrawal: /\b(?:cairkan|tarik|ambil)\b/iu,
   advice: /\b(?:saran|strategi|rekomendasi|sebaiknya|menurutmu|aman|cukup|atur|hemat|prioritas)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
   confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
@@ -110,6 +115,44 @@ function scoreDialogueActs(scores, text, entities, state) {
 function scoreMutations(scores, text, entities) {
   const amountCount = entities.amounts?.length || 0
   const hasRecordVerb = SIGNALS.recordVerb.test(text)
+
+  if (entities.walletCreation?.isCreationRequest) {
+    if (entities.archivedWallets?.[0]?.id) {
+      add(scores, 'restore_wallet', 0.98, 'archived_wallet_reuse')
+    } else {
+      add(scores, 'create_wallet', 0.94, 'wallet_creation_request')
+    }
+  }
+  if (SIGNALS.wallet.test(text) && SIGNALS.renameWallet.test(text)) {
+    add(scores, 'rename_wallet', 0.9, 'wallet_rename_request')
+  }
+  if (SIGNALS.wallet.test(text) && SIGNALS.archiveWallet.test(text)) {
+    add(scores, 'archive_wallet', 0.9, 'wallet_archive_request')
+  }
+  if (SIGNALS.wallet.test(text) && SIGNALS.restoreWallet.test(text)) {
+    add(scores, 'restore_wallet', 0.92, 'wallet_restore_request')
+  }
+
+  const mentionsGoal = SIGNALS.savingGoal.test(text) && Boolean(entities.goals?.[0]?.id)
+  if (mentionsGoal && SIGNALS.goalWithdrawal.test(text) && amountCount === 1) {
+    add(scores, 'withdraw_goal', 0.92, 'goal_withdrawal_request')
+    addConflict(scores, ['transfer_money'], 'goal_withdrawal_context', 0.5)
+  } else if (
+    mentionsGoal &&
+    (SIGNALS.goalDeposit.test(text) || SIGNALS.transferVerb.test(text)) &&
+    amountCount === 1 &&
+    /\b(?:ke|buat|untuk)\b.{0,32}\b(?:target|tabungan|simpanan|goal|milestone)\b/iu.test(text)
+  ) {
+    add(scores, 'deposit_goal', 0.92, 'goal_deposit_request')
+    addConflict(scores, ['transfer_money'], 'goal_deposit_context', 0.5)
+  } else if (
+    mentionsGoal &&
+    SIGNALS.transferVerb.test(text) &&
+    /\b(?:dari)\b.{0,32}\b(?:target|tabungan|simpanan|goal|milestone)\b/iu.test(text)
+  ) {
+    add(scores, 'withdraw_goal', 0.92, 'goal_withdrawal_transfer_request')
+    addConflict(scores, ['transfer_money'], 'goal_withdrawal_context', 0.5)
+  }
 
   if (SIGNALS.expenseVerb.test(text)) {
     add(scores, 'record_expense', 0.28, 'expense_verb')
@@ -230,6 +273,12 @@ function penalizeMutationIntents(scores, entities) {
       'record_income',
       'record_multiple_transactions',
       'transfer_money',
+      'create_wallet',
+      'rename_wallet',
+      'archive_wallet',
+      'restore_wallet',
+      'deposit_goal',
+      'withdraw_goal',
       'create_budget',
       'update_budget',
       'create_saving_goal',

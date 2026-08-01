@@ -66,6 +66,20 @@ export function validateAssistantInterpretation({
       'Intent belum cukup jelas untuk dipilih secara deterministik.'
     ))
   }
+  if (
+    intent === 'create_wallet' &&
+    entities.walletCreation?.walletName &&
+    entities.wallets?.some((wallet) =>
+      wallet.id &&
+      wallet.source === 'explicit' &&
+      normalizeName(wallet.name) === normalizeName(entities.walletCreation.walletName)
+    )
+  ) {
+    errors.push(createIssue(
+      'WALLET_ALREADY_EXISTS',
+      'Dompet dengan nama tersebut sudah aktif.'
+    ))
+  }
 
   validateAmounts(slots, errors)
   validateWalletSlots(intent, slots, errors)
@@ -176,4 +190,12 @@ function walk(value, visitor, path = 'payload') {
 
 function createIssue(code, message) {
   return { code, message }
+}
+
+function normalizeName(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .toLocaleLowerCase('id-ID')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
 }

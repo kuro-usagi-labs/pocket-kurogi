@@ -26,19 +26,19 @@ describe('assistant decision policy', () => {
     )
   })
 
-  it('keeps wallet management behind the temporary legacy adapter', () => {
+  it('routes recognized wallet management through the canonical pipeline', () => {
     const result = decideAssistantHandler({
       frame: frame({
-        intent: 'unknown',
-        legacyIntent: 'unknown',
-        canonicalIntent: 'unknown',
+        intent: 'create_wallet',
+        legacyIntent: 'create_wallet',
+        canonicalIntent: 'create_wallet',
         action: { kind: 'mutation', mutates: true, actionType: 'create_wallet' },
-        safety: { blocksWrite: true },
+        safety: { blocksWrite: false },
       }),
     })
 
-    expect(result.handler).toBe(ASSISTANT_DECISION_HANDLERS.LEGACY_ADAPTER)
-    expect(result.reason).toBe('temporary_legacy_capability')
+    expect(result.handler).toBe(ASSISTANT_DECISION_HANDLERS.CANONICAL)
+    expect(result.reason).toBe('canonical_intent_supported')
   })
 
   it('never lets local state override an executable backend pending action', () => {
@@ -71,8 +71,20 @@ describe('assistant decision policy', () => {
     })
   })
 
+  it('handles change calculation without a legacy fallback', () => {
+    const result = decideAssistantHandler({
+      frame: frame({
+        intent: 'calculate_change',
+        legacyIntent: 'calculate_change',
+        canonicalIntent: 'calculate_change',
+        utterance: { normalized: 'tadi bayar pakai uang 50rb kembali 36rb' },
+        action: { kind: 'calculation', mutates: false },
+      }),
+    })
+    expect(result.handler).toBe(ASSISTANT_DECISION_HANDLERS.CANONICAL)
+  })
+
   it.each([
-    ['calculate_change', 'tadi bayar pakai uang 50rb kembali 36rb'],
     ['record_multiple_transactions', 'beli bensin 20rb dan makan 10rb pakai uang 50rb'],
     ['financial_advice', 'uangku tinggal 200rb buat sebulan, cukup tidak?'],
   ])('keeps %s in the compatibility adapter until contextual parity exists', (intent, text) => {

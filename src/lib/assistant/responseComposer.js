@@ -30,6 +30,34 @@ const ACKNOWLEDGMENTS = Object.freeze({
     'Baik, aku sudah menangkap dompet asal dan tujuannya.',
     'Siap, transfer antar-dompet ini sudah aku rangkum.',
   ],
+  create_wallet: [
+    'Siap, dompet barunya sudah aku rangkum.',
+    'Oke, rincian dompet baru sudah terbaca.',
+  ],
+  rename_wallet: [
+    'Siap, perubahan nama dompetnya sudah aku rangkum.',
+    'Oke, nama lama dan nama barunya sudah terbaca.',
+  ],
+  archive_wallet: [
+    'Oke, permintaan pengarsipan dompet sudah terbaca.',
+    'Siap, aku sudah merangkum dompet yang akan diarsipkan.',
+  ],
+  restore_wallet: [
+    'Oke, dompet yang ingin dipulihkan sudah terbaca.',
+    'Siap, permintaan pemulihan dompet sudah aku rangkum.',
+  ],
+  deposit_goal: [
+    'Siap, setoran ke target sudah aku rangkum.',
+    'Oke, sumber dana dan targetnya sudah terbaca.',
+  ],
+  withdraw_goal: [
+    'Siap, pencairan target sudah aku rangkum.',
+    'Oke, target dan dompet tujuannya sudah terbaca.',
+  ],
+  general_chat: [
+    'Hai, aku siap menemani pencatatan keuanganmu.',
+    'Halo, mau mulai dari transaksi, saldo, atau rencana pengeluaran?',
+  ],
   create_budget: [
     'Oke, rencana budgetnya sudah aku pahami.',
     'Sip, batas pengeluarannya sudah terbaca.',
@@ -261,6 +289,21 @@ function composeInterpretation(intent, slots) {
   if (intent === 'transfer_money') {
     return `Pemahamanku: pindahkan ${formatRupiah(slots.amount)} dari ${slots.sourceWallet?.name || 'dompet sumber'} ke ${slots.destinationWallet?.name || 'dompet tujuan'}.`
   }
+  if (intent === 'create_wallet') {
+    return `Buat dompet ${slots.walletName || 'baru'} dengan saldo awal ${formatRupiah(slots.initialBalance || 0)}.`
+  }
+  if (intent === 'rename_wallet') {
+    return `Ubah nama dompet ${slots.wallet?.name || 'terpilih'} menjadi ${slots.nextWalletName || 'nama baru'}.`
+  }
+  if (intent === 'archive_wallet' || intent === 'restore_wallet') {
+    return `${intent === 'archive_wallet' ? 'Arsipkan' : 'Pulihkan'} dompet ${slots.wallet?.name || 'terpilih'}.`
+  }
+  if (intent === 'deposit_goal') {
+    return `Pindahkan ${formatRupiah(slots.amount)} dari ${slots.sourceWallet?.name || 'dompet sumber'} ke target ${slots.goal?.name || 'tabungan'}.`
+  }
+  if (intent === 'withdraw_goal') {
+    return `Pindahkan ${formatRupiah(slots.amount)} dari target ${slots.goal?.name || 'tabungan'} ke ${slots.destinationWallet?.name || 'dompet tujuan'}.`
+  }
   if (intent === 'record_multiple_transactions') {
     const total = (slots.items || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
     return `Total ${slots.items?.length || 0} transaksi adalah ${formatRupiah(total)}.`
@@ -364,6 +407,12 @@ function humanizeAction(intent) {
     update_budget: 'Konfirmasi perubahan budget',
     create_saving_goal: 'Konfirmasi target tabungan',
     update_saving_goal: 'Konfirmasi perubahan target',
+    create_wallet: 'Konfirmasi dompet baru',
+    rename_wallet: 'Konfirmasi perubahan nama dompet',
+    archive_wallet: 'Konfirmasi pengarsipan dompet',
+    restore_wallet: 'Konfirmasi pemulihan dompet',
+    deposit_goal: 'Konfirmasi setoran target',
+    withdraw_goal: 'Konfirmasi pencairan target',
   }[intent] || `Konfirmasi ${String(intent || 'aksi keuangan').replaceAll('_', ' ')}`
 }
 

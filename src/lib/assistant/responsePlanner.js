@@ -3,6 +3,12 @@ const MUTATION_INTENTS = new Set([
   'record_income',
   'record_multiple_transactions',
   'transfer_money',
+  'create_wallet',
+  'rename_wallet',
+  'archive_wallet',
+  'restore_wallet',
+  'deposit_goal',
+  'withdraw_goal',
   'create_budget',
   'update_budget',
   'create_saving_goal',
@@ -21,6 +27,7 @@ const QUERY_INTENTS = new Set([
   'query_saving_goal',
   'financial_advice',
   'emotional_support',
+  'general_chat',
 ])
 
 export function planAssistantResponse({
