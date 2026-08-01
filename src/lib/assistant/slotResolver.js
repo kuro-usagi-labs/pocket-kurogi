@@ -145,7 +145,11 @@ function deriveSlots(intent, entities, text) {
   }
 
   if (intent === 'deposit_goal') {
-    return compactObject({ amount, goal, sourceWallet: wallet })
+    return compactObject({
+      amount: amount || deriveFullWalletAmount(text, entities.wallets?.[0]),
+      goal,
+      sourceWallet: wallet,
+    })
   }
 
   if (intent === 'withdraw_goal') {
@@ -236,6 +240,23 @@ function deriveSlots(intent, entities, text) {
     goal,
     occurredAt,
   })
+}
+
+function deriveFullWalletAmount(text, walletEntity) {
+  if (
+    !/\b(?:semua|seluruh)(?:\s+(?:saldo|uang|isi|dana|dompet))?\b/iu.test(
+      String(text || '')
+    )
+  ) {
+    return null
+  }
+  const balance = Number(
+    walletEntity?.wallet?.current_balance ??
+    walletEntity?.wallet?.balance ??
+    walletEntity?.current_balance ??
+    0
+  )
+  return Number.isFinite(balance) && balance > 0 ? balance : null
 }
 
 function deriveDescription(text, entities) {

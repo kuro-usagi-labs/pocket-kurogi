@@ -299,10 +299,16 @@ function composeInterpretation(intent, slots) {
     return `${intent === 'archive_wallet' ? 'Arsipkan' : 'Pulihkan'} dompet ${slots.wallet?.name || 'terpilih'}.`
   }
   if (intent === 'deposit_goal') {
-    return `Pindahkan ${formatRupiah(slots.amount)} dari ${slots.sourceWallet?.name || 'dompet sumber'} ke target ${slots.goal?.name || 'tabungan'}.`
+    const amount = Number(slots.amount || 0) > 0
+      ? formatRupiah(slots.amount)
+      : 'dana'
+    return `Pindahkan ${amount} dari ${slots.sourceWallet?.name || 'dompet sumber'} ke target ${slots.goal?.name || 'tabungan'}.`
   }
   if (intent === 'withdraw_goal') {
-    return `Pindahkan ${formatRupiah(slots.amount)} dari target ${slots.goal?.name || 'tabungan'} ke ${slots.destinationWallet?.name || 'dompet tujuan'}.`
+    const amount = Number(slots.amount || 0) > 0
+      ? formatRupiah(slots.amount)
+      : 'dana'
+    return `Pindahkan ${amount} dari target ${slots.goal?.name || 'tabungan'} ke ${slots.destinationWallet?.name || 'dompet tujuan'}.`
   }
   if (intent === 'create_saving_goal') {
     const opening = Number(slots.initialAmount || 0) > 0

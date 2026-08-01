@@ -372,8 +372,9 @@ export default function AppShell() {
         userMessageSaved = true
 
         const messageRequestId = savedUserMessage.data?.id || null
+        const assistantSnapshot = deterministicAssistant.getSnapshot()
         const pendingMemoryProposal =
-          !deterministicAssistant.pendingAction
+          !assistantSnapshot.pendingAction
             ? getPendingMemoryProposal(messages)
             : null
         const memoryProposalDecision = pendingMemoryProposal
@@ -386,11 +387,11 @@ export default function AppShell() {
           archivedWallets,
           categories,
           goals,
-          memory: deterministicAssistant.memories,
+          memory: assistantSnapshot.memories,
           categoryRules,
           walletRules,
-          dialogueState: deterministicAssistant.dialogueState,
-          pendingAction: deterministicAssistant.pendingAction,
+          dialogueState: assistantSnapshot.dialogueState,
+          pendingAction: assistantSnapshot.pendingAction,
           pendingMemoryProposal,
           memoryProposalDecision,
           financialState: {

@@ -36,6 +36,7 @@ export function useDeterministicAssistant({
     sourceMessageId = null,
     semanticFrame = null,
   } = {}) => {
+    const stateSnapshot = assistantState.getSnapshot()
     const commonInput = {
       text,
       userId: assistantState.userId,
@@ -47,10 +48,10 @@ export function useDeterministicAssistant({
       goals,
       transactions,
       messages,
-      memory: assistantState.memories,
+      memory: stateSnapshot.memories,
       categoryRules,
       walletRules,
-      dialogueState: assistantState.dialogueState,
+      dialogueState: stateSnapshot.dialogueState,
       financialState: {
         totalBalance,
         budgets,
@@ -58,10 +59,10 @@ export function useDeterministicAssistant({
       semanticFrame,
     }
 
-    if (assistantState.pendingAction) {
+    if (stateSnapshot.pendingAction) {
       const engineResult = runAssistantEngine({
         ...commonInput,
-        pendingAction: assistantState.pendingAction,
+        pendingAction: stateSnapshot.pendingAction,
       })
       if (!shouldSupersedePendingAction(engineResult)) {
         return {
@@ -69,6 +70,7 @@ export function useDeterministicAssistant({
           response: await processExistingPendingAction({
             assistantState,
             engineResult,
+            pendingAction: stateSnapshot.pendingAction,
             syncFinancialViews,
           }),
         }
@@ -293,10 +295,11 @@ export function useDeterministicAssistant({
 async function processExistingPendingAction({
   assistantState,
   engineResult,
+  pendingAction,
   syncFinancialViews,
 }) {
   if (engineResult.command?.type === 'confirm_pending_action') {
-    const action = assistantState.pendingAction
+    const action = pendingAction
     const executionResult = await assistantState.confirmPendingAction(action)
     if (executionResult.error) throw executionResult.error
 
@@ -311,7 +314,7 @@ async function processExistingPendingAction({
   }
 
   if (engineResult.command?.type === 'cancel_pending_action') {
-    const action = assistantState.pendingAction
+    const action = pendingAction
     const cancellationResult = await assistantState.cancelPendingAction(action)
     if (cancellationResult.error) throw cancellationResult.error
     return buildAssistantCancellationResponse(action)
@@ -319,7 +322,7 @@ async function processExistingPendingAction({
 
   if (engineResult.command?.type === 'correct_pending_action') {
     const correctionResult = await assistantState.correctPendingAction({
-      action: assistantState.pendingAction,
+      action: pendingAction,
       payload: engineResult.command.payload,
     })
     if (correctionResult.error) throw correctionResult.error
@@ -335,9 +338,9 @@ async function processExistingPendingAction({
   await persistDialogueState({
     assistantState,
     dialogueState: engineResult.dialogueState,
-    pendingActionId: assistantState.pendingAction.id,
+    pendingActionId: pendingAction.id,
   })
-  return buildAssistantPendingResponse(engineResult, assistantState.pendingAction)
+  return buildAssistantPendingResponse(engineResult, pendingAction)
 }
 
 async function persistDialogueState({

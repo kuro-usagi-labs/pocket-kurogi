@@ -13,6 +13,9 @@ export function useAssistantState() {
   const activeUserIdRef = useRef(userId)
   const requestSequenceRef = useRef(0)
   const activeRequestRef = useRef(null)
+  const dialogueStateRef = useRef(null)
+  const pendingActionRef = useRef(null)
+  const memoriesRef = useRef([])
 
   activeUserIdRef.current = userId
 
@@ -21,6 +24,9 @@ export function useAssistantState() {
     if (!currentUserId) {
       requestSequenceRef.current += 1
       activeRequestRef.current = null
+      dialogueStateRef.current = null
+      pendingActionRef.current = null
+      memoriesRef.current = []
       setDialogueState(null)
       setPendingAction(null)
       setMemories([])
@@ -45,13 +51,17 @@ export function useAssistantState() {
       )
       if (!isCurrent) return { data: null, error: null, stale: true }
 
-      setDialogueState(data?.dialogueState?.state || null)
-      setPendingAction(mapPendingAction(data?.pendingAction || null))
-      setMemories(
-        Array.isArray(data?.memories)
-          ? data.memories.map(mapMemory)
-          : []
-      )
+      const nextDialogueState = data?.dialogueState?.state || null
+      const nextPendingAction = mapPendingAction(data?.pendingAction || null)
+      const nextMemories = Array.isArray(data?.memories)
+        ? data.memories.map(mapMemory)
+        : []
+      dialogueStateRef.current = nextDialogueState
+      pendingActionRef.current = nextPendingAction
+      memoriesRef.current = nextMemories
+      setDialogueState(nextDialogueState)
+      setPendingAction(nextPendingAction)
+      setMemories(nextMemories)
       setError(null)
       return { data, error: null }
     } catch (caughtError) {
@@ -97,8 +107,15 @@ export function useAssistantState() {
 
     if (loading) return fetchAssistantState()
     if (error) return fetchAssistantState()
-    return { data: { dialogueState, pendingAction, memories }, error: null }
-  }, [dialogueState, error, fetchAssistantState, loading, memories, pendingAction, userId])
+    return {
+      data: {
+        dialogueState: dialogueStateRef.current,
+        pendingAction: pendingActionRef.current,
+        memories: memoriesRef.current,
+      },
+      error: null,
+    }
+  }, [error, fetchAssistantState, loading, userId])
 
   const saveDialogueState = useCallback(async (nextState) => {
     if (!user || !nextState?.expiresAt) {
@@ -112,7 +129,9 @@ export function useAssistantState() {
           state: nextState,
         },
       })
-      setDialogueState(data?.state || nextState)
+      const savedState = data?.state || nextState
+      dialogueStateRef.current = savedState
+      setDialogueState(savedState)
       return { data, error: null }
     } catch (error) {
       return { data: null, error }
@@ -137,6 +156,7 @@ export function useAssistantState() {
         ...data,
         user_id: user.id,
       })
+      pendingActionRef.current = mapped
       setPendingAction(mapped)
       return { data: mapped, error: null }
     } catch (error) {
@@ -157,6 +177,8 @@ export function useAssistantState() {
           payloadHash: action.payloadHash,
         },
       })
+      pendingActionRef.current = null
+      dialogueStateRef.current = null
       setPendingAction(null)
       setDialogueState(null)
       return { data, error: null }
@@ -177,6 +199,8 @@ export function useAssistantState() {
           actionId: action.id,
         },
       })
+      pendingActionRef.current = null
+      dialogueStateRef.current = null
       setPendingAction(null)
       setDialogueState(null)
       return { data, error: null }
@@ -192,6 +216,8 @@ export function useAssistantState() {
 
     try {
       const data = await requestAssistantApi({ operation: 'supersede_actions', body: {} })
+      pendingActionRef.current = null
+      dialogueStateRef.current = null
       setPendingAction(null)
       setDialogueState(null)
       return { data, error: null }
@@ -221,6 +247,7 @@ export function useAssistantState() {
         ...data,
         user_id: user.id,
       })
+      pendingActionRef.current = mapped
       setPendingAction(mapped)
       return { data: mapped, error: null }
     } catch (error) {
@@ -246,6 +273,10 @@ export function useAssistantState() {
         ...data,
         user_id: user.id,
       })
+      memoriesRef.current = [
+        mapped,
+        ...memoriesRef.current.filter((memory) => memory.key !== mapped.key),
+      ]
       setMemories((current) => [
         mapped,
         ...current.filter((memory) => memory.key !== mapped.key),
@@ -255,6 +286,12 @@ export function useAssistantState() {
       return { data: null, error }
     }
   }, [user])
+
+  const getSnapshot = useCallback(() => ({
+    dialogueState: dialogueStateRef.current,
+    pendingAction: pendingActionRef.current,
+    memories: memoriesRef.current,
+  }), [])
 
   const fetchFinancialContext = useCallback(async () => {
     if (!user) {
@@ -287,6 +324,7 @@ export function useAssistantState() {
     correctPendingAction,
     rememberPreference,
     fetchFinancialContext,
+    getSnapshot,
     refetch: fetchAssistantState,
   }
 }

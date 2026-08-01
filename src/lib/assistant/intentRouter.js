@@ -167,21 +167,24 @@ function scoreMutations(scores, text, entities) {
   }
 
   const mentionsGoal = SIGNALS.savingGoal.test(text) && Boolean(entities.goals?.[0]?.id)
-  if (mentionsGoal && SIGNALS.goalWithdrawal.test(text) && amountCount === 1) {
+  const goalTransferDirection = resolveGoalTransferDirection(
+    text,
+    entities.goals?.[0]?.name
+  )
+  if (mentionsGoal && SIGNALS.goalWithdrawal.test(text)) {
     add(scores, 'withdraw_goal', 0.92, 'goal_withdrawal_request')
     addConflict(scores, ['transfer_money'], 'goal_withdrawal_context', 0.5)
   } else if (
     mentionsGoal &&
     (SIGNALS.goalDeposit.test(text) || SIGNALS.transferVerb.test(text)) &&
-    amountCount === 1 &&
-    /\b(?:ke|buat|untuk)\b.{0,32}\b(?:target|tabungan|simpanan|goal|milestone)\b/iu.test(text)
+    goalTransferDirection === 'deposit'
   ) {
     add(scores, 'deposit_goal', 0.92, 'goal_deposit_request')
     addConflict(scores, ['transfer_money'], 'goal_deposit_context', 0.5)
   } else if (
     mentionsGoal &&
     SIGNALS.transferVerb.test(text) &&
-    /\b(?:dari)\b.{0,32}\b(?:target|tabungan|simpanan|goal|milestone)\b/iu.test(text)
+    goalTransferDirection === 'withdraw'
   ) {
     add(scores, 'withdraw_goal', 0.92, 'goal_withdrawal_transfer_request')
     addConflict(scores, ['transfer_money'], 'goal_withdrawal_context', 0.5)
@@ -249,6 +252,20 @@ function scoreMutations(scores, text, entities) {
   if (SIGNALS.savingGoal.test(text) && SIGNALS.update.test(text)) {
     add(scores, 'update_saving_goal', 0.66, 'update_saving_goal')
   }
+}
+
+function resolveGoalTransferDirection(text, goalName) {
+  const normalizedGoal = String(goalName || '').trim()
+  if (!normalizedGoal) return null
+  const escapedGoal = normalizedGoal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const goalReference = `(?:target|goal|tabungan|simpanan|milestone)?\\s*${escapedGoal}`
+  if (new RegExp(`\\b(?:ke|menuju|buat|untuk)\\s+${goalReference}\\b`, 'iu').test(text)) {
+    return 'deposit'
+  }
+  if (new RegExp(`\\bdari\\s+${goalReference}\\b`, 'iu').test(text)) {
+    return 'withdraw'
+  }
+  return null
 }
 
 function scoreQueries(scores, text, entities) {
