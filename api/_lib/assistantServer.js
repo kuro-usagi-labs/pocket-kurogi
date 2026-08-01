@@ -29,6 +29,7 @@ const MEMORY_KEYS = new Set([
   'financial_priority',
   'saving_goal_preference',
   'frequent_transaction_description',
+  'advice_preferences',
 ])
 const MEMORY_SOURCES = new Set(['explicit', 'repeated', 'correction'])
 
@@ -159,6 +160,8 @@ export async function runAssistantDatabaseOperation({
         t.amount,
         t.merchant,
         t.notes,
+        t.source,
+        t.analytics_bucket,
         t.occurred_at,
         t.wallet_id,
         w.name as wallet,

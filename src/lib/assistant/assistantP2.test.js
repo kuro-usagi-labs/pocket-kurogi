@@ -56,7 +56,9 @@ describe('assistant P2 Indonesian specialist candidates', () => {
     expect(result.route.intent).toBe('financial_advice')
     expect(result.slots.slots).toMatchObject({ scenarioBalance: 200_000, horizonDays: 30 })
     expect(result.insight.text).toMatch(/Jika memakai skenario Rp\s?200\.000/iu)
-    expect(result.insight.details).toContain('Angka skenario dari pesanmu tidak mengubah saldo akun.')
+    expect(result.insight.details.join(' ')).toMatch(
+      /Fakta — Angka skenario Rp\s?200\.000 berasal dari pesanmu dan tidak mengubah saldo akun\./u
+    )
     expect(result.insight.details.join(' ')).toMatch(/Rp\s?2\.200\.000/iu)
     expect(semanticFrame.provenance.extracted).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: 'scenario_balance' })])

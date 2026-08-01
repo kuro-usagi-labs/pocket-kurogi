@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Brain, CalendarDays, Check, LoaderCircle, LogOut, MessageCircle, Moon, Pencil, RotateCcw, ShieldCheck, Smartphone, SunMedium, Tags, Trash2, WalletCards, X } from 'lucide-react'
+import { AlertTriangle, BellRing, Brain, CalendarDays, Check, LoaderCircle, LogOut, MessageCircle, Moon, Pencil, RotateCcw, ShieldCheck, Smartphone, SunMedium, Tags, Trash2, WalletCards, X } from 'lucide-react'
 import { motion as Motion, useReducedMotion } from 'motion/react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAccountReset } from '../../hooks/useAccountReset'
 import OverlayPortal from '../shared/OverlayPortal'
+import { resolveAdvicePreferences } from '../../lib/assistant/personalFinanceAdvisor'
 
 const CONFIRMATION_TEXT = 'RESET'
 
@@ -133,7 +134,7 @@ function MemorySettings({
   const [feedback, setFeedback] = useState(null)
 
   const entries = useMemo(() => [
-    ...memories.map((memory) => ({
+    ...memories.filter((memory) => memory.key !== 'advice_preferences').map((memory) => ({
       id: `memory:${memory.key}`,
       type: 'memory',
       key: memory.key,
@@ -157,6 +158,9 @@ function MemorySettings({
       displayValue: categories.find((category) => category.id === rule.category_id)?.name || 'Kategori tidak tersedia',
     })),
   ], [categories, categoryRules, memories, walletRules, wallets])
+  const hasStoredMemory = entries.length > 0 || memories.some((memory) =>
+    memory.key === 'advice_preferences'
+  )
 
   const beginEdit = (entry) => {
     setEditingId(entry.id)
@@ -224,7 +228,7 @@ function MemorySettings({
             </p>
           </div>
         </div>
-        {entries.length > 0 ? (
+        {hasStoredMemory ? (
           <button
             type="button"
             disabled={busyId === 'clear-all'}
@@ -288,6 +292,94 @@ function MemorySettings({
             ))}
           </div>
         )}
+      </div>
+    </section>
+  )
+}
+
+const ADVICE_TYPES = Object.freeze([
+  ['weeklySummary', 'Ringkasan mingguan', 'Pemasukan, pengeluaran, perubahan saldo, dan kategori terbesar.'],
+  ['unusualSpending', 'Lonjakan pengeluaran', 'Bandingkan minggu ini dengan kebiasaan empat minggu sebelumnya.'],
+  ['goalForecast', 'Prediksi target', 'Perkirakan kapan target tercapai dari pola setoran aktual.'],
+  ['affordability', 'Penilaian pembelian', 'Jawab “boleh beli?” dengan saldo, budget, tagihan, dan target.'],
+  ['savingTips', 'Rekomendasi hemat', 'Saran spesifik dari kategori dan budget milikmu.'],
+  ['recurringPayments', 'Pembayaran berulang', 'Tawarkan pengingat saat pola rutin terdeteksi, tanpa membuat otomatis.'],
+])
+
+function AdviceSettings({ memories = [], onUpdateMemory }) {
+  const preferences = useMemo(() => resolveAdvicePreferences(memories), [memories])
+  const [savingKey, setSavingKey] = useState(null)
+  const [feedback, setFeedback] = useState(null)
+
+  const updatePreferences = async (key, value) => {
+    const next = { ...preferences, [key]: value }
+    setSavingKey(`${key}:${String(value)}`)
+    setFeedback(null)
+    const result = await onUpdateMemory?.({ key: 'advice_preferences', value: next })
+    setSavingKey(null)
+    setFeedback(result?.error
+      ? { tone: 'error', text: result.error.message || 'Preferensi saran belum tersimpan.' }
+      : { tone: 'success', text: 'Preferensi saran tersimpan untuk akun ini.' })
+  }
+
+  return (
+    <section className="surface-card overflow-hidden lg:col-span-2">
+      <div className="border-b border-midnight/[0.07] p-5 sm:p-6">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-orange-50 text-orange-700">
+            <BellRing size={20} strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="font-jakarta text-[10px] font-extrabold uppercase tracking-[0.12em] text-muted">Saran personal</p>
+            <h2 className="mt-1 font-jakarta text-[21px] font-extrabold tracking-[-0.035em] text-midnight">Atur cara Kurogi memberi saran</h2>
+            <p className="mt-1 max-w-2xl text-[13px] font-medium leading-relaxed text-muted">Setiap analisis menyebut periode dan memisahkan fakta, perkiraan, serta saran. Matikan jenis yang tidak kamu inginkan kapan saja.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-5 p-5 sm:p-6">
+        <div>
+          <p className="text-[11px] font-bold text-muted">Nada saran</p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {[
+              ['gentle', 'Lembut'],
+              ['direct', 'Langsung'],
+              ['brief', 'Sangat ringkas'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                disabled={Boolean(savingKey)}
+                aria-pressed={preferences.tone === value}
+                onClick={() => updatePreferences('tone', value)}
+                className={`min-h-11 rounded-[13px] border px-2.5 py-2 text-[11px] font-bold transition-colors disabled:opacity-50 ${preferences.tone === value ? 'border-orange-700 bg-orange-700 text-white' : 'border-midnight/10 bg-white text-muted hover:border-orange-200 hover:text-midnight'}`}
+              >
+                {savingKey === `tone:${value}` ? <LoaderCircle size={14} className="mx-auto animate-spin" /> : label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-2.5 md:grid-cols-2">
+          {ADVICE_TYPES.map(([key, label, description]) => (
+            <div key={key} className="flex items-center gap-3 rounded-[16px] border border-midnight/[0.08] bg-champagne/30 p-3.5 sm:p-4">
+              <div className="min-w-0 flex-1">
+                <p className="font-jakarta text-[13px] font-bold text-midnight">{label}</p>
+                <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-muted">{description}</p>
+              </div>
+              <SettingsSwitch
+                checked={preferences[key]}
+                disabled={Boolean(savingKey)}
+                label={label}
+                onChange={() => updatePreferences(key, !preferences[key])}
+              />
+            </div>
+          ))}
+        </div>
+
+        {feedback ? (
+          <p role="status" className={`rounded-xl px-3 py-2.5 text-[12px] font-bold ${feedback.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{feedback.text}</p>
+        ) : null}
       </div>
     </section>
   )
@@ -508,6 +600,11 @@ export default function SettingsView({
           onDeleteMemory={onDeleteMemory}
           onDeleteLearningRule={onDeleteLearningRule}
           onClearAllMemory={onClearAllMemory}
+        />
+
+        <AdviceSettings
+          memories={memories}
+          onUpdateMemory={onUpdateMemory}
         />
 
         <section className="rounded-[20px] border border-red-200/80 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(31,32,38,0.3)] sm:p-6 lg:col-span-2">

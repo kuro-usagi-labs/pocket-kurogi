@@ -6,6 +6,7 @@ const SUPPORTED_MEMORY_KEY_SET = new Set([
   'financial_priority',
   'saving_goal_preference',
   'frequent_transaction_description',
+  'advice_preferences',
 ])
 
 const SUPPORTED_SOURCE_SET = new Set([
@@ -113,6 +114,10 @@ export function assessMemorySafety({ key, value } = {}) {
     reasons.push('invalid_salary_date')
   }
 
+  if (key === 'advice_preferences' && !isValidAdvicePreferences(value)) {
+    reasons.push('invalid_advice_preferences')
+  }
+
   const normalizedValue = normalizeSafetyText(serialized || '')
   for (const rule of UNSAFE_VALUE_RULES) {
     if (rule.pattern.test(normalizedValue)) {
@@ -129,6 +134,24 @@ export function assessMemorySafety({ key, value } = {}) {
     safe: reasons.length === 0,
     reasons: [...new Set(reasons)],
   }
+}
+
+function isValidAdvicePreferences(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const allowedKeys = new Set([
+    'tone',
+    'weeklySummary',
+    'unusualSpending',
+    'goalForecast',
+    'affordability',
+    'savingTips',
+    'recurringPayments',
+  ])
+  if (Object.keys(value).some((key) => !allowedKeys.has(key))) return false
+  if (!['gentle', 'direct', 'brief'].includes(value.tone)) return false
+  return [...allowedKeys]
+    .filter((key) => key !== 'tone')
+    .every((key) => typeof value[key] === 'boolean')
 }
 
 export function createMemoryObservation({

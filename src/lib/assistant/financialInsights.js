@@ -1,5 +1,6 @@
 import { formatDateTime, formatPercentage, formatRupiah } from './formatters'
 import { reasonAboutFinancialHealth } from './financeReasoningEngine'
+import { composePersonalFinancialAdvice } from './personalFinanceAdvisor'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -136,12 +137,16 @@ export function composeFinancialInsight(snapshot, {
 
 export function composeFinancialQueryResult({
   intent,
+  text = '',
   slots = {},
   snapshot,
   transactions = [],
   wallets = [],
+  budgets = [],
+  goals = [],
   memory = [],
   now = new Date(),
+  focus = 'overview',
 } = {}) {
   if (intent === 'query_balance') {
     const activeWallets = wallets.filter((wallet) => !wallet.is_archived)
@@ -271,6 +276,20 @@ export function composeFinancialQueryResult({
     )
   }
 
+  if (intent === 'query_spending_summary' && focus === 'week') {
+    return composePersonalFinancialAdvice({
+      text,
+      snapshot,
+      transactions,
+      wallets,
+      budgets,
+      goals,
+      memory,
+      now,
+      forceFocus: 'week',
+    })
+  }
+
   if (intent === 'financial_advice') {
     if (Number(slots.scenarioBalance) > 0) {
       const days = Number(slots.horizonDays) > 0 ? Number(slots.horizonDays) : 30
@@ -285,12 +304,28 @@ export function composeFinancialQueryResult({
       return createQueryInsight(
         `Jika memakai skenario ${formatRupiah(slots.scenarioBalance)}, batas kasarnya ${formatRupiah(runway.dailyLimit)} per hari selama ${days} hari. Dahulukan makan dasar, transport kerja, kesehatan, dan tagihan wajib; tahan jajan sementara bila ruang hariannya sempit.`,
         [
-          'Angka skenario dari pesanmu tidak mengubah saldo akun.',
-          `Saldo aktif yang tercatat di database saat ini ${formatRupiah(actualBalance)}.`,
-          'Batas harian ini belum mengurangi tagihan wajib yang belum dicatat.',
+          `Fakta — Angka skenario ${formatRupiah(slots.scenarioBalance)} berasal dari pesanmu dan tidak mengubah saldo akun.`,
+          `Fakta — Saldo aktif yang tercatat di database saat ini ${formatRupiah(actualBalance)}.`,
+          `Perkiraan — Batas ${formatRupiah(runway.dailyLimit)} per hari memakai periode ${days} hari dan belum mengurangi tagihan wajib yang belum dicatat.`,
+          'Saran — Dahulukan makan dasar, transport kerja, kesehatan, dan tagihan wajib.',
         ]
       )
     }
+    const personalAdvice = composePersonalFinancialAdvice({
+      text,
+      slots,
+      snapshot,
+      transactions,
+      wallets,
+      budgets,
+      goals,
+      memory,
+      now,
+    })
+    if (personalAdvice.kind !== 'saving_recommendation') {
+      return personalAdvice
+    }
+
     const reasoning = reasonAboutFinancialHealth({
       snapshot,
       wallets,
@@ -328,7 +363,12 @@ export function composeFinancialQueryResult({
     }
 
     return {
-      ...createQueryInsight(composeReasoningAdvice(reasoning), details),
+      ...personalAdvice,
+      text: composeReasoningAdvice(reasoning),
+      details: [
+        ...personalAdvice.details,
+        ...details.map((detail) => `Fakta — ${detail}`),
+      ],
       reasoning,
     }
   }
@@ -368,7 +408,7 @@ export function composeFinancialQueryResult({
   }
 
   return composeFinancialInsight(snapshot, {
-    focus: intent === 'emotional_support' ? 'week' : 'overview',
+    focus: intent === 'emotional_support' ? 'week' : focus,
   })
 }
 

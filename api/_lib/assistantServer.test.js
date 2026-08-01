@@ -74,6 +74,16 @@ describe('assistant Vercel API safety', () => {
     expect(() => validateAssistantOperationRequest('forget_memory', {
       key: 'arbitrary_secret',
     })).toThrow(/Memory assistant/)
+    expect(() => validateAssistantOperationRequest('remember', {
+      key: 'advice_preferences',
+      value: {
+        tone: 'direct', weeklySummary: true, unusualSpending: true,
+        goalForecast: true, affordability: true, savingTips: false,
+        recurringPayments: true,
+      },
+      confidence: 1,
+      source: 'explicit',
+    })).not.toThrow()
   })
 
   it('rejects unsafe pending payloads and uncurated memory', () => {
@@ -108,6 +118,13 @@ describe('assistant Vercel API safety', () => {
     expect(() => validateAssistantOperationRequest('remember', {
       key: 'arbitrary_secret',
       value: 'x',
+      confidence: 1,
+      source: 'explicit',
+    })).toThrow(/Memory assistant/)
+
+    expect(() => validateAssistantOperationRequest('remember', {
+      key: 'advice_preferences',
+      value: { tone: 'aggressive', weeklySummary: true },
       confidence: 1,
       source: 'explicit',
     })).toThrow(/Memory assistant/)

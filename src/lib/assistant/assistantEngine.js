@@ -86,8 +86,9 @@ export function runAssistantEngine({
     now,
   })
   const insight = shouldBuildInsight(route.intent)
-    ? composeFinancialQueryResult({
+      ? composeFinancialQueryResult({
         intent: route.intent,
+        text,
         slots: slotResult.slots,
         snapshot: buildFinancialInsightSnapshot({
           transactions,
@@ -195,7 +196,7 @@ function getRecentAssistantMessages(messages = []) {
 
 function resolveInsightFocus(text = '') {
   if (/\b(?:hari ini|tadi)\b/iu.test(text)) return 'today'
-  if (/\b(?:minggu ini|pekan ini)\b/iu.test(text)) return 'week'
+  if (/\b(?:minggu ini|pekan ini|mingguan|pekan berjalan)\b/iu.test(text)) return 'week'
   return 'overview'
 }
 

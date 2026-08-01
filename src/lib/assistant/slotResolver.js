@@ -198,11 +198,14 @@ function deriveSlots(intent, entities, text) {
     })
   }
 
-  if (intent === 'financial_advice' && runwayScenario) {
+  if (intent === 'financial_advice') {
     return compactObject({
-      scenarioBalance: runwayScenario.scenarioBalance,
-      horizonDays: runwayScenario.horizonDays,
+      scenarioBalance: runwayScenario?.scenarioBalance,
+      horizonDays: runwayScenario?.horizonDays,
+      purchaseAmount: amount,
+      purchaseDescription: derivePurchaseDescription(text, entities),
       wallet,
+      category,
     })
   }
 
@@ -293,6 +296,15 @@ function deriveDescription(text, entities) {
   return category && category.toLowerCase() !== 'lainnya'
     ? category
     : null
+}
+
+function derivePurchaseDescription(text, entities) {
+  const cleaned = deriveDescription(text, entities)
+  if (!cleaned) return 'Pembelian ini'
+  return cleaned
+    .replace(/\b(?:boleh|aman|mampu|cukup|nggak|tidak|apakah|menurutmu)\b/giu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim() || 'Pembelian ini'
 }
 
 function deriveRenamedWalletName(text) {

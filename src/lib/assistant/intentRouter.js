@@ -12,6 +12,7 @@ const SIGNALS = Object.freeze({
   income: /\b(?:pemasukan|pendapatan|income|gaji|bonus)\b/iu,
   expense: /\b(?:pengeluaran|spending|belanja|boros|habis)\b/iu,
   summary: /\b(?:ringkasan|rekap|total|analisis|analisa|bagaimana|gimana)\b/iu,
+  weeklySummary: /\b(?:ringkasan|rekap|laporan)\b.{0,30}\b(?:minggu|pekan|mingguan)\b|\b(?:minggu|pekan)\s+ini\b.{0,30}\b(?:ringkas|rekap|laporan)\b/iu,
   queryVerb: /\b(?:cek|lihat|tampilkan|tunjukkan|berapa)\b/iu,
   category: /\b(?:kategori|pos|paling besar|terbesar|terbanyak)\b/iu,
   wallet: /\b(?:dompet|rekening|wallet)\b/iu,
@@ -25,6 +26,10 @@ const SIGNALS = Object.freeze({
   goalDeposit: /\b(?:setor|tabung|nabung|sisih|simpan|alokasi|masukkan|masukin)\b/iu,
   goalWithdrawal: /\b(?:cairkan|tarik|ambil)\b/iu,
   advice: /\b(?:saran|strategi|rekomendasi|sebaiknya|menurutmu|aman|cukup|atur|hemat|prioritas)\b/iu,
+  affordability: /\b(?:boleh(?:kah)?|aman|mampu|cukup)\b.{0,45}\b(?:beli|bayar|ambil)\b|\b(?:beli|bayar|ambil)\b.{0,45}\b(?:boleh|aman|mampu|cukup)\b/iu,
+  recurringAdvice: /\b(?:pembayaran|transaksi|pengeluaran)?\s*(?:berulang|langganan|subscription|rutin)\b/iu,
+  goalForecast: /\b(?:kapan|prediksi|perkiraan)\b.{0,50}\b(?:target|tabungan|simpanan)\b|\b(?:target|tabungan|simpanan)\b.{0,50}\b(?:kapan|tercapai|selesai|sesuai jalur|on track)\b/iu,
+  unusualSpending: /\b(?:pengeluaran|belanja)\b.{0,35}\b(?:tidak biasa|nggak biasa|naik|melonjak|boros)\b|\b(?:boros|lonjakan)\b.{0,35}\b(?:pengeluaran|belanja)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
   confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
   contextualConfirm: /^(?:(?:ya|iya|oke|sip)\s+)?(?:catat|simpan|rekam)(?:\s+(?:transaksi|catatan|draft))?\s+(?:(?:yang\s+)?(?:tadi|itu|tersebut|barusan))$/iu,
@@ -277,6 +282,7 @@ function scoreQueries(scores, text, entities) {
   ) return
 
   if (SIGNALS.balance.test(text)) add(scores, 'query_balance', 0.78, 'balance_question')
+  if (SIGNALS.weeklySummary.test(text)) add(scores, 'query_spending_summary', 0.88, 'weekly_summary_request')
   if (SIGNALS.transaction.test(text)) add(scores, 'query_transactions', 0.7, 'transaction_query')
   if (SIGNALS.income.test(text)) add(scores, 'query_income', 0.62, 'income_query')
   if (SIGNALS.expense.test(text)) add(scores, 'query_expenses', 0.62, 'expense_query')
@@ -296,6 +302,21 @@ function scoreQueries(scores, text, entities) {
 }
 
 function scoreSupport(scores, text, entities) {
+  if (SIGNALS.affordability.test(text)) {
+    add(scores, 'financial_advice', 0.92, 'affordability_question')
+    addConflict(scores, ['record_expense', 'record_income'], 'question_not_transaction', 0.7)
+  }
+  if (SIGNALS.recurringAdvice.test(text)) {
+    add(scores, 'financial_advice', 0.86, 'recurring_payment_analysis')
+    addConflict(scores, ['query_transactions'], 'recurring_pattern_not_transaction_list', 0.42)
+  }
+  if (SIGNALS.goalForecast.test(text)) {
+    add(scores, 'financial_advice', 0.88, 'goal_forecast_request')
+    addConflict(scores, ['query_saving_goal'], 'forecast_not_static_goal_query', 0.35)
+  }
+  if (SIGNALS.unusualSpending.test(text)) {
+    add(scores, 'financial_advice', 0.86, 'unusual_spending_analysis')
+  }
   if (SIGNALS.advice.test(text)) {
     add(scores, 'financial_advice', 0.68, 'advice_request')
   }

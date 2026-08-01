@@ -6,6 +6,7 @@ const SUPPORTED_MEMORY_KEYS = new Set([
   'financial_priority',
   'saving_goal_preference',
   'frequent_transaction_description',
+  'advice_preferences',
 ])
 
 export function createAssistantMemory({

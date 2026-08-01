@@ -100,3 +100,24 @@ lagi kemampuan runtime yang memakai adapter assistant legacy.
 - Role anonymous tidak mempunyai akses eksekusi ke RPC pengelolaan memori.
 - Jika memori menentukan dompet atau kategori suatu interpretasi, balasan
   menjelaskan asumsi tersebut sebelum pengguna mengonfirmasi tindakan.
+
+## Status P5
+
+- Ringkasan mingguan menyebut pemasukan, pengeluaran, perubahan saldo, kategori
+  terbesar, periode data, dan perbandingan minggu sebelumnya.
+- Deteksi lonjakan membandingkan kategori minggu berjalan dengan rata-rata
+  empat minggu sebelumnya dan mengabaikan data yang belum cukup.
+- Prediksi target memakai setoran `goal_contribution` yang benar-benar tercatat
+  dalam 90 hari terakhir; hasilnya selalu diberi label perkiraan.
+- Pertanyaan “boleh beli?” menghitung saldo aktif, pembayaran berulang 14 hari
+  ke depan, sisa budget kategori, dan laju setoran target. Analisis tidak
+  membuat transaksi.
+- Pembayaran berulang dideteksi dari pola mingguan/bulanan. Assistant hanya
+  menawarkan pengingat dan tidak pernah membuatnya otomatis.
+- Keluaran saran memisahkan `Fakta`, `Perkiraan`, dan `Saran`, serta menyebut
+  periode yang dipakai.
+- Pengguna dapat memilih nada lembut, langsung, atau sangat ringkas dan
+  mematikan enam jenis saran secara terpisah dari halaman Pengaturan.
+- Preferensi P5 disimpan sebagai `advice_preferences` di
+  `assistant_memories`, dilindungi scope akun dan RLS yang sama dengan memori
+  assistant lain.

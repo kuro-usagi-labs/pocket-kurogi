@@ -146,6 +146,43 @@ describeWithDatabase('deterministic assistant persisted state', () => {
     }
   })
 
+  it('stores P5 advice controls per authenticated account only', async () => {
+    await client.query('begin')
+    try {
+      await setAuthenticatedRole(client, existingUserId)
+      const preferences = {
+        tone: 'brief', weeklySummary: true, unusualSpending: false,
+        goalForecast: true, affordability: true, savingTips: true,
+        recurringPayments: false,
+      }
+      const saved = await client.query(
+        `select public.remember_assistant_preference(
+          'advice_preferences', $1::jsonb, 1, 'explicit'
+        ) as result`,
+        [JSON.stringify(preferences)],
+      )
+      expect(saved.rows[0].result).toMatchObject({
+        memory_key: 'advice_preferences',
+        memory_value: preferences,
+      })
+    } finally {
+      await client.query('rollback')
+    }
+
+    await client.query('begin')
+    try {
+      await client.query('set local role anonymous')
+      await expectPrivilegeDenied(
+        client,
+        `select public.remember_assistant_preference(
+          'advice_preferences', '{}'::jsonb, 1, 'explicit'
+        )`,
+      )
+    } finally {
+      await client.query('rollback')
+    }
+  })
+
   it('rejects pending actions whose expiry exceeds the short confirmation window', async () => {
     await client.query('begin')
     try {
