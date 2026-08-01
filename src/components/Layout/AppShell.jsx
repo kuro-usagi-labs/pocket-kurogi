@@ -20,55 +20,27 @@ import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
 import { useDeterministicAssistant } from '../../hooks/useDeterministicAssistant'
 import { useNameConflicts } from '../../hooks/useNameConflicts'
-import { useLegacyIntentExecutor } from '../../hooks/useLegacyIntentExecutor'
-import { resolveCategoryForMessage } from '../../lib/chatLearning'
 import {
   buildWalletDeletionNotice,
-  buildWalletDeletionSuccess,
   buildWalletRestoreNotice,
-  buildWalletRestoreSuccess,
   getGoalDeletionDialogCopy,
   getWalletDeletionDialogCopy,
   mapDomainError,
 } from '../../lib/domainMessages'
-import {
-  buildGoalOptions,
-  buildWalletOptions,
-  formatCandidateNames,
-  matchMoney,
-  parseMoneyMatch,
-  resolveOptionReference,
-} from '../../lib/chatEntities'
 import { buildChatQuickActions } from '../../lib/chatSuggestions'
-import { derivePendingFinanceDraft } from '../../lib/conversationalFinance'
-import { parseWalletNameReply } from '../../lib/assistant/walletCreationParser'
 import {
   attachAssistantUnderstanding,
   orchestrateAssistantMessage,
 } from '../../lib/assistant/unifiedAssistantOrchestrator'
 import { ASSISTANT_DECISION_HANDLERS } from '../../lib/assistant/assistantDecisionPolicy'
-import { reconcileSemanticFrameWithLocalAnalysis } from '../../lib/assistant/semanticFrame'
 import {
   buildMemoryProposalResolutionResponse,
   buildMemoryProposalResponse,
   classifyMemoryProposalReply,
   getPendingMemoryProposal,
 } from '../../lib/assistant/memoryProposal'
-import {
-  analyzeTransaction,
-  assessPendingFinanceReply,
-} from '../../lib/localAssistant'
 import { lazyWithRecovery } from '../../lib/lazyWithRecovery'
-import {
-  attachResolvedWallet,
-  getCurrentTimeLabel,
-  getWelcomeMessage,
-  isAffirmative,
-  isDirectPendingAmountAnswer,
-  isDirectPendingWalletChoice,
-  isNegative,
-  withWalletAttached,
-} from '../../lib/appShellChatHelpers'
+import { getCurrentTimeLabel, getWelcomeMessage } from '../../lib/appShellChatHelpers'
 
 const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
@@ -109,29 +81,18 @@ export default function AppShell() {
 
   const {
     transactions,
-    addTransaction,
-    addTransactionsBatch,
     replaceTransaction,
     deleteTransaction,
-    transferBetweenWallets,
     hasMore: hasMoreTransactions,
     loadingMore: loadingMoreTransactions,
     loadMore: loadMoreTransactions,
     refetch: refetchTransactions,
   } = useTransactions()
 
-  const {
-    categories,
-    categoryOptions,
-    ensureCategory,
-    resolveCategory,
-  } = useCategories()
+  const { categories } = useCategories()
   const {
     goals,
     addGoal,
-    contributeToGoal,
-    withdrawFromGoal,
-    createGoalWithContribution,
     deleteGoal,
     renameGoal,
     refetch: refetchGoals,
@@ -154,7 +115,7 @@ export default function AppShell() {
     loadMore: loadMoreMessages,
     refetch: refetchChat,
   } = useChat()
-  const { analytics, getSnapshot, refetch: refetchAnalytics } = useAnalytics()
+  const { analytics, refetch: refetchAnalytics } = useAnalytics()
   const { conflicts, refetch: refetchNameConflicts } = useNameConflicts()
 
   const advisor = useAdvisor({
@@ -171,15 +132,11 @@ export default function AppShell() {
   const [activeTab, setActiveTab] = useState('chat')
   const [isTyping, setIsTyping] = useState(false)
   const sendInFlightRef = useRef(false)
-  const [pendingAction, setPendingAction] = useState(null)
   const [actionDialog, setActionDialog] = useState(null)
   const [chatEditorTransaction, setChatEditorTransaction] = useState(null)
   const [dialogSubmitting, setDialogSubmitting] = useState(false)
   const [notice, setNotice] = useState(null)
 
-  const walletOptions = useMemo(() => buildWalletOptions(wallets), [wallets])
-  const archivedWalletOptions = useMemo(() => buildWalletOptions(archivedWallets), [archivedWallets])
-  const goalOptions = useMemo(() => buildGoalOptions(goals), [goals])
   const chatQuickActions = useMemo(
     () =>
       buildChatQuickActions({
@@ -190,7 +147,6 @@ export default function AppShell() {
       }),
     [analytics, archivedWallets, transactions, wallets]
   )
-  const financeDraft = useMemo(() => derivePendingFinanceDraft(messages), [messages])
 
   const formatRupiah = useCallback((number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -234,6 +190,8 @@ export default function AppShell() {
     messages,
     totalBalance,
     syncFinancialViews,
+    categoryRules,
+    walletRules,
   })
 
   const showNotice = useCallback((message, tone = 'info') => {
@@ -308,7 +266,6 @@ export default function AppShell() {
     handleUndoLastTransaction,
     handleUndoTransaction,
     handleUpdateTransaction,
-    undoLatestManualTransaction,
     handleConfirmTransactionDialog,
   } = useTransactionActions({
     transactions,
@@ -320,524 +277,57 @@ export default function AppShell() {
     formatRupiah,
   })
 
-  const resolveTransactionCategory = useCallback(
-    async ({ analysis, rawText, allowCreate = true }) => {
-      const transactionType = analysis.transactionType || 'expense'
-      const categoryResolution = resolveCategoryForMessage({
-        text: rawText,
-        categories,
-        categoryRules,
-        analysisCategory: analysis.category,
-        transactionType,
+  const processLearningRule = useCallback(async (candidate, rawText) => {
+    if (!candidate || candidate.type === 'unknown') {
+      return {
+        text: candidate?.reply || 'Aku belum menyimpan aturan itu karena instruksinya belum cukup jelas.',
+        metadata: {
+          conversationStatus: 'learning_rule_rejected',
+          learningRuleReason: candidate?.reason || 'missing_learning_candidate',
+        },
+      }
+    }
+
+    if (candidate.type === 'forget_learning_rule') {
+      const result = await forgetRule({
+        keyword: candidate.keyword,
+        ruleType: candidate.ruleType,
       })
-
-      let category = categoryResolution.category
-      let created = false
-
-      if (allowCreate && !category && categoryResolution.createCategory) {
-        const ensureResult = await ensureCategory({
-          name: categoryResolution.createCategory.name,
-          transactionType,
-          icon: categoryResolution.createCategory.icon,
-          color: categoryResolution.createCategory.color,
-        })
-
-        if (ensureResult.error && !ensureResult.data) {
-          console.warn('Category auto-create failed:', ensureResult.error)
-        } else if (ensureResult.data) {
-          category = ensureResult.data
-          created = Boolean(ensureResult.created)
-        }
-      }
-
-      const fallbackResolution = category
-        ? { category, ambiguous: false }
-        : resolveCategory('Lainnya', { transactionType })
-
+      if (result.error) throw result.error
+      const deletedCount =
+        Number(result.data?.categoryRulesDeleted || 0) +
+        Number(result.data?.walletRulesDeleted || 0)
       return {
-        ...categoryResolution,
-        category: category || fallbackResolution.category || null,
-        categoryName:
-          category?.name ||
-          categoryResolution.categoryName ||
-          fallbackResolution.category?.name ||
-          analysis.category ||
-          'Lainnya',
-        created,
+        text: deletedCount > 0
+          ? `Aturan untuk **${candidate.keyword}** sudah dilupakan.`
+          : `Tidak ada aturan aktif untuk **${candidate.keyword}**.`,
+        metadata: {
+          conversationStatus: 'learning_rule_forgotten',
+          learningRuleType: candidate.ruleType,
+        },
       }
-    },
-    [categories, categoryRules, ensureCategory, resolveCategory]
-  )
-
-  const executeIntent = useLegacyIntentExecutor({
-    addTransaction,
-    addTransactionsBatch,
-    addWallet,
-    analytics,
-    archivedWallets,
-    budgets,
-    contributeToGoal,
-    createGoalWithContribution,
-    formatRupiah,
-    getSnapshot,
-    goals,
-    handleUpdateTransaction,
-    learnFromInput,
-    forgetRule,
-    renameWallet,
-    resolveCategory,
-    resolveTransactionCategory,
-    setPendingAction,
-    syncFinancialViews,
-    totalBalance,
-    transactions,
-    transferBetweenWallets,
-    undoLatestManualTransaction,
-    walletOptions,
-    wallets,
-    withdrawFromGoal,
-  })
-
-  const processPendingAction = useCallback(
-    async ({ text }) => {
-      if (!pendingAction) {
-        return null
-      }
-
-      if (pendingAction.type === 'delete_wallet') {
-        if (isAffirmative(text)) {
-          const deleteResult = await deleteWallet(pendingAction.walletId)
-
-          if (deleteResult.error) {
-            throw deleteResult.error
-          }
-
-          setPendingAction(null)
-          await syncFinancialViews({
-            wallets: true,
-            analytics: true,
-            names: true,
-          })
-
-          return {
-            text: buildWalletDeletionSuccess(pendingAction.walletName),
-          }
-        }
-
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, penghapusan dompet dibatalkan.',
-          }
-        }
-
-        return {
-          text: 'Ketik "Ya" untuk menghapus dompet atau "Batal" untuk membatalkannya.',
-          intentStatus: 'needs_confirmation',
-        }
-      }
-
-      if (pendingAction.type === 'restore_wallet') {
-        if (isAffirmative(text)) {
-          const restoreResult = await restoreWallet(pendingAction.walletId)
-
-          if (restoreResult.error) {
-            throw restoreResult.error
-          }
-
-          setPendingAction(null)
-          await syncFinancialViews({
-            wallets: true,
-            analytics: true,
-            names: true,
-          })
-
-          return {
-            text: buildWalletRestoreSuccess(pendingAction.walletName),
-          }
-        }
-
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, pemulihan dompet dibatalkan.',
-          }
-        }
-
-        return {
-          text: 'Ketik "Ya" untuk memulihkan dompet atau "Batal" untuk membatalkannya.',
-          intentStatus: 'needs_confirmation',
-        }
-      }
-
-      if (pendingAction.type === 'confirm_create_wallet') {
-        if (isAffirmative(text)) {
-          const createResult = await addWallet(pendingAction.walletName, 0, 'bank')
-
-          if (createResult.error) {
-            throw createResult.error
-          }
-
-          await syncFinancialViews({
-            analytics: true,
-            names: true,
-          })
-
-          setPendingAction(null)
-
-          if (!pendingAction.intent) {
-            return {
-              text: `Dompet **${createResult.data.name}** berhasil dibuat.`,
-            }
-          }
-
-          const resumedIntent = withWalletAttached(pendingAction.intent, createResult.data)
-          const resumedResponse = await executeIntent(resumedIntent, {
-            source: 'chat',
-            walletCatalog: [...wallets, createResult.data],
-          })
-
-          return {
-            ...resumedResponse,
-            text: `Dompet **${createResult.data.name}** berhasil dibuat.\n\n${resumedResponse.text}`,
-          }
-        }
-
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, dompet baru tidak jadi dibuat dan aksi sebelumnya dibatalkan.',
-          }
-        }
-
-        const pendingReplyAssessment = assessPendingFinanceReply(text)
-        if (!pendingReplyAssessment.safe) {
-          return {
-            text: `Saya belum menjalankan aksi sebelumnya. ${pendingReplyAssessment.reply}`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        const resolution = resolveOptionReference({
-          input: text,
-          options: walletOptions,
-        })
-
-        if (resolution.match) {
-          if (!isDirectPendingWalletChoice(text, resolution.match)) {
-            return {
-              text: `Untuk memilih dompet yang sudah ada, jawab langsung seperti "pakai ${resolution.match.name}".`,
-              intentStatus: 'needs_confirmation',
-            }
-          }
-
-          setPendingAction(null)
-
-          if (!pendingAction.intent) {
-            return {
-              text: `Baik, saya gunakan dompet **${resolution.match.name}** yang sudah ada.`,
-            }
-          }
-
-          const resumedIntent = withWalletAttached(pendingAction.intent, resolution.match)
-          const resumedResponse = await executeIntent(resumedIntent, { source: 'chat' })
-
-          return {
-            ...resumedResponse,
-            text: `Baik, saya pakai dompet **${resolution.match.name}** yang sudah ada.\n\n${resumedResponse.text}`,
-          }
-        }
-
-        if (resolution.candidates.length > 0) {
-          return {
-            text: `Nama dompetnya masih ambigu. Pilih salah satu: ${formatCandidateNames(resolution.candidates)}.`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        return {
-          text: 'Ketik "Ya", sebut dompet yang benar, atau "Batal".',
-          intentStatus: 'needs_confirmation',
-        }
-      }
-
-      if (pendingAction.type === 'create_wallet_name') {
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, pembuatan dompet baru saya batalkan.',
-          }
-        }
-
-        const pendingReplyAssessment = assessPendingFinanceReply(text)
-        const parsedWallet = parseWalletNameReply(text)
-        if (!pendingReplyAssessment.safe || !parsedWallet.walletName) {
-          return {
-            text: 'Saya masih membutuhkan satu nama dompet yang jelas. Jawab langsung, misalnya “BCA”, “GoPay”, atau “Uang Harian”.',
-            intentStatus: 'needs_confirmation',
-            metadata: { confirmationMode: 'input' },
-          }
-        }
-
-        const existingWallet = wallets.find(
-          (wallet) =>
-            String(wallet.name || '').trim().toLocaleLowerCase('id-ID') ===
-            parsedWallet.walletName.toLocaleLowerCase('id-ID')
-        )
-        if (existingWallet) {
-          setPendingAction(null)
-          return {
-            text: `Dompet **${existingWallet.name}** sudah ada. Saya tidak membuat duplikatnya.`,
-          }
-        }
-
-        const archivedWallet = archivedWallets.find(
-          (wallet) =>
-            String(wallet.name || '').trim().toLocaleLowerCase('id-ID') ===
-            parsedWallet.walletName.toLocaleLowerCase('id-ID')
-        )
-        if (archivedWallet) {
-          setPendingAction({
-            type: 'restore_wallet',
-            walletId: archivedWallet.id,
-            walletName: archivedWallet.name,
-          })
-          return {
-            text: `Dompet **${archivedWallet.name}** sudah ada tetapi sedang diarsipkan. Mau saya pulihkan?`,
-            intentStatus: 'needs_confirmation',
-            metadata: { confirmationMode: 'binary' },
-          }
-        }
-
-        const createResult = await addWallet(
-          parsedWallet.walletName,
-          0,
-          parsedWallet.walletType || 'cash'
-        )
-        if (createResult.error) {
-          throw createResult.error
-        }
-
-        setPendingAction(null)
-        await syncFinancialViews({
-          analytics: true,
-          names: true,
-        })
-        return {
-          text: `Dompet **${createResult.data.name}** berhasil dibuat tanpa saldo awal.`,
-        }
-      }
-
-      if (pendingAction.type === 'resolve_intent') {
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, aksi sebelumnya saya batalkan.',
-          }
-        }
-
-        const pendingReplyAssessment = assessPendingFinanceReply(text)
-        if (!pendingReplyAssessment.safe) {
-          return {
-            text: `Saya belum menjalankan aksi sebelumnya. ${pendingReplyAssessment.reply}`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        const resolution = resolveOptionReference({
-          input: text,
-          options: pendingAction.candidates?.length > 0 ? pendingAction.candidates : walletOptions,
-        })
-
-        if (resolution.match) {
-          if (!isDirectPendingWalletChoice(text, resolution.match)) {
-            return {
-              text: `Untuk melanjutkan, jawab hanya pilihan dompetnya, misalnya "pakai ${resolution.match.name}".`,
-              intentStatus: 'needs_confirmation',
-            }
-          }
-
-          const resumedIntent = attachResolvedWallet(pendingAction.intent, resolution.match)
-          setPendingAction(null)
-          return executeIntent(resumedIntent, { source: 'chat' })
-        }
-
-        if (resolution.candidates.length > 0) {
-          return {
-            text: `Pilihan dompetnya masih ambigu. Pilih salah satu: ${formatCandidateNames(resolution.candidates)}.`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        return {
-          text: `Saya tidak menemukan dompet itu. Pilih salah satu: ${formatCandidateNames(pendingAction.candidates?.length > 0 ? pendingAction.candidates : walletOptions)}.`,
-          intentStatus: 'needs_confirmation',
-        }
-      }
-
-      if (pendingAction.type === 'create_goal_target') {
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, pembuatan target tabungan saya batalkan.',
-          }
-        }
-
-        const pendingReplyAssessment = assessPendingFinanceReply(text)
-        if (!pendingReplyAssessment.safe) {
-          return {
-            text: `Target belum dibuat. ${pendingReplyAssessment.reply}`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        const amountMatch = matchMoney(pendingReplyAssessment.normalizedText)
-        const targetAmount = parseMoneyMatch(amountMatch)
-
-        if (
-          !targetAmount ||
-          targetAmount <= 0 ||
-          !isDirectPendingAmountAnswer(pendingReplyAssessment.normalizedText, amountMatch)
-        ) {
-          return {
-            text: 'Saya masih butuh satu nominal target final. Jawab langsung, misalnya "targetnya 50jt".',
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        const sourceWallet =
-          pendingAction.initialAmount > 0
-            ? wallets.find((wallet) => wallet.id === pendingAction.sourceWalletId) ||
-              (wallets.length === 1 ? wallets[0] : null)
-            : null
-
-        if (pendingAction.initialAmount > 0 && !sourceWallet) {
-          setPendingAction({
-            type: 'create_goal_source_wallet',
-            name: pendingAction.name,
-            targetAmount,
-            initialAmount: pendingAction.initialAmount,
-          })
-
-          return {
-            text: `Setoran awal **${formatRupiah(pendingAction.initialAmount)}** mau diambil dari dompet mana? Pilihan aktif Anda: ${formatCandidateNames(walletOptions)}.`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        const createGoalResult = await createGoalWithContribution({
-          name: pendingAction.name,
-          targetAmount,
-          initialAmount: pendingAction.initialAmount,
-          walletId: sourceWallet?.id || null,
-        })
-
-        if (createGoalResult.error) {
-          throw createGoalResult.error
-        }
-
-        setPendingAction(null)
-        await syncFinancialViews({
-          wallets: createGoalResult.walletHandled,
-          transactions: createGoalResult.walletHandled,
-          analytics: true,
-          names: true,
-        })
-
-        return {
-          text:
-            pendingAction.initialAmount > 0
-              ? `Target **${pendingAction.name}** berhasil dibuat dengan target **${formatRupiah(targetAmount)}** dan setoran awal **${formatRupiah(pendingAction.initialAmount)}**.`
-              : `Target **${pendingAction.name}** berhasil dibuat dengan target **${formatRupiah(targetAmount)}**.`,
-        }
-      }
-
-      if (pendingAction.type === 'create_goal_source_wallet') {
-        if (isNegative(text)) {
-          setPendingAction(null)
-          return {
-            text: 'Baik, pembuatan target tabungan saya batalkan.',
-          }
-        }
-
-        const pendingReplyAssessment = assessPendingFinanceReply(text)
-        if (!pendingReplyAssessment.safe) {
-          return {
-            text: `Target belum dibuat. ${pendingReplyAssessment.reply}`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        const resolution = resolveOptionReference({
-          input: text,
-          options: walletOptions,
-        })
-
-        if (resolution.match) {
-          if (!isDirectPendingWalletChoice(text, resolution.match)) {
-            return {
-              text: `Untuk memilih dompet sumber, jawab langsung seperti "pakai ${resolution.match.name}".`,
-              intentStatus: 'needs_confirmation',
-            }
-          }
-
-          const createGoalResult = await createGoalWithContribution({
-            name: pendingAction.name,
-            targetAmount: pendingAction.targetAmount,
-            initialAmount: pendingAction.initialAmount,
-            walletId: resolution.match.id,
-          })
-
-          if (createGoalResult.error) {
-            throw createGoalResult.error
-          }
-
-          setPendingAction(null)
-          await syncFinancialViews({
-            wallets: createGoalResult.walletHandled,
-            transactions: createGoalResult.walletHandled,
-            analytics: true,
-            names: true,
-          })
-
-          return {
-            text: `Target **${pendingAction.name}** berhasil dibuat. Setoran awal **${formatRupiah(pendingAction.initialAmount)}** diambil dari dompet **${resolution.match.name}**.`,
-          }
-        }
-
-        if (resolution.candidates.length > 0) {
-          return {
-            text: `Nama dompetnya masih ambigu. Pilih salah satu: ${formatCandidateNames(resolution.candidates)}.`,
-            intentStatus: 'needs_confirmation',
-          }
-        }
-
-        return {
-          text: `Saya tidak menemukan dompet itu. Pilih salah satu dompet aktif Anda: ${formatCandidateNames(walletOptions)}.`,
-          intentStatus: 'needs_confirmation',
-        }
-      }
-
-      setPendingAction(null)
-      return {
-        text: 'Aksi yang menunggu konfirmasi sudah dibatalkan.',
-      }
-    },
-    [
-      addWallet,
-      archivedWallets,
-      createGoalWithContribution,
-      deleteWallet,
-      executeIntent,
-      formatRupiah,
-      pendingAction,
-      restoreWallet,
-      syncFinancialViews,
-      walletOptions,
-      wallets,
-    ]
-  )
-
+    }
+
+    const isCategory = candidate.type === 'teach_category_rule'
+    const result = await learnFromInput({
+      rawText,
+      categoryId: isCategory ? candidate.categoryId : null,
+      walletId: isCategory ? null : candidate.walletId,
+      categoryKeywords: isCategory ? [candidate.keyword] : [],
+      walletKeywords: isCategory ? [] : [candidate.keyword],
+    })
+    if (result.error) throw result.error
+    return {
+      text: isCategory
+        ? `Siap, **${candidate.keyword}** sekarang kupahami sebagai kategori **${candidate.targetName}**.`
+        : `Siap, kalau kamu bilang **${candidate.keyword}**, aku akan memakai dompet **${candidate.targetName}**.`,
+      metadata: {
+        conversationStatus: 'learning_rule_saved',
+        learningRuleType: isCategory ? 'category' : 'wallet',
+        learningRuleKeyword: candidate.keyword,
+      },
+    }
+  }, [forgetRule, learnFromInput])
   const handleSend = useCallback(
     async (payload) => {
       const text =
@@ -883,7 +373,7 @@ export default function AppShell() {
 
         const messageRequestId = savedUserMessage.data?.id || null
         const pendingMemoryProposal =
-          !pendingAction && !deterministicAssistant.pendingAction
+          !deterministicAssistant.pendingAction
             ? getPendingMemoryProposal(messages)
             : null
         const memoryProposalDecision = pendingMemoryProposal
@@ -897,9 +387,10 @@ export default function AppShell() {
           categories,
           goals,
           memory: deterministicAssistant.memories,
+          categoryRules,
+          walletRules,
           dialogueState: deterministicAssistant.dialogueState,
           pendingAction: deterministicAssistant.pendingAction,
-          legacyPendingAction: pendingAction,
           pendingMemoryProposal,
           memoryProposalDecision,
           financialState: {
@@ -910,54 +401,6 @@ export default function AppShell() {
         const assistantInputText = orchestration.resolvedText
         const handler = orchestration.decision.handler
         let actualEngine = handler
-
-        const processLocalAssistant = async () => {
-          const analysis = await analyzeTransaction(
-            assistantInputText,
-            imagePreview,
-            walletOptions,
-            goalOptions,
-            categoryOptions,
-            '',
-            {
-              categoryRules,
-              walletRules,
-              archivedWalletOptions,
-              financeDraft,
-              financialState: {
-                totalBalance,
-                budgets,
-              },
-              recentAssistantReplies: messages
-                .filter((message) => message?.sender === 'bot')
-                .map((message) => message?.text || '')
-                .filter(Boolean)
-              .slice(-12),
-            }
-          )
-          const reconciliation = reconcileSemanticFrameWithLocalAnalysis(
-            orchestration.frame,
-            analysis
-          )
-          orchestration.frame = reconciliation.frame
-          actualEngine = 'local'
-          if (!reconciliation.executionAllowed) {
-            return {
-              text: 'Saya belum menjalankan aksi apa pun karena instruksi ini belum lolos pemeriksaan keamanan dan kejelasan. Tulis ulang sebagai perintah final yang tidak berupa pertanyaan, rencana, negasi, atau transaksi orang lain.',
-              intentStatus: 'needs_confirmation',
-              metadata: {
-                confirmationMode: 'input',
-                localExecutionBlocked: reconciliation.reason,
-              },
-            }
-          }
-
-          return executeIntent(analysis, {
-            source: 'chat',
-            rawText: userMessageText,
-            requestId: messageRequestId,
-          })
-        }
 
         let response
 
@@ -1001,12 +444,12 @@ export default function AppShell() {
               },
             }
           }
-        } else if (handler === ASSISTANT_DECISION_HANDLERS.LEGACY_PENDING) {
-          actualEngine = 'local-pending'
-          response = await processPendingAction({ text: assistantInputText })
-        } else if (handler === ASSISTANT_DECISION_HANDLERS.LEGACY_ADAPTER) {
-          actualEngine = 'legacy-adapter'
-          response = await processLocalAssistant()
+        } else if (handler === ASSISTANT_DECISION_HANDLERS.LEARNING_RULE) {
+          actualEngine = 'canonical-learning-rule'
+          response = await processLearningRule(
+            orchestration.learningRuleCandidate,
+            userMessageText
+          )
         } else {
           const deterministicResult = await deterministicAssistant.processMessage({
             text: assistantInputText,
@@ -1057,26 +500,19 @@ export default function AppShell() {
       }
     },
     [
-      categoryOptions,
       archivedWallets,
       categoryRules,
       categories,
-      walletRules,
       budgets,
       deterministicAssistant,
-      executeIntent,
-      financeDraft,
-      goalOptions,
       goals,
       messages,
-      pendingAction,
       persistBotResponse,
-      processPendingAction,
+      processLearningRule,
       saveMessage,
       showNotice,
-      archivedWalletOptions,
       totalBalance,
-      walletOptions,
+      walletRules,
       wallets,
     ]
   )

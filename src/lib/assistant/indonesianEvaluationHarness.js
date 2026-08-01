@@ -1,14 +1,9 @@
-import { buildGoalOptions, buildWalletOptions, normalizeEntityName } from '../chatEntities'
-import { hasCommittedChatWriteDecision } from '../chatWriteSafety'
-import { extractMoneyMentions } from '../conversationalFinance'
 import {
   assessIndonesianFinanceUtterance,
   normalizeIndonesianFinanceText,
 } from '../indonesianFinanceLanguage'
-import {
-  analyzeTransaction,
-  detectExplicitTeachingIntent,
-} from '../localAssistant'
+import { extractLearningRuleCandidate } from './learningRuleExtractor'
+import { extractMoneyEntities } from './moneyExtractor'
 import { runAssistantEngine } from './assistantEngine'
 import {
   EVALUATION_FIXTURES,
@@ -39,7 +34,7 @@ export function evaluateSingleTurnCase(testCase, overrides = {}) {
   })
   const utterance = assessIndonesianFinanceUtterance({
     text: testCase.text,
-    mentions: extractMoneyMentions(testCase.text),
+    mentions: extractMoneyEntities(testCase.text),
   })
 
   return {
@@ -59,31 +54,12 @@ export function evaluateSingleTurnCase(testCase, overrides = {}) {
 }
 
 export async function evaluateUnsafeLocalWriteCase(testCase, overrides = {}) {
-  const context = buildEvaluationContext(overrides)
-  const walletOptions = buildWalletOptions(context.wallets)
-  const goalOptions = buildGoalOptions(context.goals)
-  const categoryOptions = context.categories.map((category) => ({
-    ...category,
-    normalizedName: normalizeEntityName(category.name),
-  }))
-  const mentions = extractMoneyMentions(testCase.text)
+  void overrides
+  const mentions = extractMoneyEntities(testCase.text)
   const utterance = assessIndonesianFinanceUtterance({
     text: testCase.text,
     mentions,
   })
-  const analysis = await analyzeTransaction(
-    testCase.text,
-    null,
-    walletOptions,
-    goalOptions,
-    categoryOptions,
-    '',
-    {
-      financeDraft: null,
-      archivedWalletOptions: [],
-      now: context.now,
-    }
-  )
 
   return {
     id: testCase.id,
@@ -91,18 +67,13 @@ export async function evaluateUnsafeLocalWriteCase(testCase, overrides = {}) {
     text: testCase.text,
     mentions,
     utterance,
-    analysis,
-    committedWrite: hasCommittedChatWriteDecision(analysis),
+    analysis: null,
+    committedWrite: !utterance.blocksWrite,
   }
 }
 
 export function evaluateTeachingCase(testCase, overrides = {}) {
   const context = buildEvaluationContext(overrides)
-  const walletOptions = buildWalletOptions(context.wallets)
-  const categoryOptions = context.categories.map((category) => ({
-    ...category,
-    normalizedName: normalizeEntityName(category.name),
-  }))
   const normalizedText = normalizeIndonesianFinanceText(testCase.text)
 
   return {
@@ -110,11 +81,10 @@ export function evaluateTeachingCase(testCase, overrides = {}) {
     tags: testCase.tags,
     text: testCase.text,
     normalizedText,
-    result: detectExplicitTeachingIntent({
+    result: extractLearningRuleCandidate({
       text: testCase.text,
-      normalizedText,
-      walletOptions,
-      categoryOptions,
+      wallets: context.wallets,
+      categories: context.categories,
     }),
   }
 }

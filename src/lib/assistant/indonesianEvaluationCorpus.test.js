@@ -26,7 +26,7 @@ describe('Indonesian assistant evaluation corpus integrity', () => {
     expect(REQUIRED_EVALUATION_TAGS.filter((tag) => !tags.has(tag))).toEqual([])
   })
 
-  it('contains at least 100 actual Indonesian utterances including multi-turn steps', () => {
+  it('contains at least 550 Indonesian utterances before removing the legacy engine', () => {
     const utteranceCount =
       INDONESIAN_ASSISTANT_EVALUATION_CORPUS.singleTurn.length +
       INDONESIAN_ASSISTANT_EVALUATION_CORPUS.unsafeLocalWrites.length +
@@ -36,7 +36,7 @@ describe('Indonesian assistant evaluation corpus integrity', () => {
         0
       ) +
       INDONESIAN_P2_UTTERANCE_CORPUS.length
-    expect(utteranceCount).toBeGreaterThanOrEqual(100)
+    expect(utteranceCount).toBeGreaterThanOrEqual(550)
   })
 })
 

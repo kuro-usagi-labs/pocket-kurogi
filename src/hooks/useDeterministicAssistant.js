@@ -25,6 +25,8 @@ export function useDeterministicAssistant({
   transactions = [],
   messages = [],
   totalBalance = 0,
+  categoryRules = [],
+  walletRules = [],
   syncFinancialViews,
 } = {}) {
   const assistantState = useAssistantState()
@@ -46,6 +48,8 @@ export function useDeterministicAssistant({
       transactions,
       messages,
       memory: assistantState.memories,
+      categoryRules,
+      walletRules,
       dialogueState: assistantState.dialogueState,
       financialState: {
         totalBalance,
@@ -141,12 +145,14 @@ export function useDeterministicAssistant({
     assistantState,
     budgets,
     categories,
+    categoryRules,
     goals,
     messages,
     syncFinancialViews,
     totalBalance,
     transactions,
     wallets,
+    walletRules,
     archivedWallets,
   ])
 

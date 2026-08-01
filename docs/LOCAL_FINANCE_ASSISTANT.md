@@ -22,8 +22,8 @@ Skor intent hanya memberi sinyal routing. Keputusan yang mengubah saldo tetap di
 
 Implementasi utama berada di `src/lib/assistant/`:
 
-- `unifiedAssistantOrchestrator.js` membangun satu semantic frame dan memilih
-  specialist deterministic atau lokal tanpa menjalankan keduanya sekaligus;
+- `unifiedAssistantOrchestrator.js` membangun satu semantic frame dan satu
+  keputusan final tanpa pemilihan atau fallback antar-engine;
 - `semanticFrame.js` menyatukan intent, dialogue act, slot, referensi, safety,
   action, serta provenance executor aktual;
 - `referenceResolver.js` menyelesaikan rujukan seperti `yang tadi`, `yang
@@ -45,8 +45,8 @@ Implementasi utama berada di `src/lib/assistant/`:
 - `safetyValidator.js` adalah gerbang terakhir sebelum pending action.
 
 `src/hooks/useDeterministicAssistant.js` menghubungkan engine murni dengan
-`/api/assistant`. Parser lama tetap tersedia sebagai fallback untuk kemampuan
-yang belum termasuk intent utama, tetapi tidak dapat melewati grammar guard.
+`/api/assistant`. Specialist extractor hanya menghasilkan kandidat beserta
+confidence dan evidence; keputusan akhir tetap dibuat oleh policy canonical.
 
 Preferensi yang tampak eksplisit tidak langsung dianggap benar. Asisten
 menampilkan pemahamannya, meminta konfirmasi terpisah, dan baru menyimpan
@@ -86,7 +86,7 @@ Jika struktur masih ambigu, balasan selalu dimulai dengan status bahwa belum ada
 
 Draft baru memakai status review versi 2 dan menyimpan evidence serta alasan ambiguitas. Pemilihan dompet saja tidak lagi langsung mendebit saldo; asisten menampilkan pemahaman final dan menunggu instruksi pencatatan.
 
-Gate yang sama berlaku untuk semua mutasi dari chat: transaksi tunggal/batch, transfer antar-dompet, setoran atau pencairan target, pembuatan target/dompet, perubahan dompet, koreksi, dan pembatalan transaksi terakhir. Lapisan UI menolak intent mutasi apa pun yang tidak membawa keputusan `writeDecision: "commit"` dari pemeriksa bahasa.
+Gate yang sama berlaku untuk semua mutasi dari chat: transaksi tunggal/batch, transfer antar-dompet, setoran atau pencairan target, pembuatan target/dompet, perubahan dompet, koreksi, dan pembatalan transaksi terakhir. Lapisan UI hanya meneruskan mutasi yang telah menjadi pending action backend dan tetap membutuhkan konfirmasi eksplisit.
 
 Jawaban singkat `Ya` hanya dapat mengonfirmasi satu jenis ambiguitas yang terstruktur, yaitu nominal tanpa satuan yang sebelumnya dirangkum sebagai ribuan rupiah. Mata uang asing, tanggal yang tidak didukung, kalimat contoh/hipotetis, kepemilikan pihak ketiga, subset draft, dan alasan lain tidak dapat dilewati melalui konfirmasi singkat; pengguna harus menulis ulang transaksi final.
 
@@ -106,13 +106,13 @@ Hasilnya adalah dua pengeluaran, Rp20.000 untuk Bensin dan Rp10.000 untuk Makan.
 tadi ke Alfamart jajan pakai uang 50rb, kembali 36rb, berarti habis berapa?
 ```
 
-Asisten menjawab Rp14.000 dan menyimpan draft, tetapi belum mengubah saldo. Pesan berikutnya dapat berupa:
+Asisten menjawab Rp14.000 dan menyimpan konteks di dialogue state backend, tetapi belum mengubah saldo. Pesan berikutnya dapat berupa:
 
 ```text
 oke, catat pengeluaran tadi
 ```
 
-Jika dompet belum pasti, asisten meminta dompet lalu melanjutkan draft yang sama. Draft tersimpan di metadata chat sehingga tetap bisa dipulihkan setelah refresh selama belum kedaluwarsa.
+Jika dompet belum pasti, asisten meminta dompet lalu melanjutkan state yang sama. State dan pending action tersimpan di backend sehingga tetap dapat dilanjutkan setelah refresh selama belum kedaluwarsa.
 
 ### Runway saldo
 
@@ -148,15 +148,16 @@ terhadap allowlist exact-match dan query SQL selalu diparameterisasi.
 
 ## Corpus dan pengembangan
 
-Corpus berada di `src/lib/financeIntentClassifier.js`. Setiap intent memiliki contoh bahasa informal dan hard negative. Untuk menambah kemampuan:
+Corpus canonical berada di `src/lib/assistant/indonesianEvaluationCorpus.js`
+dan memuat sedikitnya 550 tuturan. Setiap intent memiliki contoh bahasa informal
+dan hard negative. Untuk menambah kemampuan:
 
 1. Tambahkan utterance yang benar-benar berbeda, bukan duplikat kecil.
 2. Tambahkan hard negative yang mirip tetapi tidak boleh menulis transaksi.
 3. Tambahkan test parser untuk nominal, peran uang, kategori, dan keputusan write/no-write.
 4. Pertahankan aturan bahwa confidence classifier tidak pernah cukup untuk melewati safety gate.
 
-Corpus regresi lintas-engine juga tersedia di
-`src/lib/assistant/indonesianEvaluationCorpus.js` dengan harness
+Corpus regresi dijalankan melalui harness
 `indonesianEvaluationHarness.js`. Kasusnya mencakup slang, typo, negasi,
 hipotesis, transaksi pihak ketiga, rujukan multi-turn, transaksi jamak,
 teaching, forgetting, dan percobaan write yang harus ditolak.

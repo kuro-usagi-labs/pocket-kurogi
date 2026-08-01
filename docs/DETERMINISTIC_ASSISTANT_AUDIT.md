@@ -2,20 +2,20 @@
 
 ## Ringkasan
 
-Repository sebelumnya sudah mempunyai parser transaksi, grammar guard bahasa
-Indonesia, classifier lokal, modul kategori/dompet, hooks Neon, dan RPC ledger
-atomik. Bagian tersebut dipertahankan sebagai fondasi dan fallback. Refactor
-menambahkan pipeline modular yang menjadi jalur utama untuk intent percakapan
-keuangan, tanpa LLM, model generatif, atau API key AI.
+Dokumen ini merekam audit awal sebelum konsolidasi P0-P3. Repository sudah
+mempunyai parser transaksi, grammar guard bahasa Indonesia, modul
+kategori/dompet, hooks Neon, dan RPC ledger atomik. Setelah P3, seluruh pesan
+runtime memakai satu orchestrator dan decision policy tanpa fallback ke engine
+assistant lama, tetap tanpa LLM, model generatif, atau API key AI.
 
 ## Temuan kode lama
 
 ### Dipakai kembali
 
-- `conversationalFinance.js`: parsing transaksi natural, peran uang, dan draft
-  yang sudah memiliki corpus test luas.
-- `financeIntentClassifier.js`: sinyal tambahan untuk jalur kompatibilitas.
-- `localAssistant.js`: query dan aksi lama yang belum masuk intent utama.
+- parser transaksi dan classifier lama dipakai sebagai referensi parity selama
+  migrasi, lalu dihapus setelah corpus canonical lulus;
+- `localAssistant.js`: dahulu menangani query dan aksi kompatibilitas; modul ini
+  sudah dihapus setelah kemampuan tersisa dimigrasikan.
 - `indonesianFinanceLanguage.js` dan `chatWriteSafety.js`: normalisasi serta
   grammar guard presisi tinggi.
 - katalog kategori, entity option resolver, hooks dompet/transaksi/budget/goal,
@@ -36,20 +36,20 @@ keuangan, tanpa LLM, model generatif, atau API key AI.
 
 ### Dipisahkan
 
-- executor intent besar dikeluarkan dari `AppShell.jsx` ke
-  `useLegacyIntentExecutor.js`;
+- executor intent besar dahulu dikeluarkan dari `AppShell.jsx` ke
+  `useLegacyIntentExecutor.js`; setelah migrasi selesai, hook tersebut dihapus;
 - helper chat murni dipindahkan ke `appShellChatHelpers.js`;
 - state/I/O dipisahkan dari engine murni melalui `useAssistantState.js` dan
   `useDeterministicAssistant.js`;
 - engine dipecah menjadi router, extractor/resolver, slot, dialogue, memory,
   insight, response, pending action, dan safety.
 
-### Tidak dihapus
+### Status setelah P3
 
-Parser lama belum dihapus karena masih melayani kemampuan kompatibilitas seperti
-pengelolaan dompet dan operasi target lanjutan. Ia hanya dijalankan bila engine
-baru menyatakan pesan belum ditangani. Penghapusan sekarang akan menjadi rewrite
-berisiko dan bertentangan dengan strategi migrasi bertahap.
+Parser dan executor assistant lama sudah dihapus setelah pengelolaan dompet,
+operasi target, kalkulasi, percakapan dasar, memory, dan keyword learning masuk
+ke jalur canonical. Backend transaksi tidak ditulis ulang: konfirmasi, pending
+action, payload hash, idempotency, dan executor atomik tetap dipertahankan.
 
 ## Dependensi dan aliran data
 

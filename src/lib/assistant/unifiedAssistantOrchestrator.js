@@ -5,6 +5,7 @@ import {
   summarizeSemanticFrame,
 } from './semanticFrame'
 import { decideAssistantHandler } from './assistantDecisionPolicy'
+import { extractLearningRuleCandidate } from './learningRuleExtractor'
 
 export function orchestrateAssistantMessage({
   text = '',
@@ -14,9 +15,10 @@ export function orchestrateAssistantMessage({
   categories = [],
   goals = [],
   memory = [],
+  categoryRules = [],
+  walletRules = [],
   dialogueState = null,
   pendingAction = null,
-  legacyPendingAction = null,
   pendingMemoryProposal = null,
   memoryProposalDecision = null,
   financialState = {},
@@ -28,7 +30,10 @@ export function orchestrateAssistantMessage({
     wallets,
     archivedWallets,
     memory,
+    categoryRules,
+    walletRules,
     dialogueState,
+    pendingAction,
     now,
   })
   const frame = buildAssistantSemanticFrame({
@@ -40,6 +45,8 @@ export function orchestrateAssistantMessage({
     categories,
     goals,
     memory,
+    categoryRules,
+    walletRules,
     dialogueState,
     pendingAction,
     financialState,
@@ -63,14 +70,19 @@ export function orchestrateAssistantMessage({
         displayValue: resolveMemoryDisplayValue(candidate, frame),
       }))
     : []
+  const learningRuleCandidate = extractLearningRuleCandidate({
+    text: referenceResolution.originalText,
+    wallets,
+    categories,
+  })
 
   const decision = decideAssistantHandler({
     frame,
     canonicalPendingAction: pendingAction,
-    legacyPendingAction,
     pendingMemoryProposal,
     memoryProposalDecision,
     memoryCandidates,
+    learningRuleCandidate,
   })
 
   return {
@@ -80,18 +92,13 @@ export function orchestrateAssistantMessage({
     referenceResolution,
     frame,
     decision,
-    // Temporary compatibility metadata. Runtime routing uses decision.handler.
-    preferredEngine: decision.handler === 'canonical_pipeline'
-      ? 'deterministic'
-      : 'local',
     memoryCandidates,
+    learningRuleCandidate,
   }
 }
 
 export function attachAssistantUnderstanding(response, orchestration, {
-  actualEngine = orchestration?.actualEngine ||
-    orchestration?.preferredEngine ||
-    null,
+  actualEngine = orchestration?.actualEngine || orchestration?.decision?.handler || null,
 } = {}) {
   if (!response || !orchestration?.frame) return response
   return {
@@ -101,24 +108,13 @@ export function attachAssistantUnderstanding(response, orchestration, {
       assistantUnderstanding: {
         ...summarizeSemanticFrame(orchestration.frame),
         engine: actualEngine,
-        preferredEngine: orchestration.preferredEngine,
       },
       assistantEngine: actualEngine,
-      assistantPreferredEngine: orchestration.preferredEngine,
       assistantProcessingDecision: orchestration.decision,
       assistantInputResolved:
         orchestration.resolvedText !== orchestration.originalText,
     },
   }
-}
-
-export function selectAssistantEngine({ frame, pendingAction }) {
-  return decideAssistantHandler({
-    frame,
-    canonicalPendingAction: pendingAction,
-  }).handler === 'canonical_pipeline'
-    ? 'deterministic'
-    : 'local'
 }
 
 function canProposeMemory({ frame, pendingAction, text }) {

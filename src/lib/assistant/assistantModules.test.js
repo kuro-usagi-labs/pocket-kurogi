@@ -829,7 +829,7 @@ describe('assistant engine multi-turn integration', () => {
     expect(result.dialogue.status).toBe(status)
   })
 
-  it('keeps a natural correction without pending state for the legacy transaction-reference resolver', () => {
+  it('keeps a natural correction without pending state for the transaction-reference resolver', () => {
     const result = runAssistantEngine({
       text: 'Yang makan tadi harusnya 25rb',
       userId: 'user-1',

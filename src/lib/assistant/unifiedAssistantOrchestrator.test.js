@@ -36,7 +36,6 @@ describe('unified assistant orchestrator', () => {
     expect(result.frame).toMatchObject({
       version: 2,
       canonicalIntent: 'record_expense',
-      legacyIntent: 'record_expense',
     })
     expect(result.decision).toMatchObject({
       handler: 'canonical_pipeline',
@@ -45,13 +44,12 @@ describe('unified assistant orchestrator', () => {
     })
   })
 
-  it('routes wallet management to canonical and teaching to the local specialist', () => {
+  it('routes wallet management and teaching through canonical handlers', () => {
     const walletCreation = orchestrateAssistantMessage({
       text: 'buatkan dompet BCA',
       wallets: [],
     })
 
-    expect(walletCreation.preferredEngine).toBe('deterministic')
     expect(walletCreation.decision.handler).toBe('canonical_pipeline')
     expect(walletCreation.frame.action).toMatchObject({
       kind: 'mutation',
@@ -62,7 +60,7 @@ describe('unified assistant orchestrator', () => {
     expect(orchestrateAssistantMessage({
       text: 'ajari Kurogi bahwa ngopi berarti kategori Makan',
       categories,
-    }).preferredEngine).toBe('local')
+    }).decision.handler).toBe('canonical_learning_rule')
   })
 
   it('routes transfers into a savings goal to the canonical pipeline', () => {
@@ -82,7 +80,6 @@ describe('unified assistant orchestrator', () => {
       }],
     })
 
-    expect(result.preferredEngine).toBe('deterministic')
     expect(result.frame.intent).toBe('deposit_goal')
     expect(result.frame.slots).toMatchObject({
       amount: 1_000_000,
@@ -100,7 +97,6 @@ describe('unified assistant orchestrator', () => {
       wallets,
     })
 
-    expect(style.preferredEngine).toBe('local')
     expect(['general_chat', 'unknown']).toContain(style.frame.intent)
     expect(style.frame.action.kind).toBe('conversation')
     expect(style.memoryCandidates).toEqual([
@@ -125,7 +121,6 @@ describe('unified assistant orchestrator', () => {
       wallets,
     })
 
-    expect(result.preferredEngine).toBe('local')
     expect(result.memoryCandidates).toEqual([])
   })
 
@@ -148,24 +143,22 @@ describe('unified assistant orchestrator', () => {
     expect(result.memoryCandidates).toEqual([])
   })
 
-  it('records the engine that actually produced the response', () => {
+  it('records the canonical handler that actually produced the response', () => {
     const orchestration = orchestrateAssistantMessage({
       text: 'catat makan 20rb dari BCA',
       wallets,
       categories,
     })
     const response = attachAssistantUnderstanding(
-      { text: 'fallback local' },
+      { text: 'canonical response' },
       orchestration,
-      { actualEngine: 'local' }
+      { actualEngine: 'canonical-pipeline' }
     )
 
     expect(response.metadata).toMatchObject({
-      assistantEngine: 'local',
-      assistantPreferredEngine: 'deterministic',
+      assistantEngine: 'canonical-pipeline',
       assistantUnderstanding: {
-        engine: 'local',
-        preferredEngine: 'deterministic',
+        engine: 'canonical-pipeline',
       },
     })
   })
@@ -175,15 +168,66 @@ describe('unified assistant orchestrator', () => {
       text: 'iya konfirmasi',
       wallets,
       pendingAction: { id: 'backend-action' },
-      legacyPendingAction: { type: 'resolve_intent' },
     })
 
     expect(result.decision).toMatchObject({
       handler: 'canonical_pipeline',
       reason: 'canonical_pending_action',
-      stateConflict: true,
       final: true,
       allowFallback: false,
+    })
+  })
+
+  it('extracts teaching rules without invoking a legacy parser', () => {
+    const result = orchestrateAssistantMessage({
+      text: 'kalau aku bilang kantor, pakai dompet BCA',
+      wallets,
+      categories,
+    })
+
+    expect(result.decision).toMatchObject({
+      handler: 'canonical_learning_rule',
+      reason: 'explicit_learning_rule',
+      allowFallback: false,
+    })
+    expect(result.learningRuleCandidate).toMatchObject({
+      type: 'teach_wallet_rule',
+      keyword: 'kantor',
+      walletId: 'wallet-bca',
+      source: 'utterance',
+    })
+  })
+
+  it('applies learned wallet and category rules inside the canonical semantic frame', () => {
+    const result = orchestrateAssistantMessage({
+      text: 'catat pengeluaran ngopi kantor 20rb',
+      wallets,
+      categories,
+      categoryRules: [{
+        keyword: 'ngopi',
+        category_id: 'cat-food',
+        usage_count: 3,
+      }],
+      walletRules: [{
+        keyword: 'kantor',
+        wallet_id: 'wallet-bca',
+        usage_count: 2,
+      }],
+    })
+
+    expect(result.decision.handler).toBe('canonical_pipeline')
+    expect(result.frame.slots).toMatchObject({
+      amount: 20_000,
+      wallet: { id: 'wallet-bca', name: 'BCA' },
+      category: { id: 'cat-food', name: 'Makan' },
+    })
+    expect(result.frame.entities.wallets[0]).toMatchObject({
+      source: 'learned_rule',
+      matchedKeyword: 'kantor',
+    })
+    expect(result.frame.entities.categories[0]).toMatchObject({
+      source: 'learned_rule',
+      matchedKeyword: 'ngopi',
     })
   })
 

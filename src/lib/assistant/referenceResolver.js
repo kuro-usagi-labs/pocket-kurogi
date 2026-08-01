@@ -1,5 +1,4 @@
 import { normalizeIndonesianFinanceText } from '../indonesianFinanceLanguage'
-import { derivePendingFinanceDraft } from '../conversationalFinance'
 
 const RECENT_REFERENCE_PATTERN =
   /\b(?:itu|tadi|yang tadi|transaksi tadi|catatan tadi)\b/iu
@@ -18,12 +17,12 @@ export function resolveConversationReferences({
   wallets = [],
   memory = [],
   dialogueState = null,
-  now = new Date(),
+  pendingAction = null,
 } = {}) {
   const originalText = String(text || '').trim()
   let resolvedText = originalText
   const references = []
-  const latestDraft = derivePendingFinanceDraft(messages, now)
+  const latestDraft = buildPendingActionDraft(pendingAction)
   const latestFrame = findLatestSemanticFrame(messages)
   const activeWallets = wallets.filter((wallet) => !wallet?.is_archived)
   const preferredWallet = resolvePreferredWallet(memory, activeWallets)
@@ -129,6 +128,18 @@ export function resolveConversationReferences({
           itemCount: latestDraft.items?.length || 0,
         }
       : null,
+  }
+}
+
+function buildPendingActionDraft(pendingAction) {
+  if (!pendingAction?.id || !Array.isArray(pendingAction?.payload?.items)) {
+    return null
+  }
+  return {
+    id: pendingAction.id,
+    requestId: pendingAction.idempotency_key || pendingAction.id,
+    status: pendingAction.status || 'pending_confirmation',
+    items: pendingAction.payload.items,
   }
 }
 

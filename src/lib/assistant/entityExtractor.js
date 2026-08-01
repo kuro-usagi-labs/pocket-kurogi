@@ -13,6 +13,10 @@ import {
 } from './walletResolver'
 import { extractWalletCreationDetails } from './walletCreationParser'
 import { extractIndonesianCandidates } from './indonesianCandidateExtractors'
+import {
+  resolveCategoryForMessage,
+  resolveWalletForMessage,
+} from '../chatLearning'
 
 const CONFIRMATION_PATTERN =
   /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu
@@ -37,17 +41,37 @@ export function extractAssistantEntities({
   categories = [],
   goals = [],
   memory = [],
+  categoryRules = [],
+  walletRules = [],
   now = new Date(),
 } = {}) {
   const normalizedText = normalizeIndonesianFinanceText(text)
   const transactionType = inferTransactionType(normalizedText)
   const amounts = extractMoneyEntities(normalizedText)
   const foreignCurrencies = extractForeignCurrencyEntities(normalizedText)
-  const walletEntities = resolveWalletEntities({
+  const explicitWalletEntities = resolveWalletEntities({
     text: normalizedText,
     wallets,
     memory,
   })
+  const learnedWallet = resolveWalletForMessage({
+    text: normalizedText,
+    wallets,
+    walletRules,
+  })
+  const walletEntities = explicitWalletEntities.length > 0
+    ? explicitWalletEntities
+    : learnedWallet.resolution === 'learned' && learnedWallet.wallet
+      ? [{
+          id: learnedWallet.wallet.id,
+          name: learnedWallet.wallet.name,
+          wallet: learnedWallet.wallet,
+          confidence: 0.9,
+          source: 'learned_rule',
+          matchedKeyword: learnedWallet.keyword,
+          candidates: [],
+        }]
+      : []
   const transferWallets = resolveTransferWallets({
     text: normalizedText,
     wallets,
@@ -67,6 +91,31 @@ export function extractAssistantEntities({
     wallets: walletEntities,
   })
 
+  const inferredCategories = resolveCategoryEntities({
+    text: normalizedText,
+    categories,
+    transactionType,
+  })
+  const learnedCategory = resolveCategoryForMessage({
+    text: normalizedText,
+    categories,
+    categoryRules,
+    transactionType,
+  })
+  const categoryEntities = learnedCategory.resolution === 'learned' && learnedCategory.category
+    ? [{
+        id: learnedCategory.category.id,
+        name: learnedCategory.category.name,
+        category: learnedCategory.category,
+        transactionType,
+        confidence: 0.9,
+        source: 'learned_rule',
+        matchedKeyword: learnedCategory.keyword,
+        ambiguous: false,
+        candidates: [],
+      }]
+    : inferredCategories
+
   return {
     normalizedText,
     amounts,
@@ -79,11 +128,7 @@ export function extractAssistantEntities({
     transferWallets,
     walletCreation,
     archivedWallets: archivedWalletEntities,
-    categories: resolveCategoryEntities({
-      text: normalizedText,
-      categories,
-      transactionType,
-    }),
+    categories: categoryEntities,
     goals: resolveGoalEntities({
       text: normalizedText,
       goals,

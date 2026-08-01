@@ -31,13 +31,9 @@ const CANONICAL_PIPELINE_INTENTS = new Set([
   'general_chat',
 ])
 
-const LEGACY_CAPABILITY_PATTERN =
-  /\b(?:ajari|ajarkan|lupakan aturan|kalau (?:aku|saya) bilang)\b/iu
-
 export const ASSISTANT_DECISION_HANDLERS = Object.freeze({
   CANONICAL: 'canonical_pipeline',
-  LEGACY_ADAPTER: 'legacy_adapter',
-  LEGACY_PENDING: 'legacy_pending_action',
+  LEARNING_RULE: 'canonical_learning_rule',
   MEMORY_CONFIRMATION: 'memory_confirmation',
   MEMORY_PROPOSAL: 'memory_proposal',
 })
@@ -51,10 +47,10 @@ export const ASSISTANT_DECISION_HANDLERS = Object.freeze({
 export function decideAssistantHandler({
   frame,
   canonicalPendingAction = null,
-  legacyPendingAction = null,
   pendingMemoryProposal = null,
   memoryProposalDecision = null,
   memoryCandidates = [],
+  learningRuleCandidate = null,
 } = {}) {
   if (!frame) {
     throw new Error('Semantic frame wajib tersedia sebelum memilih handler.')
@@ -63,13 +59,14 @@ export function decideAssistantHandler({
   if (canonicalPendingAction) {
     return buildDecision(ASSISTANT_DECISION_HANDLERS.CANONICAL, frame, {
       reason: 'canonical_pending_action',
-      stateConflict: Boolean(legacyPendingAction),
     })
   }
 
-  if (legacyPendingAction) {
-    return buildDecision(ASSISTANT_DECISION_HANDLERS.LEGACY_PENDING, frame, {
-      reason: 'legacy_pending_action_adapter',
+  if (learningRuleCandidate) {
+    return buildDecision(ASSISTANT_DECISION_HANDLERS.LEARNING_RULE, frame, {
+      reason: learningRuleCandidate.type === 'unknown'
+        ? `learning_rule_rejected:${learningRuleCandidate.reason}`
+        : 'explicit_learning_rule',
     })
   }
 
@@ -83,7 +80,7 @@ export function decideAssistantHandler({
   if (
     memoryCandidates.length > 0 &&
     frame.action?.kind === 'conversation' &&
-    ['general_chat', 'unknown'].includes(frame.legacyIntent || frame.intent)
+    ['general_chat', 'unknown'].includes(frame.intent)
   ) {
     return buildDecision(ASSISTANT_DECISION_HANDLERS.MEMORY_PROPOSAL, frame, {
       reason: 'explicit_memory_candidate',
@@ -96,14 +93,13 @@ export function decideAssistantHandler({
     })
   }
 
-  return buildDecision(ASSISTANT_DECISION_HANDLERS.LEGACY_ADAPTER, frame, {
-    reason: 'temporary_legacy_capability',
+  return buildDecision(ASSISTANT_DECISION_HANDLERS.CANONICAL, frame, {
+    reason: 'canonical_unknown_or_unsupported',
   })
 }
 
 export function canCanonicalPipelineHandle(frame) {
-  const intent = frame?.legacyIntent || frame?.intent
-  if (requiresLegacyCapability(frame)) return false
+  const intent = frame?.intent
   if (CANONICAL_PIPELINE_INTENTS.has(intent)) return true
 
   if (
@@ -131,17 +127,11 @@ export function canCanonicalPipelineHandle(frame) {
   return Boolean(frame?.action?.mutates && frame?.safety?.blocksWrite)
 }
 
-function requiresLegacyCapability(frame) {
-  const text = String(frame?.utterance?.normalized || '')
-  return LEGACY_CAPABILITY_PATTERN.test(text)
-}
-
 function buildDecision(handler, frame, details) {
   return Object.freeze({
     version: 1,
     handler,
     intent: frame.canonicalIntent || frame.intent,
-    legacyIntent: frame.legacyIntent || frame.intent,
     final: true,
     allowFallback: false,
     ...details,

@@ -25,6 +25,8 @@ export function runAssistantEngine({
   transactions = [],
   messages = [],
   memory = [],
+  categoryRules = [],
+  walletRules = [],
   dialogueState = null,
   pendingAction = null,
   financialState = {},
@@ -42,6 +44,8 @@ export function runAssistantEngine({
     categories,
     goals,
     memory,
+    categoryRules,
+    walletRules,
     now,
   })
   const initialRoute = prepared?.route || routeAssistantIntent({

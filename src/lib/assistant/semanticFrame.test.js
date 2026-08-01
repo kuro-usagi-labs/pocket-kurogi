@@ -18,12 +18,11 @@ describe('assistant semantic frame local reconciliation', () => {
       wallets: [{ id: 'wallet-bca', name: 'BCA' }],
     })
 
-    expect(result.route.intent).toBe(frame.legacyIntent)
+    expect(result.route.intent).toBe(frame.intent)
     expect(result.slots.slots).toEqual(frame.slots)
     expect(frame).toMatchObject({
       version: 2,
       canonicalIntent: 'record_expense',
-      legacyIntent: 'record_expense',
     })
   })
 

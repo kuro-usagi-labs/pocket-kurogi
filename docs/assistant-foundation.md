@@ -1,4 +1,4 @@
-# Fondasi Local Assistant Kurogi
+# Fondasi Assistant Kurogi
 
 Dokumen ini mencatat kontrak runtime setelah konsolidasi P0. Tujuannya agar
 pengembangan berikutnya tidak menambahkan jalur pengambilan keputusan baru.
@@ -22,23 +22,28 @@ pengembangan berikutnya tidak menambahkan jalur pengambilan keputusan baru.
 - `pending_finance_actions` adalah satu-satunya objek canonical yang dapat
   mengeksekusi mutasi finansial.
 - State React hanya cache dari backend.
-- Bila pending action backend dan draft legacy muncul bersamaan, backend selalu
-  menang dan konflik tersebut dicatat pada keputusan handler.
+- Draft mutasi lokal sudah dihapus. Hanya pending action backend yang dapat
+  dilanjutkan, dikoreksi, dibatalkan, atau dikonfirmasi.
 
 Dialogue state versi 2 menyimpan `conversationId`, `activeFrame`,
 `missingSlots`, `pendingActionId`, `lastResolvedIntent`, dan
-`referencedTransactionIds`. Field versi lama masih dipertahankan sementara
-untuk adapter kompatibilitas.
+`referencedTransactionIds`.
 
-## Batas adapter legacy
+## Status P3
 
-`legacy_adapter` masih menangani kemampuan yang belum dipindahkan:
+- `localAssistant` dan `useLegacyIntentExecutor` sudah dihapus dari runtime;
+- pemilihan engine lokal/deterministik dan seluruh fallback antar-engine sudah
+  dihapus;
+- pengajaran dan penghapusan aturan keyword kini diekstrak oleh specialist
+  extractor, dipilih oleh decision policy tunggal, lalu disimpan sebagai aturan
+  milik akun;
+- aturan kategori dan dompet yang telah dipelajari ikut mengisi slot pada
+  semantic frame canonical;
+- pesan yang tidak didukung tetap berakhir di jalur canonical dengan
+  `allowFallback: false` dan tidak dapat menulis data.
 
-- aturan pengajaran keyword lokal;
-
-Adapter tersebut adalah tujuan migrasi, bukan tempat menambah fitur. Tidak ada
-fallback dari pipeline canonical ke adapter legacy. Kegagalan invariant diblok
-dengan aman dan tidak mengubah data.
+Backend transaksi yang sudah aman tidak ditulis ulang dalam P3. Mutasi tetap
+memakai pending action, payload hash, idempotency key, dan konfirmasi yang sama.
 
 ## Aturan kontribusi
 
@@ -80,7 +85,6 @@ dan response composer tetap tunggal. Kemampuan yang sudah canonical:
 - semantic frame memisahkan fakta hasil ekstraksi, asumsi bahasa, dan fakta
   akun; hasil yang tidak diproses membawa reason code eksplisit.
 
-Golden corpus sekarang memuat sedikitnya 100 tuturan Indonesia, termasuk typo,
-slang, urutan kata bebas, kasus multi-turn, dan kontrak unsafe-write. Satu-satunya
-kemampuan yang masih memakai `legacy_adapter` adalah aturan pengajaran keyword
-lokal.
+Golden corpus sekarang memuat sedikitnya 550 tuturan Indonesia, termasuk typo,
+slang, urutan kata bebas, kasus multi-turn, dan kontrak unsafe-write. Tidak ada
+lagi kemampuan runtime yang memakai adapter assistant legacy.

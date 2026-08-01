@@ -63,44 +63,32 @@ describe('conversation reference resolver', () => {
     expect(withContext.resolvedText).toBe('BCA')
   })
 
-  it('does not resolve references from a closed or expired finance draft', () => {
-    const closed = resolveConversationReferences({
-      text: 'pakai dompet satunya',
-      wallets,
-      messages: [
-        {
-          metadata: {
-            financeDraft: {
-              id: 'draft-1',
-              items: [{ walletId: 'wallet-bca' }],
-              expiresAt: '2026-07-30T10:30:00.000Z',
-            },
-          },
-        },
-        {
-          metadata: {
-            financeDraftResolved: 'draft-1',
-          },
-        },
-      ],
-      now: new Date('2026-07-30T10:00:00.000Z'),
-    })
-    const expired = resolveConversationReferences({
+  it('ignores legacy chat drafts and reads only the active backend pending action', () => {
+    const legacyMetadata = resolveConversationReferences({
       text: 'pakai dompet satunya',
       wallets,
       messages: [{
         metadata: {
           financeDraft: {
-            id: 'draft-2',
+            id: 'legacy-draft',
             items: [{ walletId: 'wallet-bca' }],
-            expiresAt: '2026-07-30T09:59:00.000Z',
           },
         },
       }],
-      now: new Date('2026-07-30T10:00:00.000Z'),
+    })
+    const canonical = resolveConversationReferences({
+      text: 'pakai dompet satunya',
+      wallets,
+      pendingAction: {
+        id: 'pending-1',
+        status: 'pending_confirmation',
+        payload: {
+          items: [{ walletId: 'wallet-bca' }],
+        },
+      },
     })
 
-    expect(closed.resolvedText).toBe('pakai dompet satunya')
-    expect(expired.resolvedText).toBe('pakai dompet satunya')
+    expect(legacyMetadata.resolvedText).toBe('pakai dompet satunya')
+    expect(canonical.resolvedText).toContain('Tunai')
   })
 })

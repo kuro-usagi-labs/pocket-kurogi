@@ -385,11 +385,24 @@ export const REQUIRED_EVALUATION_TAGS = Object.freeze([
 const P2_TERMS = Object.freeze([
   'makan siang', 'kopi susu', 'bensin', 'parkir', 'obat',
   'pulsa', 'sarapan', 'laundry', 'ongkos', 'air minum',
+  'roti', 'nasi goreng', 'ayam', 'sayur', 'buah',
+  'susu', 'teh', 'tiket bus', 'tiket kereta', 'tol',
+  'servis motor', 'ban motor', 'vitamin', 'dokter', 'listrik',
+  'internet', 'sewa kos', 'cicilan', 'buku', 'alat tulis',
+  'sepatu', 'pakaian', 'sabun', 'sampo', 'potong rambut',
+  'hadiah', 'donasi', 'kursus', 'gym', 'bioskop',
+  'musik', 'permainan', 'makan malam', 'camilan', 'ojek',
+  'taksi', 'bensin motor', 'parkir kantor', 'makan kantor', 'bekal',
+  'gas elpiji', 'air galon', 'beras', 'telur', 'minyak goreng',
+  'bumbu dapur', 'popok', 'sekolah', 'uang saku', 'asuransi',
+  'pajak', 'administrasi bank', 'perbaikan rumah', 'furnitur',
+  'perlengkapan kerja', 'kopi kantor',
 ])
 
 /**
- * 80 hand-reviewed, colloquial utterances used to prevent Indonesian language
- * regressions. Each row is an actual user-shaped sentence, not token noise.
+ * More than 520 deterministic, human-readable Indonesian paraphrases used to
+ * prevent language regressions. Each row is a user-shaped sentence generated
+ * from reviewed templates and domain terms, not token noise.
  */
 export const INDONESIAN_P2_UTTERANCE_CORPUS = Object.freeze([
   ...P2_TERMS.map((term, index) => ({
