@@ -25,6 +25,8 @@ export function runAssistantEngine({
   transactions = [],
   messages = [],
   memory = [],
+  schedules = [],
+  reminderPreferences = {},
   categoryRules = [],
   walletRules = [],
   dialogueState = null,
@@ -101,6 +103,8 @@ export function runAssistantEngine({
         goals,
         wallets,
         memory,
+        schedules,
+        reminderPreferences,
         now,
         focus: resolveInsightFocus(entities.normalizedText),
       })

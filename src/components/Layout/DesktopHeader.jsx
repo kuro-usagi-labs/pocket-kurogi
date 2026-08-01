@@ -4,6 +4,7 @@ const PAGE_COPY = {
   chat: ['Ruang obrolan', 'Bicarakan uangmu seperti bicara dengan teman.'],
   history: ['Jejak uang', 'Semua yang masuk dan keluar, tanpa ribet.'],
   wallets: ['Ruang tabungan', 'Dompet dan tujuan yang sedang kamu kejar.'],
+  planning: ['Rencana uang', 'Lihat jadwal dan kebiasaan sebelum tanggalnya tiba.'],
   analytics: ['Pola uang', 'Lihat kebiasaan, bukan sekadar angka.'],
   settings: ['Pengaturan', 'Kelola akun dan kendali atas datamu.'],
 }

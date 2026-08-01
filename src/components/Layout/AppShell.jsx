@@ -19,6 +19,7 @@ import { useAdvisor } from '../../hooks/useAdvisor'
 import { useChat } from '../../hooks/useChat'
 import { useAnalytics } from '../../hooks/useAnalytics'
 import { useDeterministicAssistant } from '../../hooks/useDeterministicAssistant'
+import { useFinancialPlanning } from '../../hooks/useFinancialPlanning'
 import { useNameConflicts } from '../../hooks/useNameConflicts'
 import {
   buildWalletDeletionNotice,
@@ -46,11 +47,13 @@ const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
 const loadWalletsView = () => import('../Wallets/WalletsView')
 const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
+const loadPlanningView = () => import('../Planning/PlanningView')
 const loadSettingsView = () => import('../Settings/SettingsView')
 const HistoryView = lazyWithRecovery(loadHistoryView, 'history')
 const EditTransactionModal = lazyWithRecovery(loadEditTransactionModal, 'edit-transaction')
 const WalletsView = lazyWithRecovery(loadWalletsView, 'wallets')
 const AnalyticsView = lazyWithRecovery(loadAnalyticsView, 'analytics')
+const PlanningView = lazyWithRecovery(loadPlanningView, 'planning')
 const SettingsView = lazyWithRecovery(loadSettingsView, 'settings')
 function ViewLoadingFallback() {
   return (
@@ -97,7 +100,8 @@ export default function AppShell() {
     renameGoal,
     refetch: refetchGoals,
   } = useGoals()
-  const { budgets } = useBudgets()
+  const { budgets, setBudget, deleteBudget } = useBudgets()
+  const planning = useFinancialPlanning()
   const {
     categoryRules,
     walletRules,
@@ -189,6 +193,8 @@ export default function AppShell() {
     goals,
     transactions,
     messages,
+    schedules: planning.schedules,
+    reminderPreferences: planning.reminderPreferences,
     totalBalance,
     syncFinancialViews,
     categoryRules,
@@ -225,6 +231,7 @@ export default function AppShell() {
       loadEditTransactionModal()
       loadWalletsView()
       loadAnalyticsView()
+      loadPlanningView()
       loadSettingsView()
     }
 
@@ -861,6 +868,31 @@ export default function AppShell() {
                     analytics={analytics}
                     budgets={budgets}
                     formatRupiah={formatRupiah}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+
+            {activeTab === 'planning' ? (
+              <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-hidden animate-fade-in lg:bottom-0">
+                <Suspense fallback={<ViewLoadingFallback />}>
+                  <PlanningView
+                    schedules={planning.schedules}
+                    reminderPreferences={planning.reminderPreferences}
+                    allocationPlan={planning.allocationPlan}
+                    budgets={budgets}
+                    categories={categories}
+                    goals={goals}
+                    wallets={wallets}
+                    loading={planning.loading}
+                    error={planning.error}
+                    formatRupiah={formatRupiah}
+                    onSaveSchedule={planning.saveSchedule}
+                    onDeleteSchedule={planning.deleteSchedule}
+                    onSetReminderPreference={planning.setReminderPreference}
+                    onSaveAllocationPlan={planning.saveAllocationPlan}
+                    onSetBudget={setBudget}
+                    onDeleteBudget={deleteBudget}
                   />
                 </Suspense>
               </div>

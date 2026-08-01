@@ -1,4 +1,4 @@
-import { BarChart3, ChevronLeft, ChevronRight, Clock3, LogOut, MessageCircle, PiggyBank, Settings2 } from 'lucide-react'
+import { BarChart3, CalendarRange, ChevronLeft, ChevronRight, Clock3, LogOut, MessageCircle, PiggyBank, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import KurogiLogo from '../shared/KurogiLogo'
@@ -7,6 +7,7 @@ const navItems = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
   { id: 'history', label: 'Histori', icon: Clock3 },
   { id: 'wallets', label: 'Dompet', icon: PiggyBank },
+  { id: 'planning', label: 'Rencana', icon: CalendarRange },
   { id: 'analytics', label: 'Analitik', icon: BarChart3 },
   { id: 'settings', label: 'Setelan', icon: Settings2 },
 ]

@@ -89,6 +89,7 @@ export function extractAssistantEntities({
     text: normalizedText,
     amounts,
     wallets: walletEntities,
+    goals,
   })
 
   const inferredCategories = resolveCategoryEntities({

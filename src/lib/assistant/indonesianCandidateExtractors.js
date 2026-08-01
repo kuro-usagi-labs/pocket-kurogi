@@ -10,13 +10,46 @@ export function extractIndonesianCandidates({
   text = '',
   amounts = [],
   wallets = [],
+  goals = [],
 } = {}) {
   return [
     extractCompoundPurchase(text, amounts, wallets),
     extractIncomingTransfer(text, amounts),
     extractRunwayScenario(text, amounts),
     extractGoalPlan(text, amounts, wallets),
+    extractSavingsSimulation(text, amounts, goals),
   ].filter(Boolean)
+}
+
+function extractSavingsSimulation(text, amounts, goals) {
+  const cadenceMatch = text.match(/\b(?:per|setiap|tiap)\s+(bulan|minggu|pekan)\b/iu)
+  const asksWhen = /\b(?:kapan|berapa\s+(?:lama|bulan|minggu|pekan)|butuh\s+berapa\s+(?:lama|bulan|minggu|pekan))\b/iu.test(text)
+  const savingCue = /\b(?:nabung|menabung|setor|sisihkan|menyisihkan)\b/iu.test(text)
+  if (!cadenceMatch || !asksWhen || !savingCue || amounts.length === 0) return null
+
+  const contribution = amounts.find((amount) => {
+    const around = text.slice(Math.max(0, amount.start - 24), Math.min(text.length, amount.end + 25))
+    return /\b(?:nabung|menabung|setor|sisihkan|menyisihkan|per|setiap|tiap)\b/iu.test(around)
+  }) || amounts[0]
+  const referencedGoal = goals.find((goal) =>
+    String(goal?.name || '').trim() &&
+    text.toLocaleLowerCase('id-ID').includes(String(goal.name).trim().toLocaleLowerCase('id-ID'))
+  ) || null
+  const target = amounts.find((amount) => amount !== contribution) || null
+
+  return candidate('saving_simulation', 0.97, [
+    evidenceFor(contribution, 'recurring_contribution'),
+    target ? evidenceFor(target, 'simulation_target') : null,
+    textEvidence(cadenceMatch[0], cadenceMatch.index, 'simulation_cadence'),
+  ], {
+    contributionAmount: contribution.value,
+    cadence: /minggu|pekan/iu.test(cadenceMatch[1]) ? 'weekly' : 'monthly',
+    targetAmount: target?.value || referencedGoal?.target_amount || referencedGoal?.targetAmount || null,
+    currentAmount: referencedGoal?.current_amount || referencedGoal?.currentAmount || 0,
+    goal: referencedGoal
+      ? { id: referencedGoal.id, name: referencedGoal.name }
+      : null,
+  })
 }
 
 function extractCompoundPurchase(text, amounts, wallets) {

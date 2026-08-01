@@ -145,6 +145,8 @@ export function composeFinancialQueryResult({
   budgets = [],
   goals = [],
   memory = [],
+  schedules = [],
+  reminderPreferences = {},
   now = new Date(),
   focus = 'overview',
 } = {}) {
@@ -285,6 +287,8 @@ export function composeFinancialQueryResult({
       budgets,
       goals,
       memory,
+      schedules,
+      reminderPreferences,
       now,
       forceFocus: 'week',
     })
@@ -320,6 +324,8 @@ export function composeFinancialQueryResult({
       budgets,
       goals,
       memory,
+      schedules,
+      reminderPreferences,
       now,
     })
     if (personalAdvice.kind !== 'saving_recommendation') {

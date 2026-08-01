@@ -1,4 +1,9 @@
 import { formatPercentage, formatRupiah } from './formatters'
+import {
+  buildPlanningCalendar,
+  formatPlanningDate,
+  simulateSavingsPlan,
+} from '../financialPlanning'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -40,6 +45,8 @@ export function composePersonalFinancialAdvice({
   budgets = [],
   goals = [],
   memory = [],
+  schedules = [],
+  reminderPreferences = {},
   now = new Date(),
   forceFocus = null,
 } = {}) {
@@ -72,6 +79,8 @@ export function composePersonalFinancialAdvice({
       now,
     }),
     recurring: () => composeRecurringPayments({ transactions, now }),
+    simulation: () => composeSavingsSimulation({ slots, goals, now }),
+    calendar: () => composePlanningCalendar({ schedules, reminderPreferences, now }),
     saving: () => composeSavingRecommendation({ snapshot, budgets }),
   }[focus]?.() || composeSavingRecommendation({ snapshot, budgets })
 
@@ -289,6 +298,66 @@ function composeRecurringPayments({ transactions, now }) {
   })
 }
 
+function composeSavingsSimulation({ slots, goals, now }) {
+  const goal = slots.simulationGoal?.id
+    ? goals.find((entry) => entry.id === slots.simulationGoal.id)
+    : null
+  const targetAmount = Number(
+    slots.simulationTargetAmount || goal?.target_amount || goal?.targetAmount || 0
+  )
+  const currentAmount = Number(
+    slots.simulationCurrentAmount ?? goal?.current_amount ?? goal?.currentAmount ?? 0
+  )
+  const contributionAmount = Number(slots.simulationContributionAmount || 0)
+  const cadence = slots.simulationCadence || 'monthly'
+  if (targetAmount <= 0) {
+    return unavailable('Sebutkan nama target tersimpan atau nilai target agar simulasinya bisa dihitung.')
+  }
+  const simulation = simulateSavingsPlan({
+    targetAmount,
+    currentAmount,
+    contributionAmount,
+    cadence,
+    startDate: now,
+  })
+  if (!simulation.valid) {
+    return unavailable('Sebutkan nominal setoran rutin yang lebih dari nol agar simulasinya bisa dihitung.')
+  }
+  const cadenceLabel = cadence === 'weekly' ? 'minggu' : 'bulan'
+  const goalLabel = goal?.name || slots.simulationGoal?.name || 'target ini'
+  return insight({
+    text: `Jika kamu menyisihkan ${formatRupiah(contributionAmount)} per ${cadenceLabel}, ${goalLabel} diperkirakan cukup pada ${formatPlanningDate(simulation.estimatedCompletionAt)}.`,
+    facts: [`Target ${formatRupiah(targetAmount)}, sudah terkumpul ${formatRupiah(currentAmount)}, sehingga tersisa ${formatRupiah(simulation.remaining)}.`],
+    estimates: [`Dibutuhkan ${simulation.contributionCount} setoran. Rumus: ${simulation.formula}.`],
+    opinions: ['Ini simulasi tetap tanpa bunga atau perubahan nominal setoran; tidak ada transaksi yang dibuat.'],
+    kind: 'savings_simulation',
+    simulation,
+  })
+}
+
+function composePlanningCalendar({ schedules, reminderPreferences, now }) {
+  const calendar = buildPlanningCalendar(schedules, {
+    preferences: reminderPreferences,
+    from: now,
+    days: 30,
+  })
+  if (calendar.length === 0) {
+    return unavailable('Belum ada jadwal keuangan aktif untuk 30 hari mendatang.')
+  }
+  const next = calendar[0]
+  const income = calendar.filter((item) => item.scheduleType === 'income')
+    .reduce((sum, item) => sum + item.amount, 0)
+  const outflow = calendar.filter((item) => item.scheduleType !== 'income')
+    .reduce((sum, item) => sum + item.amount, 0)
+  return insight({
+    text: `Ada ${calendar.length} kejadian terencana dalam 30 hari. Yang terdekat: ${next.title} ${formatRupiah(next.amount)} pada ${formatPlanningDate(next.date)}.`,
+    facts: [`Rencana masuk ${formatRupiah(income)} dan rencana keluar ${formatRupiah(outflow)}; selisih ${formatRupiah(income - outflow)}.`],
+    estimates: [calendar.slice(0, 4).map((item) => `${formatPlanningDate(item.date)}: ${item.title} ${formatRupiah(item.amount)}`).join('; ')],
+    opinions: ['Jadwal adalah proyeksi dan tidak mengubah saldo atau transaksi secara otomatis.'],
+    kind: 'planning_calendar',
+  })
+}
+
 function composeSavingRecommendation({ snapshot, budgets }) {
   if (!snapshot?.sourceTransactionCount) return unavailable('Data transaksi belum cukup untuk rekomendasi hemat yang personal.')
   const top = snapshot.topCategories?.[0]
@@ -335,6 +404,8 @@ function findCategoryAnomalies(transactions, now) {
 
 function detectAdviceFocus(text) {
   const normalized = normalizeLabel(text)
+  if (/\b(?:jadwal|tagihan|gajian|setoran)\b.{0,45}\b(?:mendatang|berikutnya|dekat|jatuh tempo|kapan)\b|\b(?:apa|yang)\s+(?:akan|bakal)\s+(?:masuk|keluar|jatuh tempo)\b/iu.test(normalized)) return 'calendar'
+  if (/\b(?:nabung|menabung|setor|sisihkan)\b.{0,50}\b(?:per|setiap|tiap)\s+(?:bulan|minggu|pekan)\b|\b(?:kapan|berapa lama)\b.{0,50}\b(?:cukup|tercapai)\b/iu.test(normalized)) return 'simulation'
   if (/\b(?:boleh|aman|mampu|cukup)\b.{0,45}\b(?:beli|bayar|ambil)\b|\b(?:beli|bayar)\b.{0,45}\b(?:boleh|aman|mampu|cukup)\b/iu.test(normalized)) return 'affordability'
   if (/\b(?:berulang|langganan|subscription|rutin)\b/iu.test(normalized)) return 'recurring'
   if (/\b(?:target|tabungan|simpanan)\b.{0,45}\b(?:kapan|tercapai|selesai|on track|sesuai jalur)\b|\b(?:kapan|prediksi)\b.{0,45}\b(?:target|tabungan)\b/iu.test(normalized)) return 'goal'
@@ -377,6 +448,7 @@ function disabledAdvice(focus) {
   const label = {
     week: 'ringkasan mingguan', unusual: 'deteksi lonjakan', goal: 'prediksi target',
     affordability: 'penilaian pembelian', saving: 'rekomendasi hemat', recurring: 'deteksi pembayaran berulang',
+    calendar: 'kalender keuangan', simulation: 'simulasi tabungan',
   }[focus] || 'saran ini'
   return unavailable(`Jenis saran ${label} sedang kamu nonaktifkan. Kamu bisa menyalakannya lagi di Pengaturan.`)
 }

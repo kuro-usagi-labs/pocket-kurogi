@@ -30,6 +30,7 @@ const SIGNALS = Object.freeze({
   recurringAdvice: /\b(?:pembayaran|transaksi|pengeluaran)?\s*(?:berulang|langganan|subscription|rutin)\b/iu,
   goalForecast: /\b(?:kapan|prediksi|perkiraan)\b.{0,50}\b(?:target|tabungan|simpanan)\b|\b(?:target|tabungan|simpanan)\b.{0,50}\b(?:kapan|tercapai|selesai|sesuai jalur|on track)\b/iu,
   unusualSpending: /\b(?:pengeluaran|belanja)\b.{0,35}\b(?:tidak biasa|nggak biasa|naik|melonjak|boros)\b|\b(?:boros|lonjakan)\b.{0,35}\b(?:pengeluaran|belanja)\b/iu,
+  planningCalendar: /\b(?:jadwal|tagihan|gajian|setoran)\b.{0,45}\b(?:mendatang|berikutnya|dekat|jatuh tempo|kapan)\b|\b(?:apa|yang)\s+(?:akan|bakal)\s+(?:masuk|keluar|jatuh tempo)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
   confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
   contextualConfirm: /^(?:(?:ya|iya|oke|sip)\s+)?(?:catat|simpan|rekam)(?:\s+(?:transaksi|catatan|draft))?\s+(?:(?:yang\s+)?(?:tadi|itu|tersebut|barusan))$/iu,
@@ -109,6 +110,7 @@ function scoreSpecialistCandidates(scores, entities) {
       incoming_transfer: 'record_income',
       runway_scenario: 'financial_advice',
       goal_with_opening_deposit: 'create_saving_goal',
+      saving_simulation: 'financial_advice',
     }[candidate.kind]
     if (!intent) continue
     add(scores, intent, Math.max(0.82, candidate.confidence), `specialist:${candidate.kind}`)
@@ -123,6 +125,9 @@ function scoreSpecialistCandidates(scores, entities) {
     }
     if (candidate.kind === 'runway_scenario') {
       addConflict(scores, ['emotional_support'], 'specialist:explicit_runway', 0.22)
+    }
+    if (candidate.kind === 'saving_simulation') {
+      addConflict(scores, ['create_saving_goal', 'deposit_goal', 'record_expense'], 'specialist:simulation_not_mutation', 0.72)
     }
   }
 }
@@ -302,6 +307,10 @@ function scoreQueries(scores, text, entities) {
 }
 
 function scoreSupport(scores, text, entities) {
+  if (SIGNALS.planningCalendar.test(text)) {
+    add(scores, 'financial_advice', 0.9, 'planning_calendar_query')
+    addConflict(scores, ['record_expense', 'record_income'], 'calendar_query_not_transaction', 0.62)
+  }
   if (SIGNALS.affordability.test(text)) {
     add(scores, 'financial_advice', 0.92, 'affordability_question')
     addConflict(scores, ['record_expense', 'record_income'], 'question_not_transaction', 0.7)

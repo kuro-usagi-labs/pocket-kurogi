@@ -199,6 +199,18 @@ export async function runAssistantDatabaseOperation({
       where user_id = ${userId}::uuid
       order by created_at
     `)
+    queries.push(sql`
+      select *
+      from public.financial_schedules
+      where user_id = ${userId}::uuid
+        and is_active = true
+      order by next_due_date, created_at
+    `)
+    queries.push(sql`
+      select reminder_type, enabled
+      from public.financial_reminder_preferences
+      where user_id = ${userId}::uuid
+    `)
   } else if (operation === 'save_dialogue') {
     queries.push(sql`
       select public.save_assistant_dialogue_state(
@@ -579,6 +591,10 @@ function normalizeOperationResult(operation, results) {
       budgets: results[1] || [],
       goals: results[2] || [],
       wallets: results[3] || [],
+      schedules: results[4] || [],
+      reminderPreferences: Object.fromEntries(
+        (results[5] || []).map((row) => [row.reminder_type, row.enabled !== false])
+      ),
     }
   }
   return results[0]?.[0]?.result || null

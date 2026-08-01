@@ -24,6 +24,8 @@ export function useDeterministicAssistant({
   goals = [],
   transactions = [],
   messages = [],
+  schedules = [],
+  reminderPreferences = {},
   totalBalance = 0,
   categoryRules = [],
   walletRules = [],
@@ -57,6 +59,8 @@ export function useDeterministicAssistant({
         budgets,
       },
       semanticFrame,
+      schedules,
+      reminderPreferences,
     }
 
     if (stateSnapshot.pendingAction) {
@@ -96,6 +100,8 @@ export function useDeterministicAssistant({
         budgets: databaseContext.budgets || budgets,
         goals: databaseContext.goals || goals,
         transactions: databaseContext.transactions || [],
+        schedules: databaseContext.schedules || schedules,
+        reminderPreferences: databaseContext.reminderPreferences || reminderPreferences,
         financialState: {
           totalBalance: databaseWallets
             .filter((wallet) => !wallet.is_archived)
@@ -150,6 +156,8 @@ export function useDeterministicAssistant({
     categoryRules,
     goals,
     messages,
+    schedules,
+    reminderPreferences,
     syncFinancialViews,
     totalBalance,
     transactions,

@@ -78,6 +78,7 @@ function deriveSlots(intent, entities, text) {
   const incomingTransfer = candidate('incoming_transfer')
   const runwayScenario = candidate('runway_scenario')
   const goalPlan = candidate('goal_with_opening_deposit')
+  const savingsSimulation = candidate('saving_simulation')
   const amount = entities.amounts?.[0]?.value || null
   const wallet = entities.wallets?.[0]?.id
     ? {
@@ -206,6 +207,11 @@ function deriveSlots(intent, entities, text) {
       purchaseDescription: derivePurchaseDescription(text, entities),
       wallet,
       category,
+      simulationTargetAmount: savingsSimulation?.targetAmount,
+      simulationCurrentAmount: savingsSimulation?.currentAmount,
+      simulationContributionAmount: savingsSimulation?.contributionAmount,
+      simulationCadence: savingsSimulation?.cadence,
+      simulationGoal: savingsSimulation?.goal,
     })
   }
 
