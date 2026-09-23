@@ -10,6 +10,21 @@ import {
 } from './financialPlanning'
 
 describe('financial planning P6', () => {
+  it.each([
+    ['2026-01-31', ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30']],
+    ['2026-01-30', ['2026-01-30', '2026-02-28', '2026-03-30', '2026-04-30']],
+    ['2026-01-28', ['2026-01-28', '2026-02-28', '2026-03-28', '2026-04-28']],
+    ['2024-01-31', ['2024-01-31', '2024-02-29', '2024-03-31', '2024-04-30']],
+  ])('preserves original monthly day across February: %s', (date, expected) => {
+    const year = Number(date.slice(0, 4))
+    expect(expandFinancialSchedule({ id: 's', is_active: true, next_due_date: date, cadence: 'monthly', amount: 1 }, { from: new Date(year, 0, 1), days: 120 }).map(x => x.date)).toEqual(expected)
+  })
+  it('projects old active monthly schedules without exhausting the loop guard', () => {
+    expect(expandFinancialSchedule({ id: 's', is_active: true, next_due_date: '1980-01-31', cadence: 'monthly', amount: 1 }, { from: new Date(2026, 0, 1), days: 60 }).map(x => x.date)).toEqual(['2026-01-31', '2026-02-28'])
+  })
+  it('preserves the anchor across a year boundary', () => {
+    expect(expandFinancialSchedule({ id: 's', is_active: true, next_due_date: '2025-12-31', cadence: 'monthly', amount: 1 }, { from: new Date(2025, 11, 1), days: 91 }).map(x => x.date)).toEqual(['2025-12-31', '2026-01-31', '2026-02-28'])
+  })
   it('projects weekly and monthly schedules without creating transactions', () => {
     const weekly = expandFinancialSchedule({
       id: 'weekly', title: 'Setoran nikah', schedule_type: 'goal_contribution',

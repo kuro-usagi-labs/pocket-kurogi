@@ -29,7 +29,11 @@ export function expandFinancialSchedule(schedule, {
   if (!schedule?.is_active || !schedule.next_due_date) return []
   const start = startOfDay(from)
   const end = addDays(start, Math.max(Number(days || 0), 0))
-  let cursor = parseDateOnly(schedule.next_due_date)
+  const anchor = parseDateOnly(schedule.next_due_date)
+  let recurrenceIndex = schedule.cadence === 'monthly'
+    ? Math.max(0, (start.getFullYear() - anchor.getFullYear()) * 12 + start.getMonth() - anchor.getMonth() - 1)
+    : schedule.cadence === 'weekly' ? Math.max(0, Math.floor((start - anchor) / (DAY_MS * 7)) - 1) : 0
+  let cursor = schedule.cadence === 'monthly' ? addMonthsClamped(anchor, recurrenceIndex) : addDays(anchor, recurrenceIndex * 7)
   const occurrences = []
   let guard = 0
 
@@ -50,9 +54,10 @@ export function expandFinancialSchedule(schedule, {
       })
     }
     if (schedule.cadence === 'once') break
+    recurrenceIndex += 1
     cursor = schedule.cadence === 'weekly'
-      ? addDays(cursor, 7)
-      : addMonthsClamped(cursor, 1)
+      ? addDays(anchor, recurrenceIndex * 7)
+      : addMonthsClamped(anchor, recurrenceIndex)
     guard += 1
   }
   return occurrences
