@@ -1,3 +1,5 @@
+import { normalizeMoneyNumber } from './moneyNumber'
+
 export function normalizeEntityName(value = '') {
   return String(value || '')
     .trim()
@@ -7,7 +9,7 @@ export function normalizeEntityName(value = '') {
 }
 
 export function normalizeNumericText(text = '') {
-  return String(text || '').replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2')
+  return String(text || '').replace(/\d+(?:[.,]\d+)*/g, (token) => normalizeMoneyNumber(token) ?? token)
 }
 
 export function escapeRegExp(value = '') {
@@ -39,7 +41,7 @@ export function buildGoalOptions(goals = []) {
 export function matchMoney(text = '') {
   const normalizedText = normalizeNumericText(text)
   const moneyPattern =
-    /(^|[^\p{L}\p{N}])(rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|miliar|m|rupiah|perak)?(?![\p{L}\p{N}])/giu
+    /(^|[^\p{L}\p{N}])(rp\s*)?(\d+(?:[.,]\d+)*)\s*(k|rb|ribu|jt|juta|miliar|m|rupiah|perak)?(?![\p{L}\p{N}])/giu
 
   for (const candidate of normalizedText.matchAll(moneyPattern)) {
     const leadingBoundary = candidate[1] || ''
@@ -76,7 +78,9 @@ export function parseMoneyMatch(match) {
     return null
   }
 
-  let amount = parseFloat(String(match[1] || '').replace(',', '.'))
+  const normalizedNumber = normalizeMoneyNumber(match[1])
+  if (normalizedNumber === null) return null
+  let amount = Number(normalizedNumber)
   const multiplier = String(match[2] || '').toLowerCase()
   const hasCurrencyPrefix = Boolean(match.currencyPrefix) ||
     /^\s*rp\b/iu.test(String(match[0] || ''))

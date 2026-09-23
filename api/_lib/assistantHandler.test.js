@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-vi.mock('./_lib/assistantServer.js', () => ({
+vi.mock('./assistantServer.js', () => ({
   applyAssistantCors: vi.fn(),
   authenticateAssistantRequest: vi.fn(),
   getAssistantSql: vi.fn(),
@@ -8,10 +8,10 @@ vi.mock('./_lib/assistantServer.js', () => ({
   sendAssistantError: vi.fn(),
   validateAssistantOperationRequest: vi.fn(),
 }))
-vi.mock('./_lib/geminiAssistant.js', () => ({ getGeminiReply: vi.fn() }))
-import handler from './assistant'
-import { authenticateAssistantRequest, runAssistantDatabaseOperation, sendAssistantError } from './_lib/assistantServer'
-import { getGeminiReply } from './_lib/geminiAssistant'
+vi.mock('./geminiAssistant.js', () => ({ getGeminiReply: vi.fn() }))
+import handler from '../assistant'
+import { authenticateAssistantRequest, runAssistantDatabaseOperation, sendAssistantError } from './assistantServer'
+import { getGeminiReply } from './geminiAssistant'
 
 describe('assistant language operation authentication', () => {
   beforeEach(() => {

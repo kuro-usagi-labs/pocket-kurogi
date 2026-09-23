@@ -1,7 +1,8 @@
 import { normalizeIndonesianFinanceText } from '../indonesianFinanceLanguage'
+import { normalizeMoneyNumber } from '../moneyNumber'
 
 const MONEY_PATTERN =
-  /(?:(?<currency>rp)\s*)?(?<number>\d+(?:[.,]\d+)?)\s*(?<unit>ribu|rb|k|juta|jt|miliar)?\b/giu
+  /(?:(?<currency>rp)\s*)?(?<number>\d+(?:[.,]\d+)*)\s*(?<unit>ribu|rb|k|juta|jt|miliar)?\b/giu
 const FOREIGN_CURRENCY_PATTERN =
   /(?:us\$|\$|€|¥|£|₹|₩|฿|₱|₽|₫|₺)|\b(?:usd|dolar|dollar|eur|euro|sgd|yen|jpy|ringgit|myr|baht|won|krw|gbp|pound|yuan|cny|cad|aud|nzd|chf|hkd|twd|inr|rupee|peso|php|vnd|rub|try|btc|bitcoin|eth|ethereum|usdt|usdc)\b|\brm\s*(?=\d)/giu
 const NON_MONEY_PRECEDING_PATTERN =
@@ -88,13 +89,8 @@ export function extractForeignCurrencyEntities(text = '') {
 }
 
 export function parseMoneyValue(numberText = '', unit = '') {
-  let normalizedNumber = String(numberText || '').trim()
-
-  if (/^\d{1,3}(?:\.\d{3})+$/.test(normalizedNumber)) {
-    normalizedNumber = normalizedNumber.replace(/\./g, '')
-  } else {
-    normalizedNumber = normalizedNumber.replace(',', '.')
-  }
+  const normalizedNumber = normalizeMoneyNumber(numberText)
+  if (normalizedNumber === null) return 0
 
   const numeric = Number(normalizedNumber)
   if (!Number.isFinite(numeric)) return 0

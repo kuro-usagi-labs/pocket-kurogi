@@ -5,8 +5,9 @@ import {
   normalizeCategoryLookup,
   resolveExistingCategory,
 } from './categoryCatalog'
+import { normalizeMoneyNumber } from './moneyNumber'
 
-const MONEY_REGEX = /(?:rp\s*)?(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta|m)?/i
+const MONEY_REGEX = /(?:rp\s*)?(\d+(?:[.,]\d+)*)\s*(k|rb|ribu|jt|juta|m)?/i
 
 const INCOME_KEYWORDS = /\b(gaji|bonus|dapat|terima|masuk|topup|cashback|refund|komisi|fee|pendapatan|income|dividen|bunga)\b/i
 const COMMAND_WORDS = /\b(beli|bayar|buat|dari|terima|dapat|masuk|untuk|pakai|pake|di|ke|gaji|bonus|tabung|transfer|cairkan|cairin|tarik|ambil)\b/gi
@@ -22,15 +23,15 @@ export function normalizeChatText(value = '') {
 export function extractAmountFromText(text = '') {
   const normalizedText = String(text)
     .toLowerCase()
-    .replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2')
-    .replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2')
 
   const match = normalizedText.match(MONEY_REGEX)
   if (!match) {
     return 0
   }
 
-  let amount = parseFloat(String(match[1]).replace(',', '.'))
+  const normalizedNumber = normalizeMoneyNumber(match[1])
+  if (normalizedNumber === null) return 0
+  let amount = Number(normalizedNumber)
   const multiplier = String(match[2] || '').toLowerCase()
 
   if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
