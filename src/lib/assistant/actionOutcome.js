@@ -13,7 +13,15 @@ export async function confirmWithReconciliation({ action, request }) {
       const data = await request({ operation: 'confirm_action', body, signal: AbortSignal.timeout(12000) })
       if (!data) throw new Error('Hasil aksi belum diterima.')
       return { data, error: null, outcome: classifyActionOutcome({ confirmedResult: data }) }
-    } catch (error) { lastError = error }
+    } catch (error) {
+      lastError = error
+      // A definitive first-response rejection is not a lost execution receipt.
+      // After any uncertain attempt, retain unknown even if a later call rejects.
+      if (attempt === 0 && [400, 401, 403, 404, 409, 422].includes(error?.status)) {
+        error.outcome = 'failed'
+        return { data: null, error, outcome: 'failed' }
+      }
+    }
   }
   const error = new Error('Hasil pencatatan belum dapat dipastikan karena koneksi terputus. Jangan buat transaksi baru; konfirmasikan kembali aksi yang sama untuk memeriksa hasilnya.')
   error.cause = lastError

@@ -2,6 +2,7 @@ import { orchestrateAssistantMessage } from './unifiedAssistantOrchestrator'
 import { ASSISTANT_DECISION_HANDLERS } from './assistantDecisionPolicy'
 import { detectThemeRequest } from './languageAssistant'
 import { splitWalletProvisionRequest } from './walletProvisionFlow'
+import { validateLanguageProposal } from './languageProposal'
 
 export async function resolveConversationTurn(input, { interpret }) {
   const baseline = orchestrateAssistantMessage(input)
@@ -18,6 +19,10 @@ export async function resolveConversationTurn(input, { interpret }) {
   try {
     const proposal = await interpret(input.text, input)
     if (!proposal) return baseline
+    if (proposal.intent === 'set_theme') {
+      const validated = validateLanguageProposal({ proposal, text: input.text, context: input })
+      return { ...baseline, theme: validated.theme, responseSource: 'gemini' }
+    }
     if (['general_chat', 'clarify'].includes(proposal.intent)) {
       // Do not let conversation replace a partially understood financial draft.
       if (baseline.frame.action.mutates || input.dialogueState?.missingSlots?.length) return baseline

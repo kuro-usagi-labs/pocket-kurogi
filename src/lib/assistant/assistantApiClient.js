@@ -64,10 +64,12 @@ export async function requestAssistantApi({
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       payload?.error?.message ||
       'Layanan assistant tidak dapat memproses request.'
     )
+    error.status = response.status
+    throw error
   }
 
   return payload?.data ?? null

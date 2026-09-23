@@ -1,11 +1,28 @@
 # Audit remediation — 23 September 2026
 
-Status: implemented locally; **not released to production**. Independent review pending.
+Status: implemented locally; **not released to production**. Independent review pending (the earlier reviewer session did not survive restart; no verdict is claimed).
+
+## Resumed-session regression fixes
+
+- Reproduced both screenshot inputs: `pengeluaran gorengan 15k` and `pengeluaran gorengan 15k tunai` returned unknown when Gemini was unavailable. The router previously required a recording verb before giving an explicit expense label sufficient weight. It now recognizes the terse label plus a single amount, preserving query, negation and hypothetical protections. Tests verify Rp15,000, description Gorengan and a pending confirmation for Tunai, not automatic execution.
+- Validated Gemini theme proposals now reach the local theme preference; invalid values are rejected.
+- Definitive first-response API rejection retains its status and original explanation without pointless retry. A lost response followed by rejection remains unknown, preserving same-action reconciliation safety.
+- Latest full suite: 1,059 passed, 25 database tests skipped. Lint and production build passed. An earlier build attempt exhausted local memory; the later rerun succeeded. Existing legacy-target and ineffective dynamic-import build warnings remain.
+- Continuation checkout: `D:/Lang/pocket-kurogi/.worktrees/audit-continue`, branch `codex/audit-continue`; previous commits were preserved. No production data or deployment was changed.
+
+## Continuation after restart
+
+- Active continuation workspace: `D:\Lang\pocket-kurogi\.worktrees\audit-continue`, branch `codex/audit-continue`, based on `6cf3942`. The earlier worktree remains preserved.
+- Fixed validated Gemini theme proposals not reaching the local theme preference.
+- Preserved HTTP rejection status and definitive first-request validation/auth errors without retrying them or misreporting a lost receipt. An earlier uncertain execution still remains unknown even if reconciliation is later rejected.
+- Added five regression tests. Full suite: **1,054 passed, 25 skipped**. The two initial bug reproductions failed before their fixes and passed afterward.
+- Latest build verification is blocked by local memory exhaustion (Node allocation failure, then CLR failure). Drive C also reported no space during npm invocation. No system files were removed. Earlier build/browser evidence below predates these continuation edits and must not be treated as fresh release verification.
+- Independent review from the earlier session did not return an available result. Isolated database configuration remains missing. No push or production deployment performed.
 
 ## Verified locally
 
 - Clean install: 579 packages installed with `npm ci --ignore-scripts --no-audit`.
-- Unit/component/hook suite: 1,049 passed; 25 database tests skipped because no test database URL is configured.
+- Unit/component/hook suite before continuation: 1,049 passed; latest result is recorded above. 25 database tests remain skipped because no test database URL is configured.
 - Browser fixtures: 6 passed across desktop Chromium and Pixel 7 viewport (composer clear, latest scroll, failed-send restore, manual adjustment, read-only history, dark mode, Escape, report retry).
 - Build and lint passed. Dependency audit: 31 advisories before remediation; 0 after removing the application-local Vercel CLI and updating compatible js-yaml.
 - Database-required preflight correctly fails with missing `TARGET_DATABASE_URL`; this is a release blocker, not a passing integration result.

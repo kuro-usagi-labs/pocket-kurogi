@@ -2,6 +2,39 @@ import { expect, it, vi } from 'vitest'
 import { resolveConversationTurn } from './conversationTurn'
 import { runAssistantEngine } from './assistantEngine'
 const wallets = [{ id: '11111111-1111-4111-8111-111111111111', name: 'Tunai', current_balance: 100 }]
+it.each(['pengeluaran gorengan 15k', 'pengeluaran gorengan 15k tunai'])(
+  'understands terse expense input without Gemini: %s', async text => {
+    const turn = await resolveConversationTurn({ text, wallets }, { interpret: async () => null })
+    expect(turn.frame.intent).toBe('record_expense')
+    expect(turn.frame.slots.amount).toBe(15000)
+    expect(turn.frame.slots.description.toLowerCase()).toBe('gorengan')
+    if (text.endsWith('tunai')) {
+      expect(turn.frame.slots.wallet.id).toBe(wallets[0].id)
+      const result = runAssistantEngine({ text, wallets, userId: 'user-a', semanticFrame: turn.frame })
+      expect(result.pendingAction.status).toBe('pending')
+    }
+  }
+)
+it.each(['berapa pengeluaran gorengan 15k?', 'jangan catat pengeluaran gorengan 15k tunai', 'kalau pengeluaran gorengan 15k tunai'])(
+  'does not stage a question or negated/hypothetical expense: %s', async text => {
+    const turn = await resolveConversationTurn({ text, wallets }, { interpret: async () => null })
+    const result = runAssistantEngine({ text, wallets, userId: 'user-a', semanticFrame: turn.frame })
+    expect(result.pendingAction).toBeFalsy()
+  }
+)
+it('rejects invalid model theme values', async () => {
+  const turn = await resolveConversationTurn({ text: 'tampilannya gelapin dong', wallets }, {
+    interpret: async () => ({ intent: 'set_theme', theme: 'invalid' }),
+  })
+  expect(turn.theme).toBeUndefined()
+})
+
+it('applies a validated model theme proposal to the local preference', async () => {
+  const interpret = vi.fn().mockResolvedValue({ version: 1, intent: 'set_theme', theme: 'dark' })
+  const turn = await resolveConversationTurn({ text: 'tampilannya gelapin dong', wallets }, { interpret })
+  expect(interpret).toHaveBeenCalledOnce()
+  expect(turn.theme).toBe('dark')
+})
 
 it('uses structured slots without rewriting the original text and stages a confirmation', async () => {
   const text = 'barusan cuan 500rb dari jual lukisan, masuk Tunai'

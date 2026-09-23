@@ -219,7 +219,10 @@ function scoreMutations(scores, text, entities) {
     add(scores, 'record_income', 0.38, 'explicit_income_label')
     addConflict(scores, ['record_expense'], 'explicit_income_label', 0.28)
   }
-  if (hasRecordVerb && SIGNALS.expense.test(text)) {
+  const terseExpense = amountCount === 1 && /\bpengeluaran\b/iu.test(text) &&
+    !entities.question && !SIGNALS.queryVerb.test(text) &&
+    !SIGNALS.summary.test(text) && !SIGNALS.advice.test(text)
+  if ((hasRecordVerb || terseExpense) && SIGNALS.expense.test(text)) {
     add(scores, 'record_expense', 0.38, 'explicit_expense_label')
     addConflict(scores, ['record_income'], 'explicit_expense_label', 0.28)
   }
