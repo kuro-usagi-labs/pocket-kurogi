@@ -13,14 +13,14 @@ export async function createReportPdf(report) {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^\x20-\x7e\n]/g, '?')
   const money = (value) => clean(reportMoney(value))
-  const green = [22, 91, 61]
   doc.setProperties({
     title: `Laporan keuangan - ${report.period.label}`,
     author: 'Pocket Kurogi',
   })
-  doc.setFillColor(...green).rect(0, 0, 210, 40, 'F')
+  // Monochrome, print-friendly report; the application's theme is independent.
+  doc.setDrawColor(40).line(16, 40, 194, 40)
   doc
-    .setTextColor(255)
+    .setTextColor(20)
     .setFontSize(10)
     .text('POCKET KUROGI / LAPORAN KEUANGAN PRIBADI', 16, 14)
   doc.setFontSize(23).text('Laporan arus kas', 16, 25)
@@ -47,10 +47,10 @@ export async function createReportPdf(report) {
         fontSize: 8,
         cellPadding: 3,
         overflow: 'linebreak',
-        textColor: [31, 51, 42],
+        textColor: 20,
       },
-      headStyles: { fillColor: green, textColor: [255, 255, 255] },
-      alternateRowStyles: { fillColor: [242, 247, 243] },
+      headStyles: { fillColor: 230, textColor: 0 },
+      alternateRowStyles: { fillColor: 248 },
       rowPageBreak: 'avoid',
       ...options,
     })
@@ -127,7 +127,7 @@ export async function createReportPdf(report) {
     doc.setPage(page)
     if (page > 1)
       doc
-        .setTextColor(...green)
+        .setTextColor(20)
         .setFontSize(9)
         .text(clean(`POCKET KUROGI | ${report.period.label}`), 16, 13)
     doc.setDrawColor(210).line(16, 281, 194, 281)

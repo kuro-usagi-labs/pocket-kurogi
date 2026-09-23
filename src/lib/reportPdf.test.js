@@ -7,4 +7,11 @@ it('exports all rows with repeating headers and numbered pages', async () => {
   expect(doc.getNumberOfPages()).toBeGreaterThan(3)
   expect(doc.output('arraybuffer').byteLength).toBeGreaterThan(1000)
   expect(doc.lastAutoTable.body).toHaveLength(85)
+  // Check every page, including repeating table headers and footers.
+  const content = doc.internal.pages.flat().join('\n')
+  for (const match of content.matchAll(/([\d.]+) ([\d.]+) ([\d.]+) (?:rg|RG)\b/g)) {
+    expect(Number(match[1])).toBe(Number(match[2]))
+    expect(Number(match[2])).toBe(Number(match[3]))
+  }
+  expect(content).not.toMatch(/(?:^|\n)[\d.]+ [\d.]+ [\d.]+ [\d.]+ [kK](?:\n|$)/)
 })
