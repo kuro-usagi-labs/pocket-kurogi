@@ -173,13 +173,13 @@ export function useAssistantState() {
     }
 
     try {
-      const { data, error } = await confirmWithReconciliation({ action, request: requestAssistantApi })
-      if (error) return { data: null, error, outcome: 'unknown' }
+      const { data, error, outcome } = await confirmWithReconciliation({ action, request: requestAssistantApi })
+      if (error) return { data: null, error, outcome }
       pendingActionRef.current = null
       dialogueStateRef.current = null
       setPendingAction(null)
       setDialogueState(null)
-      return { data, error: null }
+      return { data, error: null, outcome }
     } catch (error) {
       return { data: null, error }
     }

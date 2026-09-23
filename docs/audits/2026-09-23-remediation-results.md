@@ -4,6 +4,8 @@ Status: implemented locally; **not released to production**. Independent review 
 
 ## Resumed-session regression fixes
 
+- Follow-up review found `useAssistantState.confirmPendingAction` overwrote definitive rejection outcomes with unknown and dropped confirmed outcomes. The hook now preserves all three reconciliation outcomes. Three real-hook regressions passed, followed by the complete suite: 1,062 passed and 25 database tests skipped; lint passed. This is a local follow-up review, not a replacement claim for the missing independent review.
+
 - Reproduced both screenshot inputs: `pengeluaran gorengan 15k` and `pengeluaran gorengan 15k tunai` returned unknown when Gemini was unavailable. The router previously required a recording verb before giving an explicit expense label sufficient weight. It now recognizes the terse label plus a single amount, preserving query, negation and hypothetical protections. Tests verify Rp15,000, description Gorengan and a pending confirmation for Tunai, not automatic execution.
 - Validated Gemini theme proposals now reach the local theme preference; invalid values are rejected.
 - Definitive first-response API rejection retains its status and original explanation without pointless retry. A lost response followed by rejection remains unknown, preserving same-action reconciliation safety.
