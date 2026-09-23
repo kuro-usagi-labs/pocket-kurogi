@@ -196,6 +196,20 @@ function deriveSlots(intent, entities, text) {
   }
 
   if (intent === 'record_multiple_transactions') {
+    if (entities.bulkLines) {
+      const items = entities.bulkLines.map(({ text: line, entities: lineEntities, validLabel }, index) => {
+        if (!validLabel || lineEntities.amounts.length !== 1) return null
+        const transactionType = /^pemasukan\b/iu.test(line) ? 'income' : 'expense'
+        const item = deriveSlots(transactionType === 'income' ? 'record_income' : 'record_expense', lineEntities, line)
+        if (!item.description || !(item.amount > 0)) return null
+        return { clientItemId: `item-${index + 1}`, transactionType, amount: item.amount,
+          description: item.description, categoryId: item.category?.id || null,
+          category: item.category?.name || null, walletId: item.wallet?.id || null,
+          wallet: item.wallet?.name || null, occurredAt: item.occurredAt || null }
+      })
+      // Never turn a partly understood list into a partial financial write.
+      return { items: items.length <= 20 && items.every(Boolean) ? items : [], occurredAt }
+    }
     return compactObject({
       items: compoundPurchase?.items || deriveMultipleItems(entities, text),
       wallet,

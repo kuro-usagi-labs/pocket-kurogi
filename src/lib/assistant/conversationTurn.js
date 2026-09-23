@@ -6,6 +6,8 @@ import { validateLanguageProposal } from './languageProposal'
 
 export async function resolveConversationTurn(input, { interpret }) {
   const baseline = orchestrateAssistantMessage(input)
+  // A model proposal for a single transaction must not replace a bulk draft.
+  if (baseline.frame.intent === 'record_multiple_transactions') return baseline
   // Persisted drafts, confirmations, cancellation, OCR and provisioning retain
   // their existing deterministic state machine. A model cannot execute a draft.
   if (input.pendingAction || input.pendingMemoryProposal || input.imageFile ||

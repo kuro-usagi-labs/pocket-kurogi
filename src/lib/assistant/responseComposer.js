@@ -326,8 +326,9 @@ function composeInterpretation(intent, slots) {
     return `Buat target ${slots.description || 'tabungan baru'} sebesar ${formatRupiah(slots.amount)}${opening}.`
   }
   if (intent === 'record_multiple_transactions') {
-    const total = (slots.items || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
-    return `Total ${slots.items?.length || 0} transaksi adalah ${formatRupiah(total)}.`
+    const income = (slots.items || []).filter(item => item.transactionType === 'income').reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    const expense = (slots.items || []).filter(item => item.transactionType !== 'income').reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    return `${slots.items?.length || 0} transaksi: pemasukan ${formatRupiah(income)}, pengeluaran ${formatRupiah(expense)}. Perubahan saldo bersih ${formatRupiah(income - expense)}.`
   }
   return null
 }
@@ -335,7 +336,7 @@ function composeInterpretation(intent, slots) {
 function composeDetails(intent, slots) {
   if (intent !== 'record_multiple_transactions') return []
   return (slots.items || []).map((item) =>
-    `${item.description || 'Transaksi'} ${formatRupiah(item.amount)}`
+    `${item.transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'}: ${item.description || 'Transaksi'} ${formatRupiah(item.amount)}${item.wallet ? ` (${item.wallet})` : ''}`
   )
 }
 
@@ -405,6 +406,8 @@ function buildPendingActionCard(action, slots, clarification) {
     items: (slots.items || []).map((item) => ({
       id: item.clientItemId,
       description: item.description,
+      transactionType: item.transactionType,
+      wallet: item.wallet || slots.wallet?.name || null,
       amount: item.amount,
       category: item.category || null,
     })),

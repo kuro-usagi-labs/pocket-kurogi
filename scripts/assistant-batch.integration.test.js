@@ -120,6 +120,32 @@ describeWithDatabase('atomic assistant transaction batches', () => {
     }
   })
 
+  it('records mixed bulk income and expenses once with the correct net balance', async () => {
+    await client.query('begin')
+    try {
+      const wallet = await client.query(
+        `insert into public.wallets (user_id, name, wallet_type, initial_balance, current_balance)
+         values ($1, $2, 'cash', 100000, 100000) returning id::text`,
+        [existingUserId, `Mixed bulk ${crypto.randomUUID()}`],
+      )
+      const walletId = wallet.rows[0].id
+      const items = createBatchItems(walletId, [15000, 10000, 8000])
+      items[1].transaction_type = 'income'
+      const requestId = crypto.randomUUID()
+      await setAuthenticatedRole(client, existingUserId)
+      const first = await callBatch(client, requestId, items)
+      const replay = await callBatch(client, requestId, items)
+      expect(first).toMatchObject({ item_count: 3, income_total: 10000, expense_total: 23000, net_delta: -13000 })
+      expect(replay.replayed).toBe(true)
+      const balance = await client.query('select current_balance from public.wallets where id = $1', [walletId])
+      expect(Number(balance.rows[0].current_balance)).toBe(87000)
+      const count = await client.query('select count(*)::int as count from public.transactions where wallet_id = $1', [walletId])
+      expect(count.rows[0].count).toBe(3)
+    } finally {
+      await client.query('rollback')
+    }
+  })
+
   it('rolls back every item when a later debit exceeds the wallet balance', async () => {
     await client.query('begin')
     try {

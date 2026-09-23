@@ -53,6 +53,10 @@ export function planClarification({
   }
 
   const missingSlot = slotResult?.missingSlots?.[0]
+  if (missingSlot === 'items' && entities.bulkLines) {
+    return { type: 'slot', field: 'items', candidates: [],
+      question: 'Belum ada transaksi yang dicatat. Kirim ulang seluruh daftar, maksimal 20 baris. Setiap baris harus berisi pemasukan/pengeluaran, satu nominal, dan catatan; contoh: pengeluaran 15k jajan.' }
+  }
   if (missingSlot) {
     return {
       type: 'slot',

@@ -46,6 +46,13 @@ export function extractAssistantEntities({
   now = new Date(),
 } = {}) {
   const normalizedText = normalizeIndonesianFinanceText(text)
+  const lines = String(text).split(/\r?\n/u).map(line => line.trim()).filter(Boolean)
+  const bulkLines = lines.length > 1 && lines.some(line => /^(?:pengeluaran|pemasukan)\b/iu.test(line))
+    ? lines.slice(0, 21).map(line => ({
+        text: line,
+        validLabel: /^(?:pengeluaran|pemasukan)\b/iu.test(line),
+        entities: extractAssistantEntities({ text: line, wallets, archivedWallets, categories, goals, memory, categoryRules, walletRules, now }),
+      })) : null
   const transactionType = inferTransactionType(normalizedText)
   const amounts = extractMoneyEntities(normalizedText)
   const foreignCurrencies = extractForeignCurrencyEntities(normalizedText)
@@ -118,6 +125,7 @@ export function extractAssistantEntities({
     : inferredCategories
 
   return {
+    bulkLines,
     normalizedText,
     amounts,
     foreignCurrencies,

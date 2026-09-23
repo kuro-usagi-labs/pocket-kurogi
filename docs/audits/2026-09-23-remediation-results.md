@@ -2,6 +2,15 @@
 
 Status: implemented locally; **not released to production**. Independent review pending (the earlier reviewer session did not survive restart; no verdict is claimed).
 
+## Bulk and isolated database verification
+
+- Added multiline mixed income/expense parsing (up to 20 lines), per-line amounts/descriptions/categories/wallets, shared-wallet follow-up and a single confirmation. Incomplete lists are not partially staged; Gemini cannot replace a bulk draft with one transaction. Review summaries distinguish income, expense and net change.
+- With user approval, Neon branch `audit-bulk-test` (`br-jolly-bird-ax6whkfs`) contains an isolated copy of production, with one-day expiry. Schema-only branching was unsupported by the legacy anonymous role. Production was not modified.
+- Connection hostname was verified against that branch; credentials stay in ignored `.env.test.local` and are not committed.
+- All 26 real database integration tests passed across five suites (93.75s), including a new mixed 15,000 expense / 10,000 income / 8,000 expense case, net -13,000 and idempotent replay. The provider migration was tested inside a rolled-back transaction, not installed in production.
+- Initial 5s test limits timed out on remote round trips and disrupted a following transaction test. Raising database-only test/hook limits to 30s yielded a clean full rerun; assertions and access protections were unchanged.
+- Latest application suite: 1,069 passed before the added database case; bulk/card focused suite 11 passed. Lint and build passed. Remaining release tasks: final review, production provider migration, persistent CI test database secret (the temporary branch expires), and deployment verification.
+
 ## Resumed-session regression fixes
 
 - Follow-up review found `useAssistantState.confirmPendingAction` overwrote definitive rejection outcomes with unknown and dropped confirmed outcomes. The hook now preserves all three reconciliation outcomes. Three real-hook regressions passed, followed by the complete suite: 1,062 passed and 25 database tests skipped; lint passed. This is a local follow-up review, not a replacement claim for the missing independent review.

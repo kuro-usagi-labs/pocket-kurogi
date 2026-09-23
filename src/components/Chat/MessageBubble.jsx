@@ -276,6 +276,9 @@ function PendingActionCard({ card, disabled = false, inactive = false, formatRup
                 <p className="truncate text-[11px] font-extrabold">
                   {item.description || `Transaksi ${index + 1}`}
                 </p>
+                {item.transactionType && <p className="mt-0.5 text-[10px] font-bold text-muted">
+                  {item.transactionType === 'income' ? 'Pemasukan' : 'Pengeluaran'}{item.wallet ? ` · ${item.wallet}` : ''}
+                </p>}
                 {item.category ? (
                   <p className="mt-0.5 text-[10px] font-bold text-muted">{item.category}</p>
                 ) : null}

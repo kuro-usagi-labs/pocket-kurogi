@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "audit:backend": "node scripts/audit-neon-backend.mjs",
-    "test:db": "vitest run scripts/neon-rls.integration.test.js scripts/assistant-batch.integration.test.js scripts/assistant-state.integration.test.js scripts/financial-planning.integration.test.js scripts/audit-remediation.integration.test.js --maxWorkers=1 --pool=threads",
+    "test:db": "vitest run scripts/neon-rls.integration.test.js scripts/assistant-batch.integration.test.js scripts/assistant-state.integration.test.js scripts/financial-planning.integration.test.js scripts/audit-remediation.integration.test.js --maxWorkers=1 --pool=threads --testTimeout=30000 --hookTimeout=30000",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
