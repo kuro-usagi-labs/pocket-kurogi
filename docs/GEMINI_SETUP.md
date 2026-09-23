@@ -1,14 +1,18 @@
-# Gemini conversation layer
+# Gemini language-to-action layer
 
-Gemini handles conversational messages classified as `general_chat` or safe `unknown`
-intents. The deterministic response is prepared first and kept if Gemini fails. Known
-financial queries, calculations, mutations, pending confirmations, memory proposals,
-and safety failures are not replaced. Generated text is never parsed/executed as an action.
+Gemini classifies fresh messages through authenticated `POST /api/assistant` with
+`operation: interpret`. Structured output supports income/expenses, wallet transfers,
+wallet/goal creation, goal deposits/withdrawals, financial queries and theme changes.
+The server compiles an allowlisted command, requiring source evidence for amounts and
+referenced names. The existing deterministic pipeline validates and stages financial
+actions for confirmation; reports use actual backend data. Gemini never executes SQL
+or supplies authoritative balances. Unknown or unsafe interpretations fall back locally.
 
-This first version improves casual language and explanations, not arbitrary financial
-command parsing. Gemini receives only the current message (maximum 2,000 characters),
-not account balances, transactions, images, or chat history. Its replies are labeled as
-AI conversation without financial-data access. Model text is not guaranteed factual.
+Only the current message (maximum 2,000 characters) and wallet/goal names are sent,
+not balances, transaction records, images or chat history. Pending confirmations,
+clarification followups and memory workflows stay deterministic. Successful AI replies
+no longer have the old conversation-only banner. Theme changes apply immediately to
+the local device preference; supported dark/light requests also work without Gemini.
 
 ## Activate on Vercel
 
@@ -27,11 +31,12 @@ for API routes; Vite alone does not run the Vercel backend.
 ## Availability and quota
 
 - Authenticated requests only, through the existing assistant JWT gateway.
-- Atomic shared Neon gate: at most one provider attempt per 15 seconds per key/model.
+- Atomic shared Neon gate: one in-flight attempt per key/model with a 15-second lease.
+  Success releases the lease immediately for the next turn.
   Concurrent/busy messages immediately keep their deterministic reply.
 - HTTP 429: 24-hour cooldown. Invalid credentials/model/configuration: 24 hours.
 - Transient failures, timeouts, malformed/blocked/truncated output: 60 seconds.
-- Google request timeout: 8 seconds; browser language request: 10 seconds.
+- Google request timeout: 8 seconds; browser interpretation request: 12 seconds.
 - After cooldown expires, the next eligible message probes again automatically.
 - Cooldowns survive Vercel cold starts. Only a SHA-256 key/model fingerprint is stored.
 - If the private cooldown table cannot be accessed, Gemini is skipped. If a later

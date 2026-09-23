@@ -11,6 +11,19 @@ function setup(response = success()) {
 }
 
 describe('Gemini conversation gateway', () => {
+  it('classifies free language, sends only names, and releases the successful lease', async () => {
+    const input = setup(success(JSON.stringify({ intent: 'record_income', amountText: '2,860,097', description: 'Gaji' })))
+    const result = await getGeminiReply({ ...input, classify: true, text: 'gaji 2,860,097 tolong catat', context: { wallets: ['BCA'], goals: [], balance: 999 } })
+    expect(result).toEqual({ mode: 'gemini', interpretation: { intent: 'record_income', command: 'catat pemasukan Gaji Rp2860097,00' } })
+    const body = JSON.parse(input.fetchImpl.mock.calls[0][1].body)
+    expect(body.generationConfig.responseMimeType).toBe('application/json')
+    expect(body.contents[0].parts[0].text).not.toContain('999')
+    expect(input.sql).toHaveBeenCalledTimes(2)
+  })
+  it.each(['not json', '{"intent":"delete_everything"}', '{"intent":"record_income","amountText":"900000"}'])('rejects invalid classification: %s', reply => {
+    const input = setup(success(reply))
+    return expect(getGeminiReply({ ...input, classify: true })).resolves.toMatchObject({ mode: 'fallback' })
+  })
   it('keeps credentials in headers and sends only the current text', async () => {
     const input = setup()
     expect(await getGeminiReply(input)).toEqual({ mode: 'gemini', reply: 'Hai! Lagi pengin cerita apa?' })

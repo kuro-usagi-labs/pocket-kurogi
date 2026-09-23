@@ -1,9 +1,32 @@
 import { describe, expect, it, vi } from 'vitest'
 vi.mock('./assistantApiClient', () => ({ requestAssistantApi: vi.fn() }))
-import { canUseLanguageAssistant, requestLanguageReply } from './languageAssistant'
+import { canUseLanguageAssistant, requestLanguageReply, requestLanguageInterpretation, detectThemeRequest, isSafeLanguageRewrite } from './languageAssistant'
 import { orchestrateAssistantMessage } from './unifiedAssistantOrchestrator'
 
 describe('optional language assistance', () => {
+  it('sends names without financial records to the interpreter', async () => {
+    const request = vi.fn().mockResolvedValue({ mode: 'gemini', interpretation: { intent: 'set_theme', theme: 'dark' } })
+    expect(await requestLanguageInterpretation('aktifkan darkmode', { wallets: [{ name: 'BCA', current_balance: 777 }] }, request)).toEqual({ intent: 'set_theme', theme: 'dark' })
+    expect(request.mock.calls[0][0].body.context).toEqual({ wallets: ['BCA'], goals: [] })
+    expect(await requestLanguageInterpretation('hi', {}, async () => { throw new Error('quota') })).toBeNull()
+  })
+  it('supports offline theme requests without changing negated preferences', () => {
+    expect(detectThemeRequest('aktifkan darkmode dong mata saya sakit')).toBe('dark')
+    expect(detectThemeRequest('jangan aktifkan darkmode')).toBeNull()
+  })
+  it('does not let a rewrite strip negation or change the classified action', () => {
+    const candidate = orchestrateAssistantMessage({ text: 'catat gaji 5jt dari BCA', wallets: [{ id: 'bca', name: 'BCA' }] }).frame
+    const original = orchestrateAssistantMessage({ text: 'jangan catat gaji 5jt' }).frame
+    expect(isSafeLanguageRewrite(original, candidate, { intent: 'record_income' })).toBe(false)
+    expect(isSafeLanguageRewrite(candidate, candidate, { intent: 'record_expense' })).toBe(false)
+    expect(isSafeLanguageRewrite(candidate, candidate, { intent: 'record_income' })).toBe(true)
+  })
+  it('accepts the salary rewrite while preserving the missing-wallet question', () => {
+    const original = orchestrateAssistantMessage({ text: 'aku baru mendapatkan gaji hari ini yaitu 2,860,097 tolong catat' }).frame
+    const candidate = orchestrateAssistantMessage({ text: 'catat pemasukan Gaji Rp2860097,00 hari ini' }).frame
+    expect(isSafeLanguageRewrite(original, candidate, { intent: 'record_income' })).toBe(true)
+    expect(candidate.slots.description).toBe('Gaji')
+  })
   const frame = { intent: 'general_chat', action: { mutates: false }, safety: { errors: [] } }
   it('allows ordinary conversation', () => {
     expect(canUseLanguageAssistant({ frame })).toBe(true)
@@ -26,7 +49,7 @@ describe('optional language assistance', () => {
     const request = vi.fn().mockResolvedValue({ mode: 'gemini', reply: 'Halo!', action: { type: 'delete' } })
     const reply = await requestLanguageReply('hi', request)
     expect(reply.text).toContain('Halo!')
-    expect(reply.text).toContain('tidak membaca atau mengubah')
+    expect(reply.text).not.toContain('tidak membaca atau mengubah')
     expect(reply.action).toBeUndefined()
     expect(request.mock.calls[0][0].signal).toBeInstanceOf(AbortSignal)
   })

@@ -284,7 +284,8 @@ function deriveDescription(text, entities) {
   }
 
   let cleaned = String(text || '')
-    .replace(/(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:ribu|rb|k|juta|jt|miliar)?/giu, ' ')
+    .replace(/(?:rp\s*)?\d+(?:[.,]\d+)*\s*(?:ribu|rb|k|juta|jt|miliar)?/giu, ' ')
+    .replace(/\b(?:aku|saya|gue|gw|baru|barusan|mendapatkan|mendapat|menerima|yaitu|yakni|sebesar|senilai|dong|deh|nih)\b/giu, ' ')
     .replace(/\b(?:tolong|mohon|catat|masukan|masukkan|simpan|rekam|input|tambahkan|tambah|tadi|hari ini|kemarin|pakai|pake|dari|ke|via|pada|untuk|sebagai|dengan|catatan|dompet|wallet|rekening|pemasukan|pendapatan|pengeluaran|income|expense|masuk|keluar|cash|tunai|kontan|uang fisik|uang kontan)\b/giu, ' ')
 
   for (const walletName of walletNames) {

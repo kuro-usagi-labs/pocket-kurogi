@@ -35,9 +35,9 @@ export default async function handler(req, res) {
     operation = req.method === 'GET'
       ? String(req.query?.operation || 'get_state')
       : String(body.operation || '')
-    if (operation === 'language' && req.method === 'POST') {
+    if (['language', 'interpret'].includes(operation) && req.method === 'POST') {
       res.setHeader('Cache-Control', 'no-store')
-      const data = await getGeminiReply({ sql, text: body.text })
+      const data = await getGeminiReply({ sql, text: body.text, context: body.context, classify: operation === 'interpret' })
       res.status(200).json({ data })
       return
     }

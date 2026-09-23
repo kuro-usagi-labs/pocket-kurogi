@@ -41,7 +41,8 @@ import {
   getPendingMemoryProposal,
 } from '../../lib/assistant/memoryProposal'
 import { lazyWithRecovery } from '../../lib/lazyWithRecovery'
-import { canUseLanguageAssistant, requestLanguageReply } from '../../lib/assistant/languageAssistant'
+import { detectThemeRequest, isSafeLanguageRewrite, requestLanguageInterpretation } from '../../lib/assistant/languageAssistant'
+import { useTheme } from '../../contexts/ThemeContext'
 import { getCurrentTimeLabel, getWelcomeMessage } from '../../lib/appShellChatHelpers'
 
 const loadHistoryView = () => import('../History/HistoryView')
@@ -72,6 +73,7 @@ function ViewLoadingFallback() {
 }
 
 export default function AppShell() {
+  const { setThemePreference } = useTheme()
   const {
     wallets,
     archivedWallets,
@@ -408,7 +410,7 @@ export default function AppShell() {
         const memoryProposalDecision = pendingMemoryProposal
           ? classifyMemoryProposalReply(userMessageText)
           : null
-        const orchestration = orchestrateAssistantMessage({
+        const orchestrationInput = {
           text: userMessageText,
           messages,
           wallets,
@@ -426,14 +428,39 @@ export default function AppShell() {
             totalBalance,
             budgets,
           },
-        })
+        }
+        let orchestration = orchestrateAssistantMessage(orchestrationInput)
+        let languageResponse = null
+        const freshRequest = !assistantSnapshot.pendingAction && !pendingMemoryProposal &&
+          !imageFile && !assistantSnapshot.dialogueState?.missingSlots?.length &&
+          orchestration.decision.handler === ASSISTANT_DECISION_HANDLERS.CANONICAL
+        if (freshRequest) {
+          const interpretation = await requestLanguageInterpretation(userMessageText, { wallets, goals })
+          const theme = interpretation?.intent === 'set_theme'
+            ? interpretation.theme : detectThemeRequest(userMessageText)
+          if (theme && ['dark', 'light', 'system'].includes(theme)) {
+            setThemePreference(theme)
+            languageResponse = { text: `Tampilan sudah diubah ke ${theme === 'dark' ? 'mode gelap' : theme === 'light' ? 'mode terang' : 'tema otomatis mengikuti perangkat'}.` }
+          } else if (interpretation?.command &&
+            !(orchestration.frame.action?.kind === 'query' && orchestration.frame.intent === interpretation.intent)) {
+            const candidate = orchestrateAssistantMessage({ ...orchestrationInput, text: interpretation.command })
+            if (isSafeLanguageRewrite(orchestration.frame, candidate.frame, interpretation)) {
+              orchestration = candidate
+            }
+          } else if (['general_chat', 'clarify'].includes(interpretation?.intent) && interpretation.reply) {
+            languageResponse = { text: interpretation.reply, metadata: { responseSource: 'gemini' } }
+          }
+        }
         const assistantInputText = orchestration.resolvedText
         const handler = orchestration.decision.handler
         let actualEngine = handler
 
         let response
 
-        if (
+        if (languageResponse) {
+          actualEngine = 'gemini-interpreter'
+          response = languageResponse
+        } else if (
           handler === ASSISTANT_DECISION_HANDLERS.MEMORY_CONFIRMATION &&
           memoryProposalDecision === 'confirm'
         ) {
@@ -501,19 +528,6 @@ export default function AppShell() {
           }
         }
 
-        if (actualEngine === 'canonical-pipeline' && !response?.card && canUseLanguageAssistant({
-          frame: orchestration.frame,
-          pendingAction: assistantSnapshot.pendingAction,
-          pendingMemoryProposal,
-          imageFile,
-        })) {
-          const languageResponse = await requestLanguageReply(userMessageText)
-          if (languageResponse) {
-            response = languageResponse
-            actualEngine = 'gemini-conversation'
-          }
-        }
-
         orchestration.actualEngine = actualEngine
         orchestration.frame = {
           ...orchestration.frame,
@@ -552,6 +566,7 @@ export default function AppShell() {
       persistBotResponse,
       processLearningRule,
       saveMessage,
+      setThemePreference,
       showNotice,
       totalBalance,
       walletRules,
