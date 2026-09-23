@@ -28,6 +28,11 @@ describe('Gemini to deterministic command contract', () => {
       expect(frame.slots.amount).toBe(2860097)
       expect(frame.slots.description).toBe('Gaji')
     }
+    if (intent === 'create_wallet') expect(frame.slots).toMatchObject({ walletName: 'Jago', initialBalance: 50000 })
+    if (intent === 'create_saving_goal') expect(frame.slots).toMatchObject({ description: 'Liburan', amount: 5000000 })
+    if (intent === 'deposit_goal') expect(frame.slots).toMatchObject({ amount: 100000, goal: { id: 'goal' }, sourceWallet: { id: 'bca' } })
+    if (intent === 'withdraw_goal') expect(frame.slots).toMatchObject({ amount: 100000, goal: { id: 'goal' }, destinationWallet: { id: 'bca' } })
+    if (intent === 'transfer_money') expect(frame.slots).toMatchObject({ amount: 100000, sourceWallet: { id: 'bca' }, destinationWallet: { id: 'cash' } })
   })
   it('cleans the original salary description without Gemini too', () => {
     const { frame } = orchestrateAssistantMessage({ text: 'aku baru mendapatkan gaji hari ini yaitu 2,860,097 tolong catat', wallets })
