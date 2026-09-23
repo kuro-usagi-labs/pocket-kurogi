@@ -261,8 +261,9 @@ function SavingsOpening({ balance, goals, formatRupiah, onNavigate, reduceMotion
     >
       <div className="relative grid gap-5 sm:grid-cols-[minmax(0,1fr)_230px] sm:items-center">
         <div>
+          <p className="mb-3 text-[9px] font-bold tracking-[0.18em] text-[var(--accent-ink)]">RUANG UNTUK RENCANA BESARMU</p>
           <p className="max-w-[19ch] font-jakarta text-[26px] font-bold leading-[1.08] tracking-[-0.05em] text-midnight sm:text-[32px]">
-            {needsBalanceSetup ? 'Mulai dari saldo yang kamu punya.' : 'Mau nabung untuk apa hari ini?'}
+            {needsBalanceSetup ? 'Awal yang baik, mulai dari satu dompet.' : 'Keuangan lebih rapi. Pikiran lebih tenang.'}
           </p>
           <p className="mt-2 max-w-[42ch] text-[12px] font-medium leading-relaxed text-muted sm:text-[13px]">
             {needsBalanceSetup

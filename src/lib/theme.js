@@ -28,7 +28,7 @@ export function applyThemePreference(preference) {
   root.dataset.theme = resolvedTheme
   root.dataset.themePreference = preference
   root.style.colorScheme = resolvedTheme
-  themeColor?.setAttribute('content', resolvedTheme === 'dark' ? '#111317' : '#f2f3f5')
+  themeColor?.setAttribute('content', resolvedTheme === 'dark' ? '#0d1913' : '#f5f8f5')
 
   return resolvedTheme
 }

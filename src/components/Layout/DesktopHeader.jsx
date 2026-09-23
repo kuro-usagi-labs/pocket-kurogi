@@ -1,4 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext'
+import ThemeToggle from '../shared/ThemeToggle'
 
 const PAGE_COPY = {
   chat: ['Ruang obrolan', 'Bicarakan uangmu seperti bicara dengan teman.'],
@@ -25,15 +26,14 @@ export default function DesktopHeader({ activeTab = 'chat', balance = 0, formatR
         </div>
       </div>
 
-      <button
-        type="button"
+      <div className="flex items-center gap-4"><ThemeToggle /><div
         className="min-w-[172px] rounded-[16px] border border-midnight/8 bg-white px-4 py-3 text-right shadow-[0_14px_34px_-28px_rgba(25,27,32,0.45)] transition-[border-color,transform] hover:border-orange-200 active:scale-[0.98]"
       >
         <span className="block text-[10px] font-bold text-muted">Saldo tersedia</span>
         <span className="money-number mt-0.5 block text-[17px] font-bold text-midnight">
           {formatRupiah ? formatRupiah(balance) : balance}
         </span>
-      </button>
+      </div></div>
     </header>
   )
 }

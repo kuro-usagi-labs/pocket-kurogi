@@ -8,8 +8,9 @@ import {
   toAuthMessage,
 } from '../../lib/authMessages'
 import KurogiLogo from '../shared/KurogiLogo'
+import ThemeToggle from '../shared/ThemeToggle'
 
-export default function LoginPage() {
+export default function LoginPage({ initialMode = 'login', onBack }) {
   const {
     signInWithPassword,
     signUp,
@@ -23,7 +24,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [verificationLoading, setVerificationLoading] = useState(false)
   const [verificationEmail, setVerificationEmail] = useState('')
-  const [mode, setMode] = useState(getInitialAuthMode)
+  const [mode, setMode] = useState(() => getInitialAuthMode() === 'reset' ? 'reset' : initialMode)
   const [message, setMessage] = useState(getInitialAuthMessage)
   const [error, setError] = useState(getInitialAuthError)
   const passwordId = useId()
@@ -133,13 +134,14 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="app-min-viewport paper-grid w-full overflow-y-auto bg-champagne px-4 py-4 font-inter sm:px-6 lg:p-8">
-      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] w-full max-w-6xl overflow-hidden rounded-[20px] border border-midnight/8 bg-white shadow-[0_32px_100px_-48px_rgba(31,32,38,0.45)] lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[1.08fr_0.92fr]">
+    <main className="public-page auth-page font-inter">
+      <header className="auth-nav"><button type="button" onClick={onBack} className="button-text"><ArrowLeft size={17} /> Kembali ke beranda</button><ThemeToggle /></header>
+      <div className="auth-layout">
         <Motion.section
           initial={reduceMotion ? false : { opacity: 0, x: -18 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          className="relative flex min-h-[270px] flex-col justify-between overflow-hidden bg-midnight p-6 text-white sm:min-h-[430px] sm:p-9 lg:min-h-0 lg:p-12"
+          className="auth-story relative flex flex-col justify-between overflow-hidden p-7 text-white sm:p-10 lg:p-14"
         >
           <div className="relative flex items-center gap-3">
             <KurogiLogo size={50} />
@@ -151,7 +153,7 @@ export default function LoginPage() {
 
           <div className="relative mb-2 mt-8 max-w-xl sm:my-12 lg:my-16">
             <h1 className="max-w-[15ch] font-jakarta text-[35px] font-bold leading-[0.98] tracking-[-0.06em] sm:text-[50px]">
-              Uang lebih mudah saat bisa dibicarakan.
+              Langkah kecil. <br />Masa depan <br />lebih tenang.
             </h1>
             <p className="mt-4 max-w-[38ch] text-[13px] font-medium leading-relaxed text-white/62 sm:mt-5 sm:text-[15px]">
               Catat belanja, susun target, dan cek kemajuan dalam satu percakapan.
@@ -216,6 +218,7 @@ export default function LoginPage() {
                 <span className="mb-2 block text-[12px] font-bold text-midnight">Email</span>
                 <input
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}

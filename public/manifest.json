@@ -4,8 +4,8 @@
   "description": "Catatan keuangan via chat.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F7FB",
-  "theme_color": "#111827",
+  "background_color": "#f5f8f5",
+  "theme_color": "#16734b",
   "icons": [
     {
       "src": "favicon.svg",

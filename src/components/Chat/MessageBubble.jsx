@@ -40,8 +40,8 @@ export default function MessageBubble({
         <div
           className={`relative text-[14px] leading-relaxed transition-all sm:text-[15px] ${bubbleShape} ${
             isUser
-              ? 'bg-midnight px-4 py-3 text-white shadow-[0_12px_28px_rgba(31,32,38,0.14)]'
-              : 'border border-midnight/[0.08] bg-white px-4 py-3.5 text-midnight shadow-[0_12px_30px_-28px_rgba(25,27,32,0.5)]'
+              ? 'chat-user-bubble px-4 py-3 text-white'
+              : 'chat-assistant-bubble px-4 py-3.5 text-midnight'
           }`}
         >
           {msg.image && (

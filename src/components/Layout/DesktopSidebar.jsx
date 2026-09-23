@@ -4,11 +4,11 @@ import { useAuth } from '../../contexts/AuthContext'
 import KurogiLogo from '../shared/KurogiLogo'
 
 const navItems = [
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
-  { id: 'history', label: 'Histori', icon: Clock3 },
+  { id: 'chat', label: 'Asisten Kurogi', icon: MessageCircle },
+  { id: 'history', label: 'Riwayat transaksi', icon: Clock3 },
   { id: 'wallets', label: 'Dompet', icon: PiggyBank },
   { id: 'planning', label: 'Rencana', icon: CalendarRange },
-  { id: 'analytics', label: 'Analitik', icon: BarChart3 },
+  { id: 'analytics', label: 'Laporan keuangan', icon: BarChart3 },
   { id: 'settings', label: 'Setelan', icon: Settings2 },
 ]
 
@@ -68,7 +68,8 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
         <div className="mb-4 h-px bg-midnight/[0.07]" />
       )}
 
-      <nav aria-label="Navigasi utama" className="flex flex-1 flex-col gap-1">
+      {!collapsed && <p className="mb-3 px-3.5 text-[9px] font-bold tracking-[0.18em] text-muted">RUANG KEUANGAN</p>}
+      <nav aria-label="Navigasi utama" className="flex flex-1 flex-col gap-2">
         {navItems.map((item) => {
           const isActive = activeTab === item.id
           const Icon = item.icon
@@ -99,6 +100,7 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
         })}
       </nav>
 
+      {!collapsed && <div className="sidebar-note"><PiggyBank size={23} /><p>Sedikit demi sedikit,<br /><strong>jadi kebiasaan baik.</strong></p><span>Catat satu transaksi hari ini.</span></div>}
       <button
         type="button"
         onClick={signOut}

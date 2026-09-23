@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pocket Kurogi">
-  <rect width="64" height="64" rx="14" fill="#111827"/>
+  <rect width="64" height="64" rx="14" fill="#164d33"/>
   <path d="M18 18h17.5c6.2 0 10.5 3.9 10.5 9.7 0 5.9-4.3 9.8-10.5 9.8H27v8.5h-9V18Zm9 7.8v4.4h7.3c1.7 0 2.8-.9 2.8-2.2 0-1.4-1.1-2.2-2.8-2.2H27Z" fill="#fff"/>
-  <path d="M40.5 42.5 49 52h-9.7l-7.8-9.1 7.4-8.4h9.5l-7.9 8Z" fill="#5EEAD4"/>
+  <path d="M40.5 42.5 49 52h-9.7l-7.8-9.1 7.4-8.4h9.5l-7.9 8Z" fill="#d9f6bd"/>
 </svg>

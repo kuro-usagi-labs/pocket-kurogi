@@ -1,4 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import LandingPage from './components/Landing/LandingPage'
+import { getPublicPage } from './lib/publicNavigation'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import LoginPage from './components/Auth/LoginPage'
 import AppShell from './components/Layout/AppShell'
@@ -7,6 +9,16 @@ import { ThemeProvider } from './contexts/ThemeContext'
 
 function AppContent() {
   const { user, loading } = useAuth()
+  const [page, setPage] = useState(() => getPublicPage(window.location.search))
+  useEffect(() => {
+    const update = () => setPage(getPublicPage(window.location.search))
+    window.addEventListener('popstate', update)
+    return () => window.removeEventListener('popstate', update)
+  }, [])
+  const navigate = (next) => {
+    window.history.pushState({}, '', next === 'home' ? '/' : `/?page=${next}`)
+    setPage(next)
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -32,7 +44,8 @@ function AppContent() {
     )
   }
 
-  return user ? <AppShell /> : <LoginPage />
+  if (user) return <AppShell />
+  return page === 'home' ? <LandingPage onLogin={navigate} /> : <LoginPage key={page} initialMode={page} onBack={() => navigate('home')} />
 }
 
 export default function App() {

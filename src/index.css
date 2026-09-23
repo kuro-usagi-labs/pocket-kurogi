@@ -1,20 +1,20 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: light dark;
-  --canvas: #f2f3f5;
-  --surface: #f7f8fa;
+  color-scheme: light;
+  --canvas: #f5f8f5;
+  --surface: #f0f5f1;
   --surface-strong: #ffffff;
-  --ink: #18191c;
-  --muted-ink: #64676e;
-  --line: #dfe1e5;
-  --control: #18191c;
-  --accent: #c74729;
-  --accent-hover: #ad391f;
-  --accent-soft: #fae9e3;
-  --accent-soft-hover: #f5d9cf;
-  --accent-border: #ecb5a4;
-  --accent-ink: #96351f;
+  --ink: #163b2c;
+  --muted-ink: #61756a;
+  --line: #dce7df;
+  --control: #123c2a;
+  --accent: #16734b;
+  --accent-hover: #105c3b;
+  --accent-soft: #e6f3e9;
+  --accent-soft-hover: #d4eadb;
+  --accent-border: #b1d5bd;
+  --accent-ink: #156040;
   --danger: #c83e35;
   --danger-hover: #af3029;
   --danger-soft: #fcebea;
@@ -44,19 +44,20 @@
 }
 
 :root[data-theme='dark'] {
-  --canvas: #111317;
-  --surface: #17191e;
-  --surface-strong: #1d2026;
-  --ink: #f4f3f1;
-  --muted-ink: #a5a7ad;
-  --line: #30333a;
-  --control: #0d0f12;
-  --accent: #c64224;
-  --accent-hover: #db4d2b;
-  --accent-soft: #35211d;
-  --accent-soft-hover: #492a22;
-  --accent-border: #75402f;
-  --accent-ink: #ffb19d;
+  color-scheme: dark;
+  --canvas: #0d1913;
+  --surface: #13231b;
+  --surface-strong: #192d22;
+  --ink: #e9f3ec;
+  --muted-ink: #a5bbad;
+  --line: #304b3b;
+  --control: #123c2a;
+  --accent: #278656;
+  --accent-hover: #31945f;
+  --accent-soft: #1e3829;
+  --accent-soft-hover: #294b36;
+  --accent-border: #3f6b4f;
+  --accent-ink: #a1e3b5;
   --danger: #bd463e;
   --danger-hover: #ce554c;
   --danger-soft: #352020;
@@ -180,7 +181,7 @@ body {
   background: var(--canvas);
   color: var(--ink);
   font-family: 'Manrope Variable', sans-serif;
-  font-variation-settings: 'wght' 520;
+  font-weight: 450;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
