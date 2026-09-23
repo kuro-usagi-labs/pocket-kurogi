@@ -27,6 +27,9 @@ suite('audit remediation database contracts (isolated test branch only)', () => 
       const acquire = async (user, token) => (await client.query('select assistant_private.acquire_provider_slot($1,$2,$3) as reason', [scope, user, token])).rows[0].reason
       const release = (token, delay = 0) => client.query('select assistant_private.release_provider_slot($1,$2,$3)', [scope, token, delay])
       for (let i=0; i<10; i++) { const token = crypto.randomUUID(); expect(await acquire(userA, token)).toBe('acquired'); await release(token) }
+      // Seed an exhausted current window atomically with the assertion: remote
+      // round trips above can legitimately straddle a minute boundary.
+      await client.query('update assistant_private.provider_user_usage set used=10, window_start=date_trunc(\'minute\',clock_timestamp()) + interval \'1 minute\' where scope=$1 and user_id=$2', [scope, userA])
       expect(await acquire(userA, crypto.randomUUID())).toBe('user_rate_limit')
       const tokenB = crypto.randomUUID(), tokenC = crypto.randomUUID()
       expect(await acquire(userB, tokenB)).toBe('acquired')
