@@ -1,6 +1,13 @@
 # Audit remediation — 23 September 2026
 
-Status: implemented locally; **not released to production**. Independent review pending (the earlier reviewer session did not survive restart; no verdict is claimed).
+Status: final maintainer review completed; release in progress. The earlier independent reviewer session did not survive restart; no independent verdict is claimed.
+
+## Release review
+
+- Reviewed routing, typed proposals, per-item bulk types/wallets, confirmation outcomes, message-only retries, provider SQL locks, and production server imports. No new release-blocking defect found in this pass. Known limits below remain disclosed, not treated as a guarantee of zero bugs.
+- Production provider migration applied via Neon SQL editor in an explicit transaction; no user financial records modified.
+- GitHub `test` environment database secret configured using the isolated test branch, without logging or committing its value. That branch expires after one day: future CI runs require a renewed test branch/secret. The production application does not depend on this test branch.
+- Verified release basis: 1,069 application tests, 26 database tests, lint, build, and prior six browser fixtures. Production authenticated chat is not automatically exercised with real financial writes.
 
 ## Bulk and isolated database verification
 
