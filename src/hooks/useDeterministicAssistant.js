@@ -1,5 +1,7 @@
 import { useCallback } from 'react'
 import { runAssistantEngine } from '../lib/assistant/assistantEngine'
+import { runWalletAwareTurn, resumeWalletTransaction } from '../lib/assistant/walletProvisionFlow'
+import { createDialogueState } from '../lib/assistant/conversationContext'
 import {
   MemoryLifecycleError,
   activateProposedMemoryCandidate,
@@ -37,10 +39,12 @@ export function useDeterministicAssistant({
     text,
     sourceMessageId = null,
     semanticFrame = null,
+    originalText = text,
   } = {}) => {
     const stateSnapshot = assistantState.getSnapshot()
     const commonInput = {
       text,
+      originalText,
       userId: assistantState.userId,
       sourceMessageId,
       wallets,
@@ -81,6 +85,7 @@ export function useDeterministicAssistant({
             engineResult,
             pendingAction: stateSnapshot.pendingAction,
             syncFinancialViews,
+            sourceMessageId,
           }),
         }
       }
@@ -93,7 +98,14 @@ export function useDeterministicAssistant({
       commonInput.dialogueState = null
     }
 
-    let engineResult = runAssistantEngine(commonInput)
+    let engineResult = runWalletAwareTurn(commonInput)
+    if (engineResult.pendingAction?.payload?.resumeTransaction) {
+      // UI lists may still be loading. Never propose creating a duplicate wallet
+      // without checking the authenticated backend snapshot first.
+      const freshContext = await assistantState.fetchFinancialContext()
+      if (freshContext.error) throw freshContext.error
+      engineResult = runWalletAwareTurn({ ...commonInput, wallets: freshContext.data?.wallets || wallets })
+    }
     if (isAssistantInsightIntent(engineResult.route?.intent)) {
       const contextResult = await assistantState.fetchFinancialContext()
       if (contextResult.error) throw contextResult.error
@@ -314,11 +326,12 @@ export function useDeterministicAssistant({
   }
 }
 
-async function processExistingPendingAction({
+export async function processExistingPendingAction({
   assistantState,
   engineResult,
   pendingAction,
   syncFinancialViews,
+  sourceMessageId,
 }) {
   if (engineResult.command?.type === 'confirm_pending_action') {
     const action = pendingAction
@@ -332,6 +345,30 @@ async function processExistingPendingAction({
       analytics: true,
       names: true,
     })
+    if (action.actionType === 'create_wallet' && action.payload?.resumeTransaction) {
+      try {
+      const continuation = action.payload.resumeTransaction
+      await persistDialogueState({ assistantState, pendingActionId: null, dialogueState: createDialogueState({
+        activeIntent: continuation.intent, collectedSlots: continuation.slots, missingSlots: ['wallet'],
+      }) })
+      const contextResult = await assistantState.fetchFinancialContext()
+      if (contextResult.error) throw contextResult.error
+      const resumed = resumeWalletTransaction({ action, wallets: contextResult.data?.wallets || [], userId: assistantState.userId, sourceMessageId })
+      let staged = null
+      if (resumed?.pendingAction) {
+        const result = await assistantState.stagePendingAction(resumed.pendingAction)
+        if (result.error) throw result.error
+        staged = result.data
+      }
+      if (resumed) {
+        await persistDialogueState({ assistantState, dialogueState: resumed.dialogueState, pendingActionId: staged?.id || null })
+        const response = buildAssistantPendingResponse(resumed, staged)
+        return { ...response, text: `Dompet ${action.payload.walletName} berhasil dibuat. Sekarang lanjutkan transaksi yang tadi.\n\n${response.text}` }
+      }
+      } catch {
+        return { text: `Dompet ${action.payload.walletName} berhasil dibuat, tetapi transaksi yang tadi belum dicatat karena sambungan belum siap. Kirim ulang kalimat transaksinya untuk melanjutkan; saldo transaksi belum ditambahkan.`, metadata: { conversationStatus: 'wallet_created_transaction_not_staged' } }
+      }
+    }
     return buildAssistantExecutionResponse(action, executionResult.data)
   }
 

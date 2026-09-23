@@ -43,6 +43,7 @@ import {
 import { lazyWithRecovery } from '../../lib/lazyWithRecovery'
 import { detectThemeRequest, isSafeLanguageRewrite, requestLanguageInterpretation } from '../../lib/assistant/languageAssistant'
 import { useTheme } from '../../contexts/ThemeContext'
+import { splitWalletProvisionRequest } from '../../lib/assistant/walletProvisionFlow'
 import { getCurrentTimeLabel, getWelcomeMessage } from '../../lib/appShellChatHelpers'
 
 const loadHistoryView = () => import('../History/HistoryView')
@@ -433,6 +434,7 @@ export default function AppShell() {
         let languageResponse = null
         const freshRequest = !assistantSnapshot.pendingAction && !pendingMemoryProposal &&
           !imageFile && !assistantSnapshot.dialogueState?.missingSlots?.length &&
+          !splitWalletProvisionRequest(userMessageText) &&
           orchestration.decision.handler === ASSISTANT_DECISION_HANDLERS.CANONICAL
         if (freshRequest) {
           const interpretation = await requestLanguageInterpretation(userMessageText, { wallets, goals })
@@ -509,6 +511,7 @@ export default function AppShell() {
         } else {
           const deterministicResult = await deterministicAssistant.processMessage({
             text: assistantInputText,
+            originalText: userMessageText,
             sourceMessageId: messageRequestId,
             semanticFrame: orchestration.frame,
           })
