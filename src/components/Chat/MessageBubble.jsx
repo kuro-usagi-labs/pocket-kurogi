@@ -31,9 +31,9 @@ export default function MessageBubble({
     <div className={`${groupSpacing} flex w-full ${isUser ? 'justify-end' : 'justify-start gap-2.5 sm:gap-3'}`}>
       {!isUser ? (
         isLastInGroup ? (
-          <KurogiLogo size={38} className="mt-auto hidden sm:inline-flex" />
+          <span className="mt-auto hidden shrink-0 sm:block"><KurogiLogo size={32} /></span>
         ) : (
-          <span className="hidden h-[38px] w-[38px] shrink-0 sm:block" aria-hidden="true" />
+          <span className="hidden h-8 w-8 shrink-0 sm:block" aria-hidden="true" />
         )
       ) : null}
       <div className={`flex max-w-[91%] flex-col ${isUser ? 'items-end' : 'items-start'} sm:max-w-[84%] md:max-w-[78%]`}>
@@ -49,7 +49,7 @@ export default function MessageBubble({
               <img src={msg.image} alt="Lampiran" className="w-full max-w-[240px] object-cover" />
             </div>
           )}
-          <div className="whitespace-pre-wrap font-medium leading-[1.58]">{displayText}</div>
+          <div className="whitespace-pre-wrap break-words font-medium leading-[1.65] [overflow-wrap:anywhere]">{displayText}</div>
 
           {!isUser && candidates.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -96,7 +96,8 @@ export default function MessageBubble({
             msg.card.type === 'pending_action' ? (
               <PendingActionCard
                 card={msg.card}
-                disabled={disabled || !pendingActionActive}
+                disabled={disabled}
+                inactive={!pendingActionActive}
                 formatRupiah={formatRupiah}
                 onAction={onCardAction}
               />
@@ -224,18 +225,18 @@ function FinancialInsightCard({ card }) {
   )
 }
 
-function PendingActionCard({ card, disabled = false, formatRupiah, onAction }) {
+function PendingActionCard({ card, disabled = false, inactive = false, formatRupiah, onAction }) {
   const items = Array.isArray(card.items) ? card.items : []
 
   return (
     <section
-      className="mt-3 overflow-hidden rounded-[16px] border border-amber-200 bg-amber-50 text-midnight"
-      aria-label="Aksi keuangan menunggu konfirmasi"
+      className={`pending-action-card mt-3 overflow-hidden rounded-[16px] border border-amber-200 bg-amber-50 text-midnight ${inactive ? 'pending-action-inactive' : ''}`}
+      aria-label={inactive ? 'Konfirmasi sebelumnya tidak aktif' : 'Aksi keuangan menunggu konfirmasi'}
     >
       <div className="border-b border-amber-200/70 px-3.5 py-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold text-amber-700">Menunggu konfirmasi</p>
+            <p className="text-[11px] font-bold text-amber-700">{inactive ? 'Konfirmasi sebelumnya · tidak aktif' : 'Menunggu konfirmasi'}</p>
             <p className="mt-0.5 text-[13px] font-extrabold">{card.title}</p>
           </div>
           {Number(card.amount || 0) > 0 ? (
@@ -280,10 +281,11 @@ function PendingActionCard({ card, disabled = false, formatRupiah, onAction }) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-3 border-t border-amber-200 bg-white">
+      {inactive ? <p className="px-3.5 py-2.5 text-[11px] leading-relaxed text-muted">Lihat balasan terbaru untuk status transaksi.</p> : <div className="grid grid-cols-3 border-t border-amber-200 bg-white">
         <ReceiptActionButton
           icon={Check}
           label="Konfirmasi"
+          primary
           disabled={disabled}
           onClick={() => onAction?.('assistant-confirm', card)}
         />
@@ -300,19 +302,20 @@ function PendingActionCard({ card, disabled = false, formatRupiah, onAction }) {
           disabled={disabled}
           onClick={() => onAction?.('assistant-cancel', card)}
         />
-      </div>
+      </div>}
     </section>
   )
 }
 
-function ReceiptActionButton({ icon, label, disabled = false, danger = false, onClick }) {
+function ReceiptActionButton({ icon, label, disabled = false, danger = false, primary = false, onClick }) {
   return (
     <button
       type="button"
       disabled={disabled}
+      title={disabled ? 'Aksi ini belum tersedia. Lihat riwayat untuk detail transaksi.' : label}
       onClick={onClick}
-      className={`inline-flex min-h-[42px] items-center justify-center gap-1.5 border-r border-orange-100 px-2 font-jakarta text-[11px] font-extrabold transition last:border-r-0 disabled:cursor-not-allowed disabled:opacity-45 ${
-        danger
+      className={`receipt-action inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap border-r border-orange-100 px-2 font-jakarta text-[11px] font-bold transition last:border-r-0 disabled:cursor-not-allowed focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--accent)] ${
+        primary ? 'bg-[var(--accent)] text-white hover:brightness-110' : danger
           ? 'text-rose-600 hover:bg-rose-50'
           : 'text-midnight hover:bg-orange-50'
       }`}

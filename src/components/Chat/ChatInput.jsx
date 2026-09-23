@@ -137,8 +137,8 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
   }[voiceState] || 'Ceritakan transaksi atau tujuanmu...'
 
   return (
-    <div className="chat-composer-inset pointer-events-none absolute left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6">
-      <div className="flex w-full max-w-[840px] flex-col gap-2.5">
+    <div className="chat-composer-inset pointer-events-none absolute left-0 z-40 flex w-full flex-col items-center px-3 sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col gap-2.5">
         {selectedImage && (
           <div className="pointer-events-auto relative h-24 w-24 self-end overflow-hidden rounded-[16px] border border-midnight/10 bg-white shadow-premium">
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />

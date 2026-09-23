@@ -141,7 +141,7 @@ export default function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="chat-scroll-inset app-scrollbar absolute inset-0 mx-auto flex w-full max-w-[920px] flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
+        className="chat-scroll-inset app-scrollbar absolute inset-0 flex w-full flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
       >
         {error ? <ChatSyncNotice error={error} status={syncStatus} onRetry={onRetry} /> : null}
 

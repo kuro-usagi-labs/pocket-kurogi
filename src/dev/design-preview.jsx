@@ -20,7 +20,12 @@ const goals = [{ id: 'demo-goal', name: 'Liburan impian', current_amount: 340000
 const rupiah = number => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(number)
 function DesignReview() {
   const [tab, setTab] = useState('chat')
-  const [messages, setMessages] = useState([{ id: '1', sender: 'bot', text: 'Hai! Mau mencatat transaksi atau melihat keuanganmu hari ini?' }, { id: '2', sender: 'user', text: 'Aku baru mendapatkan gaji 2,860,097, tolong catat' }, { id: '3', sender: 'bot', text: 'Pemasukan Rp2.860.097 dengan catatan “Gaji”. Pakai dompet mana?' }])
+  const [messages, setMessages] = useState([
+    { id: '1', sender: 'user', text: 'Aku baru mendapatkan gaji 2,860,097, tolong catat di BCA', time: '13.21' },
+    { id: '2', sender: 'bot', text: 'Pemasukan Rp2.860.097 ke BCA dengan catatan “Gaji”.', time: '13.21', card: { id: 'old-confirmation', type: 'pending_action', title: 'Konfirmasi pemasukan', amount: 2860097, sourceWallet: 'BCA' } },
+    { id: '3', sender: 'user', text: 'Iya catat', time: '13.21' },
+    { id: '4', sender: 'bot', text: 'Pemasukan Rp2.860.097 berhasil dicatat.', time: '13.21', card: { type: 'income', category: 'Gaji', wallet: 'BCA', amount: 2860097 } },
+  ])
   return <div className="app-shell app-viewport flex font-inter text-midnight">
     <aside className="hidden w-[232px] shrink-0 flex-col border-r border-cream bg-white p-5 lg:flex"><div className="brand-lockup"><KurogiLogo size={38} />Pocket Kurogi</div><p className="my-8 text-xs text-muted">PRATINJAU · DATA CONTOH</p><nav className="flex flex-col gap-2">{[['chat', 'Asisten Kurogi'], ['wallets', 'Dompet'], ['analytics', 'Laporan keuangan']].map(([id, name]) => <button className="rounded-xl p-3 text-left text-sm" key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>{name}</button>)}</nav></aside>
     <main className="flex min-w-0 flex-1 flex-col"><header className="flex h-24 shrink-0 items-center justify-between px-5"><div><p className="text-xs text-muted">Pratinjau lokal · tanpa koneksi database</p><h1 className="font-jakarta text-2xl font-bold">Ruang keuanganmu</h1></div><ThemeToggle /></header><div className="flex gap-2 px-4 pb-3 lg:hidden">{['chat', 'wallets', 'analytics'].map(id => <button className="button-text" onClick={() => setTab(id)} key={id}>{id}</button>)}</div><div className="flex min-h-0 flex-1 gap-4 px-4 pb-4"><section className={`relative min-w-0 flex-1 ${tab === 'chat' ? 'chat-surface' : 'overflow-y-auto'}`}>

@@ -30,11 +30,11 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
   return (
     <aside
       className={`hidden h-full shrink-0 flex-col overflow-hidden border-r border-midnight/[0.07] bg-white py-5 font-jakarta backdrop-blur-xl transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
-        collapsed ? 'w-[76px] px-3' : 'w-[232px] px-4'
+        collapsed ? 'w-[76px] px-3' : 'w-[256px] px-4'
       }`}
     >
-      <div className={`flex items-center pb-5 ${collapsed ? 'justify-center' : 'gap-3 px-2'}`}>
-        <KurogiLogo size={46} className="shrink-0 shadow-[0_12px_30px_rgba(199,71,41,0.16)]" />
+      <div className={`flex items-center pb-5 ${collapsed ? 'justify-center' : 'gap-2 px-1'}`}>
+        <KurogiLogo size={38} className="shrink-0" />
         {!collapsed ? (
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-bold tracking-[-0.03em] text-midnight">Pocket Kurogi</p>
@@ -93,8 +93,8 @@ export default function DesktopSidebar({ activeTab, setActiveTab }) {
               {isActive ? (
                 <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-[var(--accent)]" aria-hidden="true" />
               ) : null}
-              <Icon size={19} strokeWidth={isActive ? 2.3 : 1.9} />
-              {collapsed ? <span className="sr-only">{item.label}</span> : <span>{item.label}</span>}
+              <Icon className="shrink-0" size={19} strokeWidth={isActive ? 2.3 : 1.9} />
+              {collapsed ? <span className="sr-only">{item.label}</span> : <span className="whitespace-nowrap text-left">{item.label}</span>}
             </button>
           )
         })}
