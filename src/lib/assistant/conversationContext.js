@@ -43,12 +43,15 @@ export function updateDialogueState(state, patch = {}, now = new Date()) {
   const current = isDialogueStateActive(state, now)
     ? state
     : createDialogueState({ now })
-  const collectedSlots = patch.collectedSlots
-    ? { ...current.collectedSlots, ...patch.collectedSlots }
-    : current.collectedSlots
   const activeIntent = patch.activeIntent !== undefined
     ? patch.activeIntent
     : current.activeIntent
+  const inheritedSlots = activeIntent === current.activeIntent
+    ? current.collectedSlots
+    : {}
+  const collectedSlots = patch.collectedSlots
+    ? { ...inheritedSlots, ...patch.collectedSlots }
+    : inheritedSlots
   const referencedTransactionIds = [...new Set([
     ...(patch.referencedTransactionIds || current.referencedTransactionIds || []),
     ...(patch.lastReferencedTransactionId

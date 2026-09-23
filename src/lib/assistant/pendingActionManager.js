@@ -1,4 +1,6 @@
 import { isMutatingAssistantIntent } from './intentDefinitions'
+import { isValidWalletBalance } from '../walletBalanceAdjustment'
+import { isCompatibleCategoryType } from '../categoryCatalog'
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000
 const TERMINAL_STATUSES = new Set(['confirmed', 'cancelled', 'expired', 'failed'])
@@ -197,6 +199,17 @@ export function buildCorrectedPendingPayload(action, {
         ? [0]
         : []
 
+    if (category && targetIndexes.some((index) => !isCompatibleCategoryType(
+      category.category?.category_type || category.transactionType,
+      items[index].transactionType
+    ))) {
+      return {
+        changed: false,
+        payload,
+        reason: `Kategori ${category.name} tidak sesuai jenis transaksi ini. Pilih kategori yang sesuai untuk pemasukan atau pengeluaran tersebut.`,
+      }
+    }
+
     for (const index of targetIndexes) {
       if (amount) {
         items[index].amount = amount
@@ -214,6 +227,28 @@ export function buildCorrectedPendingPayload(action, {
       }
     }
     payload.items = items
+  } else if (action.actionType === 'set_wallet_balance') {
+    const unsafe = entities.negated || entities.hypothetical || entities.question || entities.thirdParty ||
+      (amount !== null && !isValidWalletBalance(amount)) ||
+      entities.foreignCurrencies?.length || entities.amounts?.length > 1 ||
+      (entities.wallets || []).some((entry) => entry.source === 'ambiguous') ||
+      new Set((entities.wallets || []).filter((entry) => entry.id).map((entry) => entry.id)).size > 1 ||
+      /\b(?:atau|jangan|bukan|tidak|kalau|andaikan)\b|(?:-|minus|negatif)\s*(?:rp\s*)?\d/iu.test(text)
+    if (unsafe) {
+      return { changed: false, payload, reason: 'Saldo belum diubah. Sebutkan satu dompet dan satu saldo akhir yang pasti, tanpa negasi atau pilihan alternatif.' }
+    }
+    const zero = /(?:^|\b(?:menjadi|jadi|ke|saldo|nominalnya)\s*)(?:rp\s*)?0(?:[.,]0+)?\s*$/iu.test(text)
+    const nextBalance = zero ? 0 : amount
+    if (nextBalance !== null && Number.isFinite(nextBalance) && nextBalance >= 0 && nextBalance <= 9999999999999.99 && !/(?:-|minus|negatif)\s*(?:rp\s*)?\d/iu.test(text)) {
+      payload.targetBalance = nextBalance
+      changed = true
+    }
+    if (wallet && wallet.wallet?.current_balance != null) {
+      payload.walletId = wallet.id
+      payload.walletName = wallet.name
+      payload.expectedBalance = Number(wallet.wallet.current_balance)
+      changed = true
+    }
   } else if (action.actionType === 'transfer_money') {
     if (amount) {
       payload.amount = amount

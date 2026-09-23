@@ -1,6 +1,8 @@
 import { formatCompactList } from './formatters'
 
 const SLOT_QUESTIONS = Object.freeze({
+  targetBalance: 'Berapa saldo akhir dompet yang benar? Saldo boleh nol.',
+  expectedBalance: 'Pilih kembali dompet yang ingin disesuaikan agar saldo terbarunya terbaca.',
   amount: 'Berapa nominal pastinya?',
   description: 'Uang itu digunakan atau diterima untuk apa?',
   wallet: 'Pakai dompet mana?',

@@ -1,4 +1,5 @@
 export const ASSISTANT_INTENTS = Object.freeze([
+  'set_wallet_balance',
   'record_expense',
   'record_income',
   'record_multiple_transactions',
@@ -34,6 +35,7 @@ export const ASSISTANT_INTENTS = Object.freeze([
 ])
 
 export const CANONICAL_ASSISTANT_INTENTS = Object.freeze([
+  'set_wallet_balance',
   'record_expense',
   'record_income',
   'record_multiple_transactions',
@@ -81,6 +83,7 @@ const CANONICAL_INTENT_ALIASES = Object.freeze({
 })
 
 export const MUTATING_ASSISTANT_INTENTS = Object.freeze([
+  'set_wallet_balance',
   'record_expense',
   'record_income',
   'record_multiple_transactions',
@@ -99,6 +102,12 @@ export const MUTATING_ASSISTANT_INTENTS = Object.freeze([
 ])
 
 export const INTENT_DEFINITIONS = Object.freeze({
+  set_wallet_balance: {
+    required: ['wallet', 'targetBalance', 'expectedBalance'],
+    optional: [],
+    actionType: 'set_wallet_balance',
+    mutates: true,
+  },
   record_expense: {
     required: ['amount', 'description', 'wallet'],
     optional: ['category', 'merchant', 'occurredAt', 'notes'],

@@ -1,4 +1,5 @@
 const MUTATION_INTENTS = new Set([
+  'set_wallet_balance',
   'record_expense',
   'record_income',
   'record_multiple_transactions',

@@ -1,4 +1,7 @@
+import { formatWalletAdjustmentBalance } from '../walletBalanceAdjustment'
+
 const HANDLED_MUTATION_INTENTS = new Set([
+  'set_wallet_balance',
   'record_expense',
   'record_income',
   'record_multiple_transactions',
@@ -41,6 +44,7 @@ export function shouldHandleAssistantEngineResult(result, {
   hasPendingAction = false,
 } = {}) {
   if (!result) return false
+  if (result.route?.intent === 'set_wallet_balance') return true
   if (result.route?.intent === 'general_chat') return true
   if (hasPendingAction && result.command) return true
   if (
@@ -159,6 +163,9 @@ export function buildAssistantExecutionResponse(action, executionResult) {
   }
 
   const completionCopy = {
+    set_wallet_balance: replayed
+      ? 'Penyesuaian saldo ini sudah diproses sebelumnya.'
+      : `Saldo ${payload.walletName} berhasil disesuaikan dari ${formatWalletAdjustmentBalance(payload.expectedBalance)} menjadi ${formatWalletAdjustmentBalance(payload.targetBalance)}. Penyesuaian ini tidak dihitung sebagai pemasukan atau pengeluaran.`,
     create_wallet: replayed
       ? 'Dompet ini sudah dibuat sebelumnya dan tidak diduplikasi.'
       : `Dompet ${payload.walletName} berhasil dibuat dengan saldo awal ${formatRupiah(payload.initialBalance)}.`,
@@ -221,19 +228,26 @@ export function buildAssistantCorrectionResponse(action) {
   const firstItem = items[0] || null
 
   return {
-    text: 'Rincian pending action sudah diperbarui. Periksa lagi sebelum mengonfirmasi.',
+    text: action?.actionType === 'set_wallet_balance'
+      ? `Periksa penyesuaian saldo ${payload.walletName}: ${formatWalletAdjustmentBalance(payload.expectedBalance)} → ${formatWalletAdjustmentBalance(payload.targetBalance)}. Ini penyesuaian saldo, bukan pemasukan atau pengeluaran. Konfirmasikan kembali untuk menyimpan.`
+      : 'Rincian pending action sudah diperbarui. Periksa lagi sebelum mengonfirmasi.',
     card: {
       type: 'pending_action',
       id: action?.id,
       status: action?.status || 'pending',
-      title: action?.actionType === 'transfer_money'
+      title: action?.actionType === 'set_wallet_balance'
+        ? 'Konfirmasi penyesuaian saldo'
+        : action?.actionType === 'transfer_money'
         ? 'Konfirmasi transfer antar-dompet'
         : items.length > 1
           ? 'Konfirmasi beberapa transaksi'
           : 'Konfirmasi transaksi',
       actionType: action?.actionType,
       amount,
+      expectedBalance: payload.expectedBalance,
+      targetBalance: payload.targetBalance,
       sourceWallet:
+        payload.walletName ||
         payload.sourceWallet ||
         firstItem?.wallet ||
         null,

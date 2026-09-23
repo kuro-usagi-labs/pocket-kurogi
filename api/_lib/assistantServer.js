@@ -339,6 +339,7 @@ export function validateAssistantOperationRequest(operation, body = {}, method =
       throwRequestError('Idempotency key tidak valid.')
     }
     if (![
+      'set_wallet_balance',
       'record_transactions',
       'transfer_money',
       'upsert_budget',
@@ -549,6 +550,14 @@ function validateActionPayload(actionType, payload) {
   if (actionType === 'rename_wallet') {
     requireUuid(payload.walletId, 'Dompet')
     requireEntityName(payload.nextWalletName, 'Nama baru dompet')
+    return
+  }
+  if (actionType === 'set_wallet_balance') {
+    requireUuid(payload.walletId, 'Dompet')
+    if (typeof payload.targetBalance !== 'number' || !Number.isFinite(payload.targetBalance) || payload.targetBalance < 0 || payload.targetBalance > 9999999999999.99 ||
+        typeof payload.expectedBalance !== 'number' || !Number.isFinite(payload.expectedBalance) || Math.abs(payload.expectedBalance) > 9999999999999.99) {
+      throwRequestError('Saldo akhir atau saldo sebelumnya tidak valid.')
+    }
     return
   }
 

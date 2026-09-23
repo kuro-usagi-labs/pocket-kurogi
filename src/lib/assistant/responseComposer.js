@@ -1,4 +1,5 @@
 import { formatRupiah } from './formatters'
+import { formatWalletAdjustmentBalance } from '../walletBalanceAdjustment'
 import { getSmallTalkReply } from './smallTalk'
 import {
   applyResponsePlan,
@@ -300,6 +301,9 @@ function composeInterpretation(intent, slots) {
   if (intent === 'rename_wallet') {
     return `Ubah nama dompet ${slots.wallet?.name || 'terpilih'} menjadi ${slots.nextWalletName || 'nama baru'}.`
   }
+  if (intent === 'set_wallet_balance') {
+    return `Sesuaikan saldo ${slots.wallet?.name || 'dompet'} dari ${formatWalletAdjustmentBalance(slots.expectedBalance)} menjadi ${formatWalletAdjustmentBalance(slots.targetBalance)}. Ini dicatat sebagai penyesuaian saldo, bukan pemasukan atau pengeluaran.`
+  }
   if (intent === 'archive_wallet' || intent === 'restore_wallet') {
     return `${intent === 'archive_wallet' ? 'Arsipkan' : 'Pulihkan'} dompet ${slots.wallet?.name || 'terpilih'}.`
   }
@@ -390,6 +394,8 @@ function buildPendingActionCard(action, slots, clarification) {
     status: action.status,
     title: humanizeAction(action.intent || action.actionType || 'aksi_keuangan'),
     actionType: action.actionType,
+    expectedBalance: slots.expectedBalance,
+    targetBalance: slots.targetBalance,
     amount: slots.amount || sumItemAmounts(slots.items),
     sourceWallet: slots.sourceWallet?.name || slots.wallet?.name || null,
     destinationWallet: slots.destinationWallet?.name || null,
@@ -426,6 +432,7 @@ function humanizeAction(intent) {
     update_saving_goal: 'Konfirmasi perubahan target',
     create_wallet: 'Konfirmasi dompet baru',
     rename_wallet: 'Konfirmasi perubahan nama dompet',
+    set_wallet_balance: 'Konfirmasi penyesuaian saldo',
     archive_wallet: 'Konfirmasi pengarsipan dompet',
     restore_wallet: 'Konfirmasi pemulihan dompet',
     deposit_goal: 'Konfirmasi setoran target',

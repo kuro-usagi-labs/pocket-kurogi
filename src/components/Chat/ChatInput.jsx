@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Mic, Paperclip, Send, X } from 'lucide-react'
+import { submitChatDraft } from './chatInteraction'
 
 // Keep this aligned with Neon Function and database constraints.
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
@@ -13,6 +14,9 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const recognitionRef = useRef(null)
+  const sendLockRef = useRef(false)
+  const draftRevisionRef = useRef(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const isVoiceBusy = voiceState !== 'idle'
 
   useEffect(() => () => {
@@ -31,20 +35,32 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
-    if ((!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy) return
+    if ((!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy || sendLockRef.current) return
     if (selectedImage && !inputValue.trim()) {
       onNotify?.('Tambahkan nominal dan keterangan agar bukti tersimpan bersama transaksi.', 'info')
       textareaRef.current?.focus()
       return
     }
-    const accepted = await onSend?.({
-      text: inputValue.trim(),
-      imageFile: selectedImage?.file || null,
-      imagePreview: selectedImage?.previewUrl || null,
+    await submitChatDraft({
+      lock: sendLockRef,
+      getRevision: () => draftRevisionRef.current,
+      clear: () => {
+        setIsSubmitting(true)
+        setInputValue('')
+        setSelectedImage(null)
+      },
+      restore: () => {
+        setInputValue(inputValue)
+        setSelectedImage(selectedImage)
+      },
+      send: () => typeof onSend === 'function' ? onSend({
+        text: inputValue.trim(),
+        imageFile: selectedImage?.file || null,
+        imagePreview: selectedImage?.previewUrl || null,
+      }) : false,
+      onError: () => onNotify?.('Pesan belum terkirim. Silakan coba lagi.', 'error'),
     })
-    if (accepted === false) return
-    setInputValue('')
-    setSelectedImage(null)
+    setIsSubmitting(false)
   }
 
   const handleComposerKeyDown = (event) => {
@@ -73,6 +89,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
     }
 
     const reader = new FileReader()
+    draftRevisionRef.current += 1
     reader.onloadend = () => {
       setSelectedImage({
         file,
@@ -114,6 +131,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
+      draftRevisionRef.current += 1
       setInputValue(transcript)
       window.requestAnimationFrame(() => textareaRef.current?.focus())
       onNotify?.('Teks suara sudah siap. Periksa dulu, lalu tekan kirim.', 'success')
@@ -144,7 +162,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
             <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
             <button
               type="button"
-              onClick={() => setSelectedImage(null)}
+              onClick={() => { draftRevisionRef.current += 1; setSelectedImage(null) }}
               aria-label="Hapus gambar"
               className="absolute right-1.5 top-1.5 rounded-full bg-midnight/80 p-1 text-white backdrop-blur-md transition-colors hover:bg-midnight"
             >
@@ -174,7 +192,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
             onClick={() => fileInputRef.current?.click()}
             aria-label="Tambah gambar"
             title="Lampirkan bukti transaksi"
-            disabled={isTyping || isVoiceBusy}
+            disabled={isTyping || isVoiceBusy || isSubmitting}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] text-muted transition-all hover:bg-champagne hover:text-midnight active:scale-[0.96] disabled:opacity-45 sm:h-11 sm:w-11"
           >
             <Paperclip size={21} strokeWidth={2.1} />
@@ -187,7 +205,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
               className="chat-composer-textarea max-h-[120px] min-h-10 w-full resize-none border-0 bg-transparent px-2 py-2 font-inter text-[16px] font-medium leading-relaxed text-midnight outline-none placeholder:text-muted/70 focus:ring-0 sm:min-h-11 sm:py-2.5 sm:text-[15px]"
               placeholder={voicePlaceholder}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => { draftRevisionRef.current += 1; setInputValue(e.target.value) }}
               onKeyDown={handleComposerKeyDown}
               disabled={isVoiceBusy}
               autoComplete="off"
@@ -198,7 +216,7 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
               type="button"
               onClick={handleMicClick}
               aria-label={isVoiceBusy ? 'Hentikan suara' : 'Input suara'}
-              disabled={isTyping}
+              disabled={isTyping || isSubmitting}
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] transition-all active:scale-[0.96] sm:h-11 sm:w-11 ${
                 voiceState === 'listening'
                   ? 'animate-pulse bg-red-50 text-red-500'
@@ -210,9 +228,9 @@ export default function ChatInput({ onSend, isTyping, onNotify, initialValue = '
             <button
               type="submit"
               aria-label="Kirim"
-              disabled={(!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy}
+              disabled={(!inputValue.trim() && !selectedImage) || isTyping || isVoiceBusy || isSubmitting}
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] transition-all sm:h-11 sm:w-11 ${
-                (inputValue.trim() || selectedImage) && !isTyping && !isVoiceBusy
+                (inputValue.trim() || selectedImage) && !isTyping && !isVoiceBusy && !isSubmitting
                   ? 'bg-orange-700 text-white shadow-[0_10px_24px_rgba(199,71,41,0.26)] active:scale-95'
                   : 'bg-champagne text-muted/35'
               }`}

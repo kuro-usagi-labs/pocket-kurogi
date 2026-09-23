@@ -83,6 +83,7 @@ export default function AppShell() {
     deleteWallet,
     restoreWallet,
     renameWallet,
+    setFinalBalance,
     refetch: refetchWallets,
   } = useWallets()
 
@@ -433,6 +434,7 @@ export default function AppShell() {
         let orchestration = orchestrateAssistantMessage(orchestrationInput)
         let languageResponse = null
         const freshRequest = !assistantSnapshot.pendingAction && !pendingMemoryProposal &&
+          orchestration.frame.intent !== 'set_wallet_balance' &&
           !imageFile && !assistantSnapshot.dialogueState?.missingSlots?.length &&
           !splitWalletProvisionRequest(userMessageText) &&
           orchestration.decision.handler === ASSISTANT_DECISION_HANDLERS.CANONICAL
@@ -884,6 +886,7 @@ export default function AppShell() {
                     onAddWallet={handleAddWallet}
                     onDeleteWallet={handleDeleteWallet}
                     onRenameWallet={handleRenameWallet}
+                    onSetFinalBalance={setFinalBalance}
                     onAddGoal={handleAddGoal}
                     onDeleteGoal={handleDeleteGoal}
                     onRenameGoal={handleRenameGoal}

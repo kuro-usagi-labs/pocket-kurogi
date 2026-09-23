@@ -282,6 +282,11 @@ export function buildActionPayload(intent, slots) {
     }
   }
 
+  if (intent === 'set_wallet_balance') {
+    return { walletId: slots.wallet.id, walletName: slots.wallet.name,
+      expectedBalance: slots.expectedBalance, targetBalance: slots.targetBalance }
+  }
+
   if (intent === 'archive_wallet' || intent === 'restore_wallet') {
     return {
       walletId: slots.wallet.id,

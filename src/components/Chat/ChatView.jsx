@@ -17,6 +17,7 @@ import {
 import { motion as Motion, useReducedMotion } from 'motion/react'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
+import { getChatScrollAction, restoreHistoryPosition } from './chatInteraction'
 
 const ACTION_ICON_MAP = {
   advice: Lightbulb,
@@ -61,69 +62,113 @@ export default function ChatView({
   activePendingActionId = null,
 }) {
   const containerRef = useRef(null)
-  const messagesEndRef = useRef(null)
-  const isLoadingOlderRef = useRef(false)
-  const previousScrollHeightRef = useRef(0)
-  const previousLastMessageIdRef = useRef(getLastMessageId(messages))
+  const contentRef = useRef(null)
+  const historySnapshotRef = useRef(null)
+  const previousLastMessageIdRef = useRef(null)
+  const initializedRef = useRef(false)
+  const nearBottomRef = useRef(true)
+  const ownSendRef = useRef(false)
   const composerDraftIdRef = useRef(0)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [composerDraft, setComposerDraft] = useState(null)
   const reduceMotion = useReducedMotion()
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior })
-  }, [])
+    const container = containerRef.current
+    if (!container) return
+    nearBottomRef.current = true
+    container.scrollTo({ top: container.scrollHeight, behavior: reduceMotion ? 'instant' : behavior })
+    setShowJumpToLatest(false)
+  }, [reduceMotion])
 
   const handleJumpToLatest = useCallback(() => {
     setShowJumpToLatest(false)
     scrollToBottom()
   }, [scrollToBottom])
 
-  const handleLoadMore = useCallback(() => {
-    if (!onLoadMore || loadingMore) return
+  const handleLoadMore = useCallback(async () => {
+    if (!onLoadMore || loadingMore || historySnapshotRef.current) return
 
     const container = containerRef.current
     if (container) {
-      isLoadingOlderRef.current = true
-      previousScrollHeightRef.current = container.scrollHeight
+      const top = container.getBoundingClientRect().top
+      const anchor = [...container.querySelectorAll('[data-chat-message]')]
+        .find(element => element.getBoundingClientRect().bottom > top)
+      historySnapshotRef.current = {
+        top: container.scrollTop,
+        height: container.scrollHeight,
+        anchor,
+        anchorTop: anchor?.getBoundingClientRect().top,
+      }
     }
-    onLoadMore()
+    try {
+      await onLoadMore()
+    } finally {
+      requestAnimationFrame(() => {
+        if (containerRef.current && historySnapshotRef.current) {
+          restoreHistoryPosition(containerRef.current, historySnapshotRef.current)
+        }
+        historySnapshotRef.current = null
+      })
+    }
   }, [loadingMore, onLoadMore])
 
   const handleScroll = useCallback(() => {
     const container = containerRef.current
-    if (!container || isLoadingOlderRef.current) return
+    if (!container || historySnapshotRef.current) return
     const distance = container.scrollHeight - container.scrollTop - container.clientHeight
-    setShowJumpToLatest(distance > 360)
+    nearBottomRef.current = distance < 100
+    setShowJumpToLatest(distance >= 100)
   }, [])
 
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    if (isLoadingOlderRef.current) {
-      const heightDelta = container.scrollHeight - previousScrollHeightRef.current
-      container.scrollTop += Math.max(heightDelta, 0)
-      isLoadingOlderRef.current = false
-    } else {
-      const lastMessageId = getLastMessageId(messages)
-      if (lastMessageId && lastMessageId !== previousLastMessageIdRef.current) {
-        scrollToBottom()
-      }
-      previousLastMessageIdRef.current = lastMessageId
+    const lastMessageId = getLastMessageId(messages)
+    const action = getChatScrollAction({
+      initialized: initializedRef.current,
+      loading,
+      loadingOlder: Boolean(historySnapshotRef.current),
+      lastId: lastMessageId,
+      previousLastId: previousLastMessageIdRef.current,
+      nearBottom: nearBottomRef.current,
+      ownSend: ownSendRef.current,
+    })
+    if (action === 'preserve') {
+      restoreHistoryPosition(container, historySnapshotRef.current)
+    } else if (action === 'initial' || action === 'latest') {
+      scrollToBottom(action === 'initial' ? 'instant' : 'smooth')
+      initializedRef.current = true
+      ownSendRef.current = false
     }
-  }, [messages, scrollToBottom])
+    previousLastMessageIdRef.current = lastMessageId
+  }, [messages, loading, loadingMore, scrollToBottom])
 
   useEffect(() => {
-    if (isTyping) scrollToBottom()
+    if (isTyping && nearBottomRef.current && !historySnapshotRef.current) scrollToBottom()
   }, [isTyping, scrollToBottom])
 
   useEffect(() => {
-    if (!loadingMore) {
-      isLoadingOlderRef.current = false
-      previousScrollHeightRef.current = 0
+    if (typeof ResizeObserver === 'undefined' || !contentRef.current) return
+    const observer = new ResizeObserver(() => {
+      if (initializedRef.current && nearBottomRef.current && !historySnapshotRef.current) {
+        scrollToBottom('instant')
+      }
+    })
+    observer.observe(contentRef.current)
+    return () => observer.disconnect()
+  }, [scrollToBottom])
+
+  const handleSend = useCallback(async payload => {
+    ownSendRef.current = true
+    scrollToBottom('instant')
+    try {
+      return typeof onSend === 'function' ? await onSend(payload) : false
+    } finally {
+      ownSendRef.current = false
     }
-  }, [loadingMore])
+  }, [onSend, scrollToBottom])
 
   const handleQuickAction = (item) => {
     if (item.action === 'scroll') return handleJumpToLatest()
@@ -133,7 +178,7 @@ export default function ChatView({
       setComposerDraft({ id: `${item.id}-${composerDraftIdRef.current}`, text: item.prompt })
       return
     }
-    if (item.prompt) onSend(item.prompt)
+    if (item.prompt) void handleSend(item.prompt)
   }
 
   return (
@@ -141,8 +186,10 @@ export default function ChatView({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="chat-scroll-inset app-scrollbar absolute inset-0 flex w-full flex-col overflow-y-auto scroll-smooth px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
+        className="chat-scroll-inset app-scrollbar absolute inset-0 flex w-full flex-col overflow-y-auto px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6"
+        style={{ overflowAnchor: 'none' }}
       >
+        <div ref={contentRef} className="flex flex-col">
         {error ? <ChatSyncNotice error={error} status={syncStatus} onRetry={onRetry} /> : null}
 
         {loading ? <ChatHistoryLoading /> : null}
@@ -173,6 +220,7 @@ export default function ChatView({
         {hasMore ? (
           <button
             type="button"
+            disabled={loadingMore}
             onClick={handleLoadMore}
             className="mb-6 self-center text-[11px] font-bold text-muted underline decoration-midnight/20 underline-offset-4 transition-colors hover:text-midnight"
           >
@@ -195,14 +243,16 @@ export default function ChatView({
           return (
             <Motion.div
               key={message.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+              data-chat-message={message.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ root: containerRef, once: true, amount: 0.05 }}
+              transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
             >
               <MessageBubble
                 msg={message}
                 formatRupiah={formatRupiah}
-                onReply={onSend}
+                onReply={handleSend}
                 onCardAction={onCardAction}
                 disabled={isTyping}
                 pendingActionActive={
@@ -217,7 +267,8 @@ export default function ChatView({
         })}
 
         {isTyping ? <TypingIndicator /> : null}
-        <div ref={messagesEndRef} className="h-2" />
+        <div className="h-2" />
+        </div>
       </div>
 
       <div className="composer-fade pointer-events-none absolute inset-x-0 bottom-0 h-[142px] lg:h-[112px]" />
@@ -230,13 +281,13 @@ export default function ChatView({
           className="chat-latest-inset glass-panel absolute left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-bold text-midnight shadow-premium active:scale-[0.98]"
         >
           <ChevronDown size={15} strokeWidth={2.2} />
-          Pesan baru
+          Pesan terbaru
         </button>
       ) : null}
 
       <ChatInput
         key={composerDraft?.id || 'composer'}
-        onSend={onSend}
+        onSend={handleSend}
         isTyping={isTyping}
         onNotify={onNotify}
         initialValue={composerDraft?.text || ''}

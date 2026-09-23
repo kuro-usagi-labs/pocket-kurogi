@@ -448,8 +448,9 @@ export function filterCategoriesByType(categories = [], transactionType = 'expen
   )
 }
 
-export function findFallbackCategory(categories = []) {
-  return categories.find((category) => normalizeCategoryLookup(category?.name) === 'lainnya') || null
+export function findFallbackCategory(categories = [], transactionType = 'expense') {
+  return filterCategoriesByType(categories, transactionType)
+    .find((category) => normalizeCategoryLookup(category?.name) === 'lainnya') || null
 }
 
 export function buildCategoryOptions(categories = []) {

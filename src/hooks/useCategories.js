@@ -51,7 +51,7 @@ export function useCategories() {
    * Returns the category object or null.
    */
   const resolveCategory = useCallback((categoryName, { transactionType = 'expense' } = {}) => {
-    const fallbackCategory = findFallbackCategory(categories)
+    const fallbackCategory = findFallbackCategory(categories, transactionType)
 
     if (!categoryName) {
       return { category: fallbackCategory, ambiguous: false }
@@ -101,7 +101,7 @@ export function useCategories() {
 
     if (!categoryPayload) {
       return {
-        data: findFallbackCategory(categories),
+        data: findFallbackCategory(categories, transactionType),
         error: new Error('Category not found'),
         created: false,
       }

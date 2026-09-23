@@ -20,6 +20,16 @@ afterEach(() => {
 })
 
 describe('assistant Vercel API safety', () => {
+  it('accepts a zero final balance and rejects malformed balance adjustments before database access', () => {
+    const body = { idempotencyKey: 'balance-review', actionType: 'set_wallet_balance', payload: {
+      walletId: '11111111-1111-4111-8111-111111111111', expectedBalance: 500, targetBalance: 0,
+    } }
+    expect(() => validateAssistantOperationRequest('stage_action', body)).not.toThrow()
+    for (const targetBalance of [-1, null, '', Infinity, 10000000000000]) {
+      expect(() => validateAssistantOperationRequest('stage_action', { ...body, payload: { ...body.payload, targetBalance } })).toThrow(/Saldo/)
+    }
+    expect(() => validateAssistantOperationRequest('stage_action', { ...body, payload: { ...body.payload, expectedBalance: null } })).toThrow(/Saldo/)
+  })
   it('validates corrections against the stored action type before writing', async () => {
     let writes = 0
     const sql = async () => [{ action_type: 'transfer_money' }]

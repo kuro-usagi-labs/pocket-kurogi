@@ -52,6 +52,9 @@ export function resolveIntentSlots({
     requiredSlots.push('sourceWallet')
   }
   const missingSlots = requiredSlots.filter((slot) => {
+    if (intent === 'set_wallet_balance' && ['targetBalance', 'expectedBalance'].includes(slot)) {
+      return slots[slot] === null || slots[slot] === undefined || !Number.isFinite(slots[slot])
+    }
     if (
       intent === 'record_multiple_transactions' &&
       slot === 'wallet' &&
@@ -75,6 +78,18 @@ export function resolveIntentSlots({
 }
 
 function deriveSlots(intent, entities, text) {
+  if (intent === 'set_wallet_balance') {
+    const matches = (entities.wallets || []).filter((entry) => entry.id)
+    const selected = matches.length === 1 ? matches[0] : null
+    const value = entities.amounts?.length === 1 ? entities.amounts[0].value : null
+    const zero = /(?:^|\b(?:menjadi|jadi|ke|saldo)\s*)(?:rp\s*)?0(?:[.,]0+)?\s*$/iu.test(text)
+    const negative = /(?:-|minus|negatif)\s*(?:rp\s*)?\d/iu.test(text)
+    return compactObject({
+      wallet: selected ? { id: selected.id, name: selected.name } : null,
+      expectedBalance: selected?.wallet?.current_balance != null ? Number(selected.wallet.current_balance) : null,
+      targetBalance: negative ? -Math.abs(value || 1) : zero ? 0 : value,
+    })
+  }
   const candidate = (kind) => (entities.specialistCandidates || [])
     .find((entry) => entry.kind === kind)?.fields || null
   const compoundPurchase = candidate('compound_purchase')

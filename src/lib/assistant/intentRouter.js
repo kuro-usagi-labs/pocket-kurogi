@@ -157,6 +157,10 @@ function scoreDialogueActs(scores, text, entities, state) {
 }
 
 function scoreMutations(scores, text, entities) {
+  if (/\b(?:edit|ubah|ganti|koreksi|sesuaikan|setel|set|update)\b.{0,35}\bsaldo\b/iu.test(text)) {
+    add(scores, 'set_wallet_balance', 1, 'explicit_final_balance_adjustment')
+    addConflict(scores, ['query_balance', 'query_wallet', 'record_expense', 'record_income'], 'balance_adjustment_not_transaction', 0.8)
+  }
   const amountCount = entities.amounts?.length || 0
   const hasRecordVerb = SIGNALS.recordVerb.test(text)
 

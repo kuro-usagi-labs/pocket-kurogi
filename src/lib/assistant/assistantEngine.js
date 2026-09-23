@@ -276,6 +276,7 @@ function resolveRouteWithContext(route, context, entities, pendingAction) {
     String(entities.normalizedText || '').split(/\s+/u).length <= 6 &&
     (answersMissingWallet ||
       context.missingSlots.includes('description') ||
+      context.missingSlots.includes('targetBalance') ||
       context.missingSlots.includes('amount'))
 
   if (!shortSlotAnswer) return route

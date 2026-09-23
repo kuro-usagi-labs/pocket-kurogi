@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { normalizeEntityName } from '../lib/chatEntities'
+import { submitWalletBalanceAdjustment } from '../lib/walletBalanceAdjustment'
 
 const LEGACY_WALLET_DELETE_ERRORS = [
   'wallet masih memiliki saldo dan tidak bisa dihapus permanen',
@@ -338,6 +339,15 @@ export function useWallets() {
     0
   )
 
+  const setFinalBalance = useCallback(async (walletId, expectedBalance, targetBalance, idempotencyKey) => {
+    if (!user) return { error: new Error('Silakan login lagi.') }
+    const result = await submitWalletBalanceAdjustment((...args) => neon.rpc(...args), {
+      walletId, expectedBalance, targetBalance, idempotencyKey,
+    })
+    await fetchWallets()
+    return result
+  }, [user, fetchWallets])
+
   return {
     wallets,
     archivedWallets,
@@ -349,6 +359,7 @@ export function useWallets() {
     restoreWallet,
     clearAllWallets,
     updateBalance,
+    setFinalBalance,
     renameWallet,
     refetch: fetchWallets,
   }

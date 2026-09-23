@@ -1,4 +1,5 @@
 import { isMutatingAssistantIntent } from './intentDefinitions'
+import { isValidWalletBalance } from '../walletBalanceAdjustment'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const MAX_AMOUNT = 9_999_999_999_999.99
@@ -83,6 +84,13 @@ export function validateAssistantInterpretation({
 
   validateAmounts(slots, errors)
   validateWalletSlots(intent, slots, errors)
+  if (intent === 'set_wallet_balance') {
+    // Missing slots are clarified by the dialogue manager, not treated as zero.
+    validateBalanceFields(slots, errors, false)
+    if (new Set((entities.wallets || []).filter(item => item.id).map(item => item.id)).size > 1 || (entities.amounts || []).length > 1) {
+      errors.push(createIssue('AMBIGUOUS_BALANCE', 'Sebutkan satu dompet dan satu saldo akhir yang ingin ditetapkan.'))
+    }
+  }
 
   if (entities.wallets?.some((wallet) => wallet.source === 'memory')) {
     warnings.push(createIssue(
@@ -125,7 +133,16 @@ export function validatePendingActionExecution({
   }
 
   validateOwnedReferences(action.payload, wallets, categories, errors)
+  if (action.actionType === 'record_transactions') {
+    for (const item of action.payload?.items || []) {
+      const category = categories.find(entry => entry.id === item.categoryId)
+      if (category && category.category_type && !['both', item.transactionType].includes(category.category_type)) {
+        errors.push(createIssue('CATEGORY_TYPE_MISMATCH', 'Kategori tidak sesuai jenis transaksi. Pilih kategori pemasukan atau pengeluaran yang cocok.'))
+      }
+    }
+  }
   validateAmounts(action.payload, errors)
+  if (action.actionType === 'set_wallet_balance') validateBalanceFields(action.payload || {}, errors, true)
 
   return { safe: errors.length === 0, errors }
 }
@@ -142,6 +159,16 @@ function validateAmounts(value, errors, path = 'payload') {
       }
     } else if (entry && typeof entry === 'object') {
       validateAmounts(entry, errors, nextPath)
+    }
+  }
+}
+
+function validateBalanceFields(payload, errors, required) {
+  for (const key of ['targetBalance', 'expectedBalance']) {
+    if (!required && payload[key] === undefined) continue
+    const value = payload[key]
+    if (!isValidWalletBalance(value, key === 'expectedBalance')) {
+      errors.push(createIssue('INVALID_BALANCE', 'Saldo harus berupa nominal rupiah yang valid; saldo akhir tidak boleh negatif.'))
     }
   }
 }

@@ -121,7 +121,7 @@ export function resolveCategoryForMessage({
   analysisCategory = null,
   transactionType = 'expense',
 }) {
-  const fallbackCategory = findFallbackCategory(categories)
+  const fallbackCategory = findFallbackCategory(categories, transactionType)
   const explicitCategory = resolveExistingCategory(categories, extractExplicitCategoryName(text, categories), transactionType)
 
   if (explicitCategory.category) {
