@@ -1,7 +1,25 @@
 import { AlertCircle, ArrowDownRight, ArrowUpRight, PiggyBank, Repeat2 } from 'lucide-react'
 import { CategoryIcon } from '../shared/CategoryIcon'
 
-export default function AnalyticsView({ analytics, budgets = [], formatRupiah }) {
+export default function AnalyticsView({ analytics, budgets = [], formatRupiah, status = 'success', updatedAt = null, onRetry }) {
+  if ((status === 'loading' || status === 'error') && !updatedAt) {
+    return <section role="status" className="rounded-2xl border border-midnight/10 bg-white p-6 text-midnight">
+      <h2 className="font-bold">{status === 'loading' ? 'Memuat laporan…' : 'Laporan belum bisa dimuat'}</h2>
+      <p className="mt-2 text-sm text-muted">{status === 'loading' ? 'Menunggu data keuangan terbaru.' : 'Koneksi bermasalah. Ini bukan berarti transaksi atau saldomu nol.'}</p>
+      {status === 'error' && <button onClick={onRetry} className="mt-4 rounded-xl bg-midnight px-4 py-2 text-white">Coba lagi</button>}
+    </section>
+  }
+  return <>
+    <div role="status" className="mb-4 text-sm text-muted">
+      Laporan seluruh transaksi tercatat{updatedAt ? ` · Disinkronkan ${new Date(updatedAt).toLocaleString('id-ID')}` : ''}
+      {status === 'stale' && <p className="mt-2 text-amber-700">Pembaruan gagal. Menampilkan data terakhir. <button onClick={onRetry} className="underline">Coba lagi</button></p>}
+      {status === 'loading' && <p>Memperbarui data…</p>}
+    </div>
+    <AnalyticsContent analytics={analytics} budgets={budgets} formatRupiah={formatRupiah} />
+  </>
+}
+
+function AnalyticsContent({ analytics, budgets, formatRupiah }) {
   const {
     totalIncome = 0,
     totalExpense = 0,

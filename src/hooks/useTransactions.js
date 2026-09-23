@@ -3,6 +3,7 @@ import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { buildHistoryPresentation } from '../lib/historyPresentation'
 import { inferCategoryFromText } from '../lib/categoryCatalog'
+import { transactionCursor, transactionCursorFilter } from '../lib/transactionCursor'
 
 const TRANSACTION_SELECT = `
   *,
@@ -18,6 +19,11 @@ export function useTransactions() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const oldestCursorRef = useRef(null)
+  const requestGenerationRef = useRef(0)
+  const pageBusyRef = useRef(false)
+  const [error, setError] = useState(null)
+  const [dataOwner, setDataOwner] = useState(null)
+  const ownerRef = useRef(null)
 
   const mapTransactionRow = useCallback((transaction) => {
     const normalizedSource = normalizeTransactionSource(transaction.source)
@@ -77,6 +83,17 @@ export function useTransactions() {
   }, [])
 
   const fetchTransactions = useCallback(async ({ loadMore = false } = {}) => {
+    if (loadMore && pageBusyRef.current) return
+    const generation = loadMore ? requestGenerationRef.current : ++requestGenerationRef.current
+    if (ownerRef.current !== user?.id) {
+      ownerRef.current = user?.id
+      setTransactions([])
+      setDataOwner(user?.id)
+      setHasMore(false)
+      oldestCursorRef.current = null
+    }
+    if (!loadMore) { pageBusyRef.current = false; setLoadingMore(false) }
+    setError(null)
     if (!user) {
       setTransactions([])
       setLoading(false)
@@ -88,6 +105,7 @@ export function useTransactions() {
 
     if (loadMore) {
       if (!oldestCursorRef.current) return
+      pageBusyRef.current = true
       setLoadingMore(true)
     } else {
       setLoading(true)
@@ -99,18 +117,23 @@ export function useTransactions() {
       .select(TRANSACTION_SELECT)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(PAGE_SIZE)
 
     if (loadMore && oldestCursorRef.current) {
-      query = query.lt('created_at', oldestCursorRef.current)
+      query = query.or(transactionCursorFilter(oldestCursorRef.current))
     }
 
-    const { data, error } = await query
+    let result
+    try { result = await query } catch (error) { result = { data: null, error } }
+    if (generation !== requestGenerationRef.current) return
+    const { data, error } = result
+    setDataOwner(user.id)
+    setError(error || null)
 
     if (!error && data) {
       const nextTransactions = data.map(mapTransactionRow)
-      oldestCursorRef.current =
-        nextTransactions[nextTransactions.length - 1]?.createdAt || null
+      oldestCursorRef.current = transactionCursor(data.at(-1))
       setHasMore(nextTransactions.length === PAGE_SIZE)
 
       if (loadMore) {
@@ -124,11 +147,9 @@ export function useTransactions() {
       } else {
         setTransactions(nextTransactions)
       }
-    } else if (!loadMore) {
-      setTransactions([])
-      setHasMore(false)
     }
 
+    pageBusyRef.current = false
     if (loadMore) {
       setLoadingMore(false)
     } else {
@@ -141,7 +162,12 @@ export function useTransactions() {
       fetchTransactions().catch(() => null)
     }, 0)
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      clearTimeout(timeoutId)
+      requestGenerationRef.current += 1
+      pageBusyRef.current = false
+      oldestCursorRef.current = null
+    }
   }, [fetchTransactions])
 
   const fetchTransactionById = useCallback(async (id) => {
@@ -454,10 +480,11 @@ export function useTransactions() {
     .reduce((accumulator, transaction) => accumulator + transaction.amount, 0)
 
   return {
-    transactions,
-    loading,
-    totalIncome,
-    totalExpense,
+    transactions: dataOwner === user?.id ? transactions : [],
+    error: dataOwner === user?.id ? error : null,
+    loading: dataOwner !== user?.id || loading,
+    totalIncome: dataOwner === user?.id ? totalIncome : 0,
+    totalExpense: dataOwner === user?.id ? totalExpense : 0,
     addTransaction,
     addTransactionsBatch,
     replaceTransaction,
@@ -465,7 +492,7 @@ export function useTransactions() {
     clearTransactionsInRange,
     clearAllTransactions,
     transferBetweenWallets,
-    hasMore,
+    hasMore: dataOwner === user?.id && hasMore,
     loadingMore,
     loadMore: () => fetchTransactions({ loadMore: true }),
     refetch: fetchTransactions,

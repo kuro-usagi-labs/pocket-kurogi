@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useReducer, useRef, useEffect, useCallback } from 'react'
+import { createFinancialReadState, reduceFinancialReadState } from '../lib/financialReadState'
 import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -14,18 +15,20 @@ const EMPTY_ANALYTICS = {
 
 export function useAnalytics() {
   const { user } = useAuth()
-  const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS)
-  const [loading, setLoading] = useState(true)
+  const [state, dispatch] = useReducer(reduceFinancialReadState, user?.id, createFinancialReadState)
+  const requestRef = useRef(0)
 
   const getSnapshot = useCallback(async ({ startAt = null, endAt = null } = {}) => {
     if (!user) {
-      return { data: EMPTY_ANALYTICS, error: null }
+      return { data: null, error: new Error('Silakan login untuk melihat laporan.') }
     }
 
-    const { data, error } = await neon.rpc('get_analytics_snapshot', {
+    let result
+    try { result = await neon.rpc('get_analytics_snapshot', {
       p_start_at: startAt,
       p_end_at: endAt,
-    })
+    }) } catch (error) { return { data: null, error } }
+    const { data, error } = result
 
     if (!error && data) {
       return {
@@ -54,26 +57,18 @@ export function useAnalytics() {
       }
     }
 
-    return { data: EMPTY_ANALYTICS, error }
+    return { data: null, error: error || new Error('Laporan belum berhasil dimuat.') }
   }, [user])
 
   const fetchAnalytics = useCallback(async () => {
-    if (!user) {
-      setAnalytics(EMPTY_ANALYTICS)
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
+    const generation = ++requestRef.current
+    const ownerId = user?.id
+    dispatch({ type: 'start', ownerId, generation })
+    if (!ownerId) return
     const { data, error } = await getSnapshot()
-
-    if (!error) {
-      setAnalytics(data)
-    } else {
-      setAnalytics(EMPTY_ANALYTICS)
-    }
-
-    setLoading(false)
+    if (generation !== requestRef.current) return
+    dispatch({ type: error ? 'failure' : 'success', ownerId, generation, data, error,
+      updatedAt: new Date().toISOString() })
   }, [getSnapshot, user])
 
   useEffect(() => {
@@ -81,12 +76,16 @@ export function useAnalytics() {
       fetchAnalytics().catch(() => null)
     }, 0)
 
-    return () => clearTimeout(timeoutId)
+    return () => { clearTimeout(timeoutId); requestRef.current += 1 }
   }, [fetchAnalytics])
 
+  const visible = state.ownerId === user?.id ? state : createFinancialReadState(user?.id)
   return {
-    analytics,
-    loading,
+    analytics: visible.data || EMPTY_ANALYTICS,
+    status: visible.status,
+    error: visible.error,
+    updatedAt: visible.updatedAt,
+    loading: visible.status === 'loading',
     getSnapshot,
     refetch: fetchAnalytics,
   }

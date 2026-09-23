@@ -89,6 +89,8 @@ export default function AppShell() {
 
   const {
     transactions,
+    error: transactionsError,
+    loading: transactionsLoading,
     replaceTransaction,
     deleteTransaction,
     hasMore: hasMoreTransactions,
@@ -125,7 +127,7 @@ export default function AppShell() {
     loadMore: loadMoreMessages,
     refetch: refetchChat,
   } = useChat()
-  const { analytics, refetch: refetchAnalytics } = useAnalytics()
+  const { analytics, status: analyticsStatus, updatedAt: analyticsUpdatedAt, refetch: refetchAnalytics } = useAnalytics()
   const { conflicts, refetch: refetchNameConflicts } = useNameConflicts()
 
   const advisor = useAdvisor({
@@ -133,6 +135,7 @@ export default function AppShell() {
     totalBalance,
     transactions,
     analytics,
+    analyticsStatus,
     goals,
     budgets,
   })
@@ -861,6 +864,9 @@ export default function AppShell() {
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <HistoryView
                     transactions={transactions}
+                    error={transactionsError}
+                    loading={transactionsLoading}
+                    onRetry={refetchTransactions}
                     wallets={wallets}
                     categories={categories}
                     formatRupiah={formatRupiah}
@@ -901,6 +907,9 @@ export default function AppShell() {
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <AnalyticsView
                     analytics={analytics}
+                    status={analyticsStatus}
+                    updatedAt={analyticsUpdatedAt}
+                    onRetry={refetchAnalytics}
                     budgets={budgets}
                     formatRupiah={formatRupiah}
                   />
@@ -955,6 +964,7 @@ export default function AppShell() {
           {activeTab === 'chat' ? (
             <DesktopRightPanel
               analytics={analytics}
+              analyticsStatus={analyticsStatus}
               transactions={transactions}
               goals={goals}
               onExecuteStrategy={handleSend}

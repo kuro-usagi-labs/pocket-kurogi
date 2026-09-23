@@ -3,6 +3,7 @@ import { TransactionIcon } from '../shared/CategoryIcon'
 
 export default function DesktopRightPanel({
   analytics,
+  analyticsStatus = 'success',
   transactions = [],
   goals = [],
   onExecuteStrategy,
@@ -26,9 +27,9 @@ export default function DesktopRightPanel({
       <section className="overflow-hidden rounded-[20px] bg-midnight p-5 text-white shadow-[0_24px_60px_rgba(31,32,38,0.16)]">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-bold text-white/60">Ritme bulan ini</p>
+            <p className="text-[11px] font-bold text-white/60">Ritme keuangan tercatat</p>
             <p className="money-number mt-2 text-[34px] font-bold leading-none">
-              {savingsRate}%
+              {analyticsStatus === 'success' ? `${savingsRate}%` : '—'}
             </p>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-white/10 text-orange-300">
@@ -36,7 +37,7 @@ export default function DesktopRightPanel({
           </div>
         </div>
         <p className="mt-4 max-w-[22ch] text-[12px] font-medium leading-relaxed text-white/65">
-          {netCashflow >= 0 ? 'Arus kasmu masih memberi ruang untuk menabung.' : 'Pengeluaran sedang lebih cepat dari pemasukan.'}
+          {analyticsStatus !== 'success' ? 'Laporan belum tersinkron. Buka laporan untuk memuat ulang.' : totalIncome === 0 && totalSavings === 0 && netCashflow === 0 ? 'Belum ada arus kas tercatat untuk dirangkum.' : netCashflow >= 0 ? 'Arus kas tercatat positif; pertimbangkan juga tagihan mendatang.' : 'Pengeluaran tercatat lebih besar dari pemasukan.'}
         </p>
       </section>
 

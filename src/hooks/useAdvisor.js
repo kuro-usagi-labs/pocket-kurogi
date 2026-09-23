@@ -6,6 +6,7 @@ export function useAdvisor({
   totalBalance = 0,
   transactions = [],
   analytics = {},
+  analyticsStatus = 'success',
   goals = [],
   budgets = [],
 }) {
@@ -90,7 +91,9 @@ export function useAdvisor({
 
   const grandTotalBalance = financialStats.totalBalance + financialStats.totalGoalsBalance
 
-  const getContextString = useCallback(() => buildFinancialContextString({
+  const getContextString = useCallback(() => analyticsStatus !== 'success'
+    ? 'Ringkasan laporan belum tersinkron. Jangan menyimpulkan pemasukan, pengeluaran, atau rasio tabungan dari data ini.'
+    : buildFinancialContextString({
     grandTotalBalance,
     totalBalance: financialStats.totalBalance,
     totalGoalsBalance: financialStats.totalGoalsBalance,
@@ -104,7 +107,7 @@ export function useAdvisor({
     topIncomeCategories: financialStats.topIncomeCategories,
     budgetAlerts: financialStats.budgetAlerts,
     goals: financialStats.goals,
-  }), [financialStats, grandTotalBalance])
+  }), [financialStats, grandTotalBalance, analyticsStatus])
 
   return {
     ...financialStats,

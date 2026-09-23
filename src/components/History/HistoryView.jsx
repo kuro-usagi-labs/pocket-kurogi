@@ -22,6 +22,9 @@ export default function HistoryView({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
+  error = null,
+  loading = false,
+  onRetry,
 }) {
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
@@ -139,8 +142,18 @@ export default function HistoryView({
     setDateFilter('all')
   }
 
+  if (transactions.length === 0 && (loading || error)) {
+    return <section className="surface-card m-4 p-6 text-midnight" role={error ? 'alert' : 'status'}>
+      <h2 className="font-bold">Riwayat transaksi</h2>
+      <p className="mt-2">{error ? 'Riwayat belum berhasil dimuat. Coba lagi untuk melihat transaksi.' : 'Memuat riwayat…'}</p>
+      {error && <button type="button" onClick={onRetry} className="mt-3 rounded-xl border px-4 py-3 font-bold">Coba lagi</button>}
+    </section>
+  }
+
   return (
     <div className="page-view px-4 pb-7 pt-4 sm:px-6 lg:px-0 lg:pb-0 lg:pt-0">
+      {error && <div role="alert" className="mb-4 rounded-xl border border-amber-200 p-4 text-sm text-midnight">Riwayat belum berhasil diperbarui. Data yang sudah tampil tetap disimpan. <button onClick={onRetry} className="font-bold underline">Coba lagi</button></div>}
+      {loading && <p role="status" className="mb-4 text-sm text-muted">Memuat riwayat…</p>}
       <div className="lg:hidden">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
