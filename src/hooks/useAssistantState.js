@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { requestAssistantApi } from '../lib/assistant/assistantApiClient'
+import { confirmWithReconciliation } from '../lib/assistant/actionOutcome'
 
 export function useAssistantState() {
   const { user } = useAuth()
@@ -172,13 +173,8 @@ export function useAssistantState() {
     }
 
     try {
-      const data = await requestAssistantApi({
-        operation: 'confirm_action',
-        body: {
-          actionId: action.id,
-          payloadHash: action.payloadHash,
-        },
-      })
+      const { data, error } = await confirmWithReconciliation({ action, request: requestAssistantApi })
+      if (error) return { data: null, error, outcome: 'unknown' }
       pendingActionRef.current = null
       dialogueStateRef.current = null
       setPendingAction(null)

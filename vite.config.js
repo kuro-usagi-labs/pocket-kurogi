@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  test: { exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'] },
   build: {
     cssTarget: 'safari13',
     rolldownOptions: {

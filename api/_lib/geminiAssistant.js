@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { classifyProviderFailure } from './providerRecovery.js'
 import { compileLanguageCommand, languageContext, LANGUAGE_SCHEMA } from './geminiCommands.js'
+import { validateLanguageProposal, LANGUAGE_FIELDS } from '../../src/lib/assistant/languageProposal.js'
 
-const DAY = 86_400_000
 const SYSTEM = `Kamu Kurogi, teman ngobrol dalam aplikasi keuangan pribadi Indonesia.
 Pahami bahasa santai, singkatan, dan campuran Indonesia/Inggris. Jawab ramah, langsung,
 ringkas (maksimal 150 kata), bukan daftar kemampuan berulang. Tanggapi sapaan secara alami.
@@ -36,30 +37,26 @@ reply hanya untuk general_chat/clarify, bahasa Indonesia natural maksimal 100 ka
 Jangan buat angka saldo/laporan: itu harus query agar dihitung backend.`
 
 // No provider payload, credentials, or raw errors ever leave this module.
-export async function getGeminiReply({ sql, text, context = {}, classify = false, env = process.env, fetchImpl = fetch }) {
+export async function getGeminiReply({ sql, userId, text, context = {}, classify = false, structured = false, env = process.env, fetchImpl = fetch }) {
   if (typeof text !== 'string' || !text.trim() || text.length > 2000) {
     return fallback('invalid_input')
   }
   if (!env.GEMINI_API_KEY || env.GEMINI_ENABLED === 'false') return fallback('disabled')
+  if (!userId) return fallback('unauthenticated')
   const model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite'
   if (!/^gemini-[a-z0-9.-]+$/.test(model)) return fallback('configuration')
   // Shared per key/model across all Vercel workers; no raw key stored in Neon.
   const scope = createHash('sha256').update(`${env.GEMINI_API_KEY}:${model}`).digest('hex')
+  const leaseToken = randomUUID()
   try {
-    const lease = await sql`
-      insert into assistant_private.provider_cooldowns (scope, next_attempt_at)
-      values (${scope}, now() + interval '15 seconds')
-      on conflict (scope) do update set next_attempt_at = now() + interval '15 seconds'
-      where provider_cooldowns.next_attempt_at <= now()
-      returning scope
-    `
-    if (!lease.length) return fallback('cooldown')
+    const lease = await sql`select assistant_private.acquire_provider_slot(${scope}, ${userId}::uuid, ${leaseToken}::uuid) as reason`
+    if (lease[0]?.reason !== 'acquired') return fallback(lease[0]?.reason || 'cooldown')
   } catch {
     // Fail closed if migration/DB is unavailable: never spend unbounded quota.
     return fallback('cooldown_store_unavailable')
   }
 
-  let delay = 60_000
+  let delay = classifyProviderFailure({}).retryAfterMs
   let reason = 'unavailable'
   try {
     const response = await fetchImpl(
@@ -70,7 +67,7 @@ export async function getGeminiReply({ sql, text, context = {}, classify = false
         signal: AbortSignal.timeout(8000),
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: classify ? CLASSIFIER : SYSTEM }] },
-          contents: [{ role: 'user', parts: [{ text: classify ? JSON.stringify({ message: text.trim(), references: languageContext(context) }) : text.trim() }] }],
+          contents: [{ role: 'user', parts: [{ text: classify ? JSON.stringify({ message: text.trim(), references: languageContext(structured ? { wallets: context.wallets?.map(w => w.name), goals: context.goals?.map(g => g.name) } : context), ...(structured ? { conversation: context.conversation } : {}) }) : text.trim() }] }],
           generationConfig: { maxOutputTokens: 1200, temperature: 0.1,
             ...(classify ? { responseMimeType: 'application/json', responseSchema: LANGUAGE_SCHEMA } : {}),
           },
@@ -84,28 +81,35 @@ export async function getGeminiReply({ sql, text, context = {}, classify = false
         ?.filter((part) => !part.thought && typeof part.text === 'string')
         .map((part) => part.text).join('').trim()
       if (candidate?.finishReason === 'STOP' && reply && reply.length <= 4000) {
-        const data = classify ? { mode: 'gemini', interpretation: compileLanguageCommand(JSON.parse(reply), text, context) } : { mode: 'gemini', reply }
+        let interpretation
+        if (classify) {
+          const parsed = JSON.parse(reply)
+          if (structured) {
+            validateLanguageProposal({ proposal: parsed, text, context })
+            interpretation = Object.fromEntries(['intent', ...LANGUAGE_FIELDS].filter(key => parsed[key] !== undefined).map(key => [key, parsed[key]]))
+            interpretation.version = 1
+          } else interpretation = compileLanguageCommand(parsed, text, context)
+        }
+        const data = classify ? { mode: 'gemini', interpretation } : { mode: 'gemini', reply }
         // Release the shared lease after success so the next chat turn can use AI.
-        await sql`update assistant_private.provider_cooldowns set next_attempt_at = now() where scope = ${scope}`
+        try { await sql`select assistant_private.release_provider_slot(${scope}, ${leaseToken}::uuid, ${0})` } catch { /* Lease expires; do not discard a valid reply. */ }
         return data
       }
       reason = 'invalid_response'
-    } else if (response.status === 429) {
-      delay = DAY
-      reason = 'quota'
-    } else if ([400, 401, 403, 404].includes(response.status)) {
-      delay = DAY
-      reason = 'configuration'
+    } else {
+      let details
+      try { details = await response.json() } catch { /* Missing details is transient, not daily quota. */ }
+      const dailyQuota = (details?.error?.details || []).some(detail =>
+        (detail.violations || []).some(item => /perday|daily/i.test(String(item.quotaId || item.quotaMetric || ''))))
+      const policy = classifyProviderFailure({ status: response.status, dailyQuota, retryAfterSeconds: response.headers?.get('retry-after') })
+      delay = policy.retryAfterMs
+      reason = policy.reason
     }
   } catch {
     reason = 'unavailable'
   }
   try {
-    await sql`
-      update assistant_private.provider_cooldowns
-      set next_attempt_at = greatest(next_attempt_at, now() + ${delay} * interval '1 millisecond')
-      where scope = ${scope}
-    `
+    await sql`select assistant_private.release_provider_slot(${scope}, ${leaseToken}::uuid, ${delay})`
   } catch {
     // The current message must still receive its deterministic reply.
   }

@@ -28,3 +28,5 @@ Thumbs.db
 *.rbxlx.lock
 
 .vercel
+test-results/
+playwright-report/

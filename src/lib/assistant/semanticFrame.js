@@ -7,6 +7,7 @@ import {
 import { routeAssistantIntent } from './intentRouter'
 import { resolveIntentSlots } from './slotResolver'
 import { validateAssistantInterpretation } from './safetyValidator'
+import { validateLanguageProposal } from './languageProposal'
 import {
   getChatWriteCandidate,
   isChatWriteIntentType,
@@ -27,6 +28,7 @@ export function buildAssistantSemanticFrame({
   walletRules = [],
   dialogueState = null,
   pendingAction = null,
+  languageProposal = null,
   financialState = {},
   now = new Date(),
 } = {}) {
@@ -41,7 +43,7 @@ export function buildAssistantSemanticFrame({
     walletRules,
     now,
   })
-  const route = routeAssistantIntent({
+  let route = routeAssistantIntent({
     text,
     entities,
     dialogueState: pendingAction
@@ -52,6 +54,9 @@ export function buildAssistantSemanticFrame({
         }
       : dialogueState,
   })
+  const proposal = languageProposal && !pendingAction
+    ? validateLanguageProposal({ proposal: languageProposal, text: originalText, context: { wallets, goals } }) : null
+  if (proposal) route = { ...route, intent: proposal.intent, score: 1, ambiguous: false, evidence: ['validated_language_proposal'], alternatives: [] }
   const slots = resolveIntentSlots({
     now,
     intent: route.intent,
@@ -59,6 +64,17 @@ export function buildAssistantSemanticFrame({
     dialogueState,
     text,
   })
+  if (proposal) {
+    const inherited = dialogueState?.activeIntent === proposal.intent ? dialogueState.collectedSlots || {} : {}
+    // Only typed, evidence-checked slots are contributed by the model. Date and
+    // category evidence still comes from the original utterance's extractors.
+    slots.slots = { ...inherited,
+      ...(proposal.intent.startsWith('query_') ? slots.slots : {}),
+      ...(entities.dates?.[0]?.value ? { occurredAt: entities.dates[0].value } : {}),
+      ...proposal.slots }
+    slots.missingSlots = slots.requiredSlots.filter(key => slots.slots[key] === undefined || slots.slots[key] === null || slots.slots[key] === '')
+    slots.complete = slots.missingSlots.length === 0
+  }
   const safety = validateAssistantInterpretation({
     intent: route.intent,
     entities,

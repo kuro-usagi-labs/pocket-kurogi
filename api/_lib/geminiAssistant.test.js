@@ -7,10 +7,18 @@ const success = (reply = 'Hai! Lagi pengin cerita apa?') => ({
   json: async () => ({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: reply }] } }] }),
 })
 function setup(response = success()) {
-  return { env, text: 'hi', sql: vi.fn().mockResolvedValue([{ scope: 'test' }]), fetchImpl: vi.fn().mockResolvedValue(response) }
+  return { env, userId: '11111111-1111-4111-8111-111111111111', text: 'hi', sql: vi.fn().mockResolvedValue([{ reason: 'acquired' }]), fetchImpl: vi.fn().mockResolvedValue(response) }
 }
 
 describe('Gemini conversation gateway', () => {
+  it('returns grounded v2 fields without a generated command or model IDs', async () => {
+    const input = setup(success(JSON.stringify({ intent: 'set_wallet_balance', amountText: '0', wallet: 'Tunai', walletId: 'foreign' })))
+    const result = await getGeminiReply({ ...input, classify: true, structured: true, text: 'ubah saldo Tunai menjadi 0', context: { wallets: [{ id: 'w', name: 'Tunai', current_balance: 100 }], goals: [] } })
+    expect(result.interpretation).toMatchObject({ intent: 'set_wallet_balance', amountText: '0', wallet: 'Tunai' })
+    expect(result.interpretation.command).toBeUndefined()
+    expect(result.interpretation.walletId).toBeUndefined()
+    expect(input.fetchImpl.mock.calls[0][1].body).not.toContain('current_balance')
+  })
   it('classifies free language, sends only names, and releases the successful lease', async () => {
     const input = setup(success(JSON.stringify({ intent: 'record_income', amountText: '2,860,097', description: 'Gaji' })))
     const result = await getGeminiReply({ ...input, classify: true, text: 'gaji 2,860,097 tolong catat', context: { wallets: ['BCA'], goals: [], balance: 999 } })
@@ -56,10 +64,10 @@ describe('Gemini conversation gateway', () => {
     expect((await getGeminiReply(input)).reason).toBe('cooldown_store_unavailable')
     expect(input.fetchImpl).not.toHaveBeenCalled()
   })
-  it.each([[429, 86400000, 'quota'], [403, 86400000, 'configuration'], [404, 86400000, 'configuration'], [503, 60000, 'unavailable']])('cooldown for provider status %s', async (status, delay, reason) => {
-    const input = setup({ ok: false, status })
+  it.each([[429, 20000, 'rate_limit'], [403, 86400000, 'configuration'], [404, 86400000, 'configuration'], [503, 20000, 'unavailable']])('cooldown for provider status %s', async (status, delay, reason) => {
+    const input = setup({ ok: false, status, headers: { get: () => '20' } })
     expect(await getGeminiReply(input)).toEqual({ mode: 'fallback', reason })
-    expect(input.sql.mock.calls[1][1]).toBe(delay)
+    expect(input.sql.mock.calls[1].at(-1)).toBe(delay)
   })
   it('falls back on timeouts without leaking errors', async () => {
     const input = setup()
@@ -76,7 +84,7 @@ describe('Gemini conversation gateway', () => {
   })
   it('still returns fallback if persisting cooldown fails after provider error', async () => {
     const input = setup({ ok: false, status: 429 })
-    input.sql.mockResolvedValueOnce([{ scope: 'test' }]).mockRejectedValueOnce(new Error('database down'))
-    expect((await getGeminiReply(input)).reason).toBe('quota')
+    input.sql.mockResolvedValueOnce([{ reason: 'acquired' }]).mockRejectedValueOnce(new Error('database down'))
+    expect((await getGeminiReply(input)).reason).toBe('rate_limit')
   })
 })

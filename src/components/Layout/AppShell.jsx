@@ -31,7 +31,6 @@ import {
 import { buildChatQuickActions } from '../../lib/chatSuggestions'
 import {
   attachAssistantUnderstanding,
-  orchestrateAssistantMessage,
 } from '../../lib/assistant/unifiedAssistantOrchestrator'
 import { ASSISTANT_DECISION_HANDLERS } from '../../lib/assistant/assistantDecisionPolicy'
 import {
@@ -41,10 +40,12 @@ import {
   getPendingMemoryProposal,
 } from '../../lib/assistant/memoryProposal'
 import { lazyWithRecovery } from '../../lib/lazyWithRecovery'
-import { detectThemeRequest, isSafeLanguageRewrite, requestLanguageInterpretation } from '../../lib/assistant/languageAssistant'
+import { requestLanguageInterpretation } from '../../lib/assistant/languageAssistant'
+import { resolveConversationTurn } from '../../lib/assistant/conversationTurn'
 import { useTheme } from '../../contexts/ThemeContext'
-import { splitWalletProvisionRequest } from '../../lib/assistant/walletProvisionFlow'
 import { getCurrentTimeLabel, getWelcomeMessage } from '../../lib/appShellChatHelpers'
+import { formatMoney } from '../../lib/formatMoney'
+import ConnectedWalletAdjustmentHistory from '../Wallets/ConnectedWalletAdjustmentHistory'
 
 const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
@@ -122,6 +123,7 @@ export default function AppShell() {
     error: chatError,
     syncStatus: chatSyncStatus,
     saveMessage,
+    retryMessage,
     hasMore: hasMoreMessages,
     loadingMore: loadingMoreMessages,
     loadMore: loadMoreMessages,
@@ -161,14 +163,7 @@ export default function AppShell() {
     [analytics, archivedWallets, transactions, wallets]
   )
 
-  const formatRupiah = useCallback((number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(number)
-  }, [])
+  const formatRupiah = formatMoney
 
   const syncFinancialViews = useCallback(
     async ({
@@ -272,7 +267,7 @@ export default function AppShell() {
     }
 
     const result = await saveMessage('bot', response.text, extras)
-    if (result?.error) {
+    if (result?.error && !result.retainedLocally) {
       throw result.error
     }
   }, [saveMessage])
@@ -434,29 +429,11 @@ export default function AppShell() {
             budgets,
           },
         }
-        let orchestration = orchestrateAssistantMessage(orchestrationInput)
-        let languageResponse = null
-        const freshRequest = !assistantSnapshot.pendingAction && !pendingMemoryProposal &&
-          orchestration.frame.intent !== 'set_wallet_balance' &&
-          !imageFile && !assistantSnapshot.dialogueState?.missingSlots?.length &&
-          !splitWalletProvisionRequest(userMessageText) &&
-          orchestration.decision.handler === ASSISTANT_DECISION_HANDLERS.CANONICAL
-        if (freshRequest) {
-          const interpretation = await requestLanguageInterpretation(userMessageText, { wallets, goals })
-          const theme = interpretation?.intent === 'set_theme'
-            ? interpretation.theme : detectThemeRequest(userMessageText)
-          if (theme && ['dark', 'light', 'system'].includes(theme)) {
-            setThemePreference(theme)
-            languageResponse = { text: `Tampilan sudah diubah ke ${theme === 'dark' ? 'mode gelap' : theme === 'light' ? 'mode terang' : 'tema otomatis mengikuti perangkat'}.` }
-          } else if (interpretation?.command &&
-            !(orchestration.frame.action?.kind === 'query' && orchestration.frame.intent === interpretation.intent)) {
-            const candidate = orchestrateAssistantMessage({ ...orchestrationInput, text: interpretation.command })
-            if (isSafeLanguageRewrite(orchestration.frame, candidate.frame, interpretation)) {
-              orchestration = candidate
-            }
-          } else if (['general_chat', 'clarify'].includes(interpretation?.intent) && interpretation.reply) {
-            languageResponse = { text: interpretation.reply, metadata: { responseSource: 'gemini' } }
-          }
+        const orchestration = await resolveConversationTurn({ ...orchestrationInput, imageFile }, { interpret: requestLanguageInterpretation })
+        let languageResponse = orchestration.languageResponse
+        if (orchestration.theme) {
+          setThemePreference(orchestration.theme)
+          languageResponse = { text: `Tampilan sudah diubah ke ${orchestration.theme === 'dark' ? 'mode gelap' : orchestration.theme === 'light' ? 'mode terang' : 'tema otomatis mengikuti perangkat'}.` }
         }
         const assistantInputText = orchestration.resolvedText
         const handler = orchestration.decision.handler
@@ -583,6 +560,10 @@ export default function AppShell() {
   )
 
   const handleChatCardAction = useCallback((action, card = {}) => {
+    if (action === 'sync-message') {
+      retryMessage(card)
+      return
+    }
     if (action === 'assistant-confirm') {
       handleSend('Iya catat')
       return
@@ -624,7 +605,7 @@ export default function AppShell() {
       setActiveTab('history')
       showNotice('Transaksi ini bisa dikoreksi dari Histori.', 'info')
     }
-  }, [handleSend, handleUndoLastTransaction, handleUndoTransaction, showNotice, transactions])
+  }, [handleSend, handleUndoLastTransaction, handleUndoTransaction, showNotice, transactions, retryMessage])
 
   const handleAddGoal = useCallback(async (goalData) => {
     const result = await addGoal(goalData)
@@ -893,6 +874,7 @@ export default function AppShell() {
                     onDeleteWallet={handleDeleteWallet}
                     onRenameWallet={handleRenameWallet}
                     onSetFinalBalance={setFinalBalance}
+                    renderAdjustmentHistory={(wallet, onClose) => <ConnectedWalletAdjustmentHistory wallet={wallet} onClose={onClose} />}
                     onAddGoal={handleAddGoal}
                     onDeleteGoal={handleDeleteGoal}
                     onRenameGoal={handleRenameGoal}

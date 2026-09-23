@@ -1,4 +1,5 @@
 import { formatWalletAdjustmentBalance } from '../walletBalanceAdjustment'
+import { formatMoney as formatRupiah } from '../formatMoney'
 
 const HANDLED_MUTATION_INTENTS = new Set([
   'set_wallet_balance',
@@ -271,13 +272,4 @@ export function buildAssistantCorrectionResponse(action) {
       pendingActionCorrected: true,
     },
   }
-}
-
-function formatRupiah(value) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0))
 }

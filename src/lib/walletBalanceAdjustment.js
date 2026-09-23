@@ -1,6 +1,4 @@
-export function formatWalletAdjustmentBalance(value) {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value)
-}
+export { formatMoney as formatWalletAdjustmentBalance } from './formatMoney'
 
 export function isValidWalletBalance(value, allowNegative = false) {
   return typeof value === 'number' && Number.isFinite(value) &&

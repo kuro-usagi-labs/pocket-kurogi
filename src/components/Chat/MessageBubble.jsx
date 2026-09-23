@@ -120,6 +120,10 @@ export default function MessageBubble({
             )
           ) : null}
         </div>
+        {msg.metadata?.deliveryStatus === 'unsynced' && <div role="status" className="mt-2 text-xs text-muted">
+          Balasan belum tersinkron. Status aksi keuangan tidak berubah.
+          <button type="button" disabled={disabled} onClick={() => onCardAction?.('sync-message', msg)} className="ml-2 min-h-11 font-bold underline">Sinkronkan balasan</button>
+        </div>}
         {isLastInGroup ? (
           <span className="mx-3 mt-1.5 font-jakarta text-[11px] font-medium text-muted">
             {msg.time}
@@ -239,13 +243,22 @@ function PendingActionCard({ card, disabled = false, inactive = false, formatRup
             <p className="text-[11px] font-bold text-amber-700">{inactive ? 'Konfirmasi sebelumnya · tidak aktif' : 'Menunggu konfirmasi'}</p>
             <p className="mt-0.5 text-[13px] font-extrabold">{card.title}</p>
           </div>
-          {Number(card.amount || 0) > 0 ? (
+          {card.amount != null && card.actionType !== 'set_wallet_balance' ? (
             <p className="shrink-0 text-[13px] font-extrabold text-amber-800">
               {formatRupiah(card.amount)}
             </p>
           ) : null}
         </div>
 
+        {card.actionType === 'set_wallet_balance' && <div className="mt-3 space-y-1 text-xs">
+          <p>Saldo sebelum: <strong>{formatRupiah(card.expectedBalance)}</strong></p>
+          <p>Saldo sesudah: <strong>{formatRupiah(card.targetBalance)}</strong></p>
+          <p>Selisih: <strong>{formatRupiah(Number(card.targetBalance) - Number(card.expectedBalance))}</strong></p>
+          <p className="pt-1 text-muted">Penyesuaian saldo, bukan pemasukan atau pengeluaran.</p>
+        </div>}
+        {card.description && <p className="mt-2 text-xs">Catatan: {card.description}</p>}
+        {card.category && <p className="mt-1 text-xs">Kategori: {card.category}</p>}
+        {card.occurredAt && <p className="mt-1 text-xs">Tanggal: {new Date(card.occurredAt).toLocaleDateString('id-ID')}</p>}
         {card.sourceWallet ? (
           <p className="mt-2 text-[11px] font-bold text-muted">
             {card.destinationWallet

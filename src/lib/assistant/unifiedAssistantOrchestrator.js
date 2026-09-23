@@ -19,6 +19,7 @@ export function orchestrateAssistantMessage({
   walletRules = [],
   dialogueState = null,
   pendingAction = null,
+  languageProposal = null,
   pendingMemoryProposal = null,
   memoryProposalDecision = null,
   financialState = {},
@@ -50,6 +51,7 @@ export function orchestrateAssistantMessage({
     dialogueState,
     pendingAction,
     financialState,
+    languageProposal,
     now,
   })
   const memoryCandidates = canProposeMemory({

@@ -123,6 +123,7 @@ export default function WalletsView({
   onDeleteWallet,
   onRenameWallet,
   onSetFinalBalance,
+  renderAdjustmentHistory,
   onAddGoal,
   onDeleteGoal,
   onRenameGoal,
@@ -132,6 +133,7 @@ export default function WalletsView({
   const [showAddGoal, setShowAddGoal] = useState(false)
   const [renameDialog, setRenameDialog] = useState(null)
   const [balanceWallet, setBalanceWallet] = useState(null)
+  const [historyWallet, setHistoryWallet] = useState(null)
   const [activeWalletFilter, setActiveWalletFilter] = useState('all')
   const [manageMode, setManageMode] = useState(false)
 
@@ -288,6 +290,7 @@ export default function WalletsView({
                   manageMode={manageMode}
                   onRename={() => handleRenameWallet(wallet)}
                   onAdjustBalance={() => setBalanceWallet(wallet)}
+                  onAdjustmentHistory={renderAdjustmentHistory ? () => setHistoryWallet(wallet) : null}
                   onDelete={() => onDeleteWallet(wallet.id)}
                 />
               ))
@@ -464,6 +467,7 @@ export default function WalletsView({
                       manageMode={manageMode}
                       onRename={() => handleRenameWallet(wallet)}
                       onAdjustBalance={() => setBalanceWallet(wallet)}
+                      onAdjustmentHistory={renderAdjustmentHistory ? () => setHistoryWallet(wallet) : null}
                       onDelete={() => onDeleteWallet(wallet.id)}
                     />
                   ))}
@@ -552,11 +556,12 @@ export default function WalletsView({
         />
       ) : null}
       {balanceWallet ? <AdjustBalanceModal wallet={balanceWallet} onSubmit={onSetFinalBalance} onClose={() => setBalanceWallet(null)} formatRupiah={formatRupiah} /> : null}
+      {historyWallet && renderAdjustmentHistory?.(historyWallet, () => setHistoryWallet(null))}
     </div>
   )
 }
 
-function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, onDelete, onAdjustBalance }) {
+function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, onDelete, onAdjustBalance, onAdjustmentHistory }) {
   const balance = formatWalletBalance(wallet.current_balance)
   const meta = getWalletMeta(wallet)
 
@@ -611,7 +616,7 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
               </button>
             </div>
           ) : (
-            <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} onAdjustBalance={onAdjustBalance} />
+            <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} onAdjustBalance={onAdjustBalance} onAdjustmentHistory={onAdjustmentHistory} />
           )}
         </div>
       </div>
@@ -619,7 +624,7 @@ function WalletListItem({ wallet, formatRupiah, featured, manageMode, onRename, 
   )
 }
 
-function DesktopWalletRow({ wallet, formatRupiah, featured, manageMode, onRename, onDelete, onAdjustBalance }) {
+function DesktopWalletRow({ wallet, formatRupiah, featured, manageMode, onRename, onDelete, onAdjustBalance, onAdjustmentHistory }) {
   const balance = formatWalletBalance(wallet.current_balance)
   const meta = getWalletMeta(wallet)
 
@@ -680,14 +685,14 @@ function DesktopWalletRow({ wallet, formatRupiah, featured, manageMode, onRename
             </button>
           </div>
         ) : (
-          <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} onAdjustBalance={onAdjustBalance} compact />
+          <WalletActionMenu walletName={wallet.name} onRename={onRename} onDelete={onDelete} onAdjustBalance={onAdjustBalance} onAdjustmentHistory={onAdjustmentHistory} compact />
         )}
       </div>
     </div>
   )
 }
 
-function WalletActionMenu({ walletName, onRename, onDelete, onAdjustBalance, compact = false }) {
+function WalletActionMenu({ walletName, onRename, onDelete, onAdjustBalance, onAdjustmentHistory, compact = false }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState(null)
   const buttonRef = useRef(null)
@@ -817,6 +822,7 @@ function WalletActionMenu({ walletName, onRename, onDelete, onAdjustBalance, com
             <Pencil size={15} />
             Ubah
           </button>
+          {onAdjustmentHistory && <button type="button" role="menuitem" onClick={() => { buttonRef.current?.focus(); setMenuOpen(false); onAdjustmentHistory() }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-midnight hover:bg-slate-50"><Calendar size={15} />Riwayat penyesuaian</button>}
           <button type="button" role="menuitem" onClick={() => { buttonRef.current?.focus(); setMenuOpen(false); onAdjustBalance() }} className="flex min-h-11 w-full items-center gap-2 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold text-midnight hover:bg-slate-50">
             <Wallet size={15} /> Sesuaikan saldo
           </button>

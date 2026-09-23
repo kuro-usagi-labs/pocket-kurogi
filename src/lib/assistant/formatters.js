@@ -1,13 +1,4 @@
-const IDR_FORMATTER = new Intl.NumberFormat('id-ID', {
-  style: 'currency',
-  currency: 'IDR',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-})
-
-export function formatRupiah(value = 0) {
-  return IDR_FORMATTER.format(Number(value || 0))
-}
+export { formatMoney as formatRupiah } from '../formatMoney'
 
 export function formatPercentage(value = 0, digits = 1) {
   return `${Number(value || 0).toFixed(digits)}%`

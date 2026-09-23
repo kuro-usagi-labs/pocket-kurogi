@@ -1,9 +1,8 @@
 import { normalizeMoneyNumber } from '../../src/lib/moneyNumber.js'
+import { LANGUAGE_INTENTS, LANGUAGE_FIELDS } from '../../src/lib/assistant/languageProposal.js'
+export { LANGUAGE_INTENTS } from '../../src/lib/assistant/languageProposal.js'
 
-export const LANGUAGE_INTENTS = ['record_income', 'record_expense', 'transfer_money', 'create_wallet',
-  'create_saving_goal', 'deposit_goal', 'withdraw_goal', 'query_balance', 'query_income',
-  'query_expenses', 'query_transactions', 'query_saving_goal', 'query_budget', 'set_theme', 'general_chat', 'clarify']
-const FIELDS = ['amountText', 'description', 'wallet', 'sourceWallet', 'destinationWallet', 'name', 'targetText', 'dateText', 'reply', 'theme']
+const FIELDS = LANGUAGE_FIELDS
 export const LANGUAGE_SCHEMA = {
   type: 'object', properties: {
     intent: { type: 'string', enum: LANGUAGE_INTENTS },
@@ -63,6 +62,7 @@ export function compileLanguageCommand(result, text, rawContext) {
       command = `catat ${result.intent === 'record_income' ? 'pemasukan' : 'pengeluaran'} ${description} ${amount} ${wallet ? `pakai ${wallet}` : ''} ${date}`; break
     case 'transfer_money':
       command = `transfer ${amount} ${source ? `dari ${source}` : ''} ${destination ? `ke ${destination}` : ''} ${date}`; break
+    case 'set_wallet_balance': command = `ubah saldo ${wallet} menjadi ${amount}`; break
     case 'create_wallet': command = `buat dompet ${name} ${amount ? `saldo awal ${amount}` : ''}`; break
     case 'create_saving_goal': command = `buat tabungan bernama ${name} ${target ? `target ${target}` : ''}`; break
     case 'deposit_goal': case 'withdraw_goal': {

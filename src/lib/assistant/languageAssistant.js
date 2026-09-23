@@ -1,4 +1,5 @@
-import { requestAssistantApi } from './assistantApiClient'
+// Load the authenticated transport only when a request is actually made.
+const requestAssistantApi = async options => (await import('./assistantApiClient')).requestAssistantApi(options)
 
 export function canUseLanguageAssistant({ frame, pendingAction, pendingMemoryProposal, imageFile }) {
   return !pendingAction && !pendingMemoryProposal && !imageFile &&
@@ -27,11 +28,10 @@ export async function requestLanguageReply(text, request = requestAssistantApi) 
   }
 }
 
-export async function requestLanguageInterpretation(text, { wallets = [], goals = [] } = {}, request = requestAssistantApi) {
+export async function requestLanguageInterpretation(text, _context = {}, request = requestAssistantApi) {
+  void _context // compatibility with injected transport callers; context is server-owned
   try {
-    const data = await request({ operation: 'interpret', body: { text, context: {
-      wallets: wallets.map((item) => item.name), goals: goals.map((item) => item.name),
-    } }, signal: AbortSignal.timeout(12000) })
+    const data = await request({ operation: 'interpret_v2', body: { text }, signal: AbortSignal.timeout(12000) })
     return data?.mode === 'gemini' ? data.interpretation : null
   } catch { return null }
 }

@@ -1,7 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { it, expect, describe, vi } from 'vitest'
 import MessageBubble from './MessageBubble'
-
+import { formatMoney } from '../../lib/formatMoney'
+it('shows zero target, previous balance and exact difference on balance confirmation', () => {
+  const html = renderToStaticMarkup(<MessageBubble formatRupiah={formatMoney} msg={{ sender: 'bot', text: 'Periksa saldo', card: { type: 'pending_action', actionType: 'set_wallet_balance', expectedBalance: 100.01, targetBalance: 0 } }} />)
+  expect(html).toContain('Saldo sebelum')
+  expect(html).toContain('Saldo sesudah')
+  expect(html).toMatch(/-Rp\s*100,01/)
+  expect(html).toContain('bukan pemasukan')
+})
 describe('MessageBubble confirmation flow', () => {
   it('replaces stale confirmation controls with an honest inactive status', () => {
     const markup = renderToStaticMarkup(<MessageBubble

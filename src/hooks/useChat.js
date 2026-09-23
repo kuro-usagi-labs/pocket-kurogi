@@ -175,7 +175,7 @@ export function useChat() {
         if (loadMore || localMutationVersionRef.current !== mutationVersion) {
           return mergeChatMessages(previous, ordered)
         }
-        return ordered
+        return mergeChatMessages(previous.filter(message => message.metadata?.deliveryStatus === 'unsynced'), ordered)
       })
 
       return { data: ordered, error: null }
@@ -254,6 +254,7 @@ export function useChat() {
 
   const saveMessage = useCallback(async (sender, text, extras = {}) => {
     if (!user) return { error: 'Not authenticated' }
+    const saveOwner = user.id
 
     let imagePath = extras.imagePath || null
     let imageUrl = extras.image || null
@@ -289,6 +290,7 @@ export function useChat() {
     } catch (caughtError) {
       error = caughtError
     }
+    if (activeUserIdRef.current !== saveOwner) return { error: new Error('Sesi telah berubah.') }
 
     if (!error && data) {
       const formatted = {
@@ -305,7 +307,7 @@ export function useChat() {
         metadata,
       }
       localMutationVersionRef.current += 1
-      setMessages((prev) => mergeChatMessages(prev, [formatted]))
+      setMessages((prev) => mergeChatMessages(prev.filter(message => message.id !== extras.localId), [formatted]))
       setError(null)
       return { data: formatted, error: null }
     }
@@ -314,8 +316,24 @@ export function useChat() {
       await removeAttachment(uploadedImagePath)
     }
 
+    if (sender === 'bot') {
+      const createdAt = new Date().toISOString()
+      const local = { id: extras.localId || `local-${crypto.randomUUID()}`, sender, text, createdAt,
+        time: new Date(createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        card: metadata.card || null, metadata: { ...metadata, deliveryStatus: 'unsynced' } }
+      localMutationVersionRef.current += 1
+      setMessages(previous => mergeChatMessages(previous, [local]))
+      return { data: local, error, retainedLocally: true }
+    }
+
     return { error }
   }, [removeAttachment, uploadAttachment, user])
+
+  const retryMessage = useCallback(message => {
+    const metadata = { ...message.metadata }
+    delete metadata.deliveryStatus
+    return saveMessage(message.sender, message.text, { metadata, card: message.card, localId: message.id })
+  }, [saveMessage])
 
   const clearMessages = useCallback(async () => {
     if (!user) return { error: 'Not authenticated' }
@@ -347,6 +365,7 @@ export function useChat() {
     hasMore,
     loadingMore,
     saveMessage,
+    retryMessage,
     clearMessages,
     loadMore: () => fetchMessages({ loadMore: true }),
     refetch: () => fetchMessages({ manualRetry: true }),

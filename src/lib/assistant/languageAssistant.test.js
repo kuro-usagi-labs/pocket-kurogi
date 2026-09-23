@@ -7,7 +7,8 @@ describe('optional language assistance', () => {
   it('sends names without financial records to the interpreter', async () => {
     const request = vi.fn().mockResolvedValue({ mode: 'gemini', interpretation: { intent: 'set_theme', theme: 'dark' } })
     expect(await requestLanguageInterpretation('aktifkan darkmode', { wallets: [{ name: 'BCA', current_balance: 777 }] }, request)).toEqual({ intent: 'set_theme', theme: 'dark' })
-    expect(request.mock.calls[0][0].body.context).toEqual({ wallets: ['BCA'], goals: [] })
+    expect(request.mock.calls[0][0].operation).toBe('interpret_v2')
+    expect(request.mock.calls[0][0].body).toEqual({ text: 'aktifkan darkmode' })
     expect(await requestLanguageInterpretation('hi', {}, async () => { throw new Error('quota') })).toBeNull()
   })
   it('supports offline theme requests without changing negated preferences', () => {

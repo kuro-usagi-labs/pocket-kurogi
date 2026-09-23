@@ -101,3 +101,20 @@ Audit refactor dan keputusan reuse modul lama tersedia di
 [Deterministic Assistant Audit](docs/DETERMINISTIC_ASSISTANT_AUDIT.md).
 
 Private — Kuro Usagi Labs
+
+## Pemeriksaan sebelum rilis
+
+Jalankan `npm ci`, `npm run lint`, `npm test -- --maxWorkers=1 --pool=threads`,
+`npm run build`, `npm audit`, lalu `npx playwright install chromium` dan `npm run test:e2e`.
+Tes browser menggunakan `design-preview.html` dengan data sintetis, bukan akun atau database nyata.
+
+Set `TARGET_DATABASE_URL` ke **branch Neon pengujian terpisah** yang berisi skema aplikasi
+dan pengguna uji, kemudian jalankan `npm run test:db:required`. Jangan gunakan production.
+Tes yang dilewati pada unit suite bukan bukti integrasi lulus. CI job `database` sengaja gagal
+jika secret tersebut belum diisi pada environment GitHub `test`.
+
+Sebelum mengaktifkan rilis ini, uji migrasi `20260923030000_provider_fairness.sql` di branch
+pengujian, kemudian terapkan migrasi additive yang sama ke production. Provider akan memakai
+fallback jika fungsi pembatas kuota belum tersedia. Interpreter lama tetap tersedia selama rollout.
+CLI Vercel tidak lagi menjadi dependency aplikasi; deployment GitHub → Vercel tetap digunakan.
+API key Gemini hanya disimpan pada environment server Vercel, tidak di git atau variabel `VITE_`.
