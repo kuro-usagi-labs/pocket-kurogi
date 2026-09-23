@@ -55,7 +55,7 @@ export function buildAssistantSemanticFrame({
       : dialogueState,
   })
   const proposal = languageProposal && !pendingAction
-    ? validateLanguageProposal({ proposal: languageProposal, text: originalText, context: { wallets, goals } }) : null
+    ? validateLanguageProposal({ proposal: languageProposal, text: originalText, context: { wallets, goals, categories } }) : null
   if (proposal) route = { ...route, intent: proposal.intent, score: 1, ambiguous: false, evidence: ['validated_language_proposal'], alternatives: [] }
   const slots = resolveIntentSlots({
     now,
@@ -66,12 +66,13 @@ export function buildAssistantSemanticFrame({
   })
   if (proposal) {
     const inherited = dialogueState?.activeIntent === proposal.intent ? dialogueState.collectedSlots || {} : {}
-    // Only typed, evidence-checked slots are contributed by the model. Date and
-    // category evidence still comes from the original utterance's extractors.
+    // Keep deterministic/user-learned categories ahead of model suggestions.
+    const localCategory = slots.slots.category
     slots.slots = { ...inherited,
       ...(proposal.intent.startsWith('query_') ? slots.slots : {}),
       ...(entities.dates?.[0]?.value ? { occurredAt: entities.dates[0].value } : {}),
-      ...proposal.slots }
+      ...proposal.slots,
+      ...(localCategory && ['record_income', 'record_expense'].includes(proposal.intent) ? { category: localCategory } : {}) }
     slots.missingSlots = slots.requiredSlots.filter(key => slots.slots[key] === undefined || slots.slots[key] === null || slots.slots[key] === '')
     slots.complete = slots.missingSlots.length === 0
   }

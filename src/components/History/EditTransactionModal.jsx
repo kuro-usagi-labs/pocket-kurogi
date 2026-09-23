@@ -130,7 +130,7 @@ export default function EditTransactionModal({
       categoryId: categoryId || null,
       amount: amountPreview,
       desc: normalizedDescription,
-      notes: null,
+      notes: transaction.notes || null,
       occurredAt: transaction.occurredAt,
     })
 

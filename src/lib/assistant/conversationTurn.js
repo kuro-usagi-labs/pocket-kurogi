@@ -17,10 +17,23 @@ export async function resolveConversationTurn(input, { interpret }) {
   if (theme) return { ...baseline, theme }
   const safelyUnderstood = !['unknown', 'general_chat'].includes(baseline.frame.intent) &&
     !baseline.frame.ambiguous && !baseline.frame.missingSlots.length
-  if (safelyUnderstood || baseline.frame.safety.errors.some(e => e.code !== 'AMBIGUOUS_INTENT')) return baseline
+  if (baseline.frame.safety.errors.some(e => e.code !== 'AMBIGUOUS_INTENT')) return baseline
+  const needsCategory = ['record_income', 'record_expense'].includes(baseline.frame.intent) &&
+    !baseline.frame.slots.category?.name && input.categories?.length
+  if (safelyUnderstood && !needsCategory) return baseline
   try {
     const proposal = await interpret(input.text, input)
     if (!proposal) return baseline
+    if (safelyUnderstood) {
+      // Enrich only the category; never let classification change an already
+      // understood amount, wallet, date, intent, or confirmation requirement.
+      const validated = validateLanguageProposal({ proposal, text: input.text, context: input })
+      if (validated.intent === baseline.frame.intent && validated.slots.category) {
+        baseline.frame.slots.category = validated.slots.category
+        baseline.responseSource = 'gemini_category'
+      }
+      return baseline
+    }
     if (proposal.intent === 'set_theme') {
       const validated = validateLanguageProposal({ proposal, text: input.text, context: input })
       return { ...baseline, theme: validated.theme, responseSource: 'gemini' }

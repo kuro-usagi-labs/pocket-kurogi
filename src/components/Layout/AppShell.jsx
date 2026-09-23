@@ -50,7 +50,7 @@ import ConnectedWalletAdjustmentHistory from '../Wallets/ConnectedWalletAdjustme
 const loadHistoryView = () => import('../History/HistoryView')
 const loadEditTransactionModal = () => import('../History/EditTransactionModal')
 const loadWalletsView = () => import('../Wallets/WalletsView')
-const loadAnalyticsView = () => import('../Analytics/AnalyticsView')
+const loadAnalyticsView = () => import('../Analytics/MonthlyReportView')
 const loadPlanningView = () => import('../Planning/PlanningView')
 const loadSettingsView = () => import('../Settings/SettingsView')
 const HistoryView = lazyWithRecovery(loadHistoryView, 'history')
@@ -888,6 +888,9 @@ export default function AppShell() {
               <div className="mobile-content-inset absolute inset-x-0 top-0 w-full overflow-y-auto no-scrollbar animate-fade-in lg:bottom-0">
                 <Suspense fallback={<ViewLoadingFallback />}>
                   <AnalyticsView
+                    wallets={wallets}
+                    categories={categories}
+                    onUpdateTransaction={handleUpdateTransaction}
                     analytics={analytics}
                     status={analyticsStatus}
                     updatedAt={analyticsUpdatedAt}

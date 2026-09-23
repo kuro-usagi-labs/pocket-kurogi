@@ -5,7 +5,7 @@ export const LANGUAGE_INTENTS = Object.freeze(['record_income', 'record_expense'
   'create_wallet', 'create_saving_goal', 'deposit_goal', 'withdraw_goal', 'set_wallet_balance',
   'query_balance', 'query_income', 'query_expenses', 'query_transactions', 'query_saving_goal',
   'query_budget', 'set_theme', 'general_chat', 'clarify'])
-export const LANGUAGE_FIELDS = ['amountText', 'description', 'wallet', 'sourceWallet', 'destinationWallet', 'name', 'targetText', 'dateText', 'reply', 'theme']
+export const LANGUAGE_FIELDS = ['amountText', 'description', 'wallet', 'sourceWallet', 'destinationWallet', 'name', 'targetText', 'dateText', 'reply', 'theme', 'category']
 
 function evidenceAmount(evidence, text) {
   if (!evidence) return undefined
@@ -46,8 +46,15 @@ export function validateLanguageProposal({ proposal, text, context = {} }) {
   if (!quote(proposal.name) || !quote(proposal.dateText)) throw new Error('Missing name or date evidence')
   let slots = {}
   switch (intent) {
-    case 'record_income': case 'record_expense':
-      slots = { amount, description: proposal.description || undefined, wallet: toSlot(wallet), transactionType: intent === 'record_income' ? 'income' : 'expense' }; break
+    case 'record_income': case 'record_expense': {
+      const transactionType = intent === 'record_income' ? 'income' : 'expense'
+      // Semantic category suggestions need not be literal words in the utterance,
+      // but must resolve to a single owned, type-compatible category. Invalid
+      // suggestions are discarded without losing the user's valid transaction.
+      const matches = (context.categories || []).filter(item => item.name?.toLowerCase() === proposal.category?.toLowerCase() && ['both', transactionType].includes(item.category_type))
+      slots = { amount, description: proposal.description || undefined, wallet: toSlot(wallet), transactionType,
+        ...(matches.length === 1 ? { category: toSlot(matches[0]) } : {}) }; break
+    }
     case 'set_wallet_balance':
       slots = { wallet: toSlot(wallet), expectedBalance: wallet ? Number(wallet.current_balance) : undefined, targetBalance: amount }; break
     case 'transfer_money':

@@ -13,7 +13,7 @@ export const LANGUAGE_SCHEMA = {
 export function languageContext(context = {}) {
   const names = (items) => Array.isArray(items)
     ? items.slice(0, 60).filter((name) => typeof name === 'string' && name.length <= 100) : []
-  return { wallets: names(context?.wallets), goals: names(context?.goals) }
+  return { wallets: names(context?.wallets), goals: names(context?.goals), ...(context?.categories ? { categories: context.categories.slice(0, 60).map(item => ({ name: String(item.name || '').slice(0, 100), type: item.category_type })) } : {}) }
 }
 
 function amountFromEvidence(evidence, text) {

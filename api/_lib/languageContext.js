@@ -1,8 +1,9 @@
 export async function readOwnedLanguageContext(sql, userId) {
-  const [wallets, goals, messages] = await Promise.all([
+  const [wallets, goals, messages, categories] = await Promise.all([
     sql`select id, name, current_balance from public.wallets where user_id = ${userId}::uuid and not is_archived order by created_at limit 60`,
     sql`select id, name from public.goals where user_id = ${userId}::uuid order by created_at limit 60`,
     sql`select sender, left(text, 2000) as text from public.chat_messages where user_id = ${userId}::uuid order by created_at desc, id desc limit 6`,
+    sql`select id, name, category_type from public.categories where user_id = ${userId}::uuid order by name limit 60`,
   ])
   let remaining = 4000
   const conversation = messages.slice(0, 6).map(message => {
@@ -10,5 +11,5 @@ export async function readOwnedLanguageContext(sql, userId) {
     remaining -= text.length
     return { sender: message.sender === 'user' ? 'user' : 'assistant', text }
   }).filter(message => message.text).reverse()
-  return { wallets, goals, conversation }
+  return { wallets, goals, conversation, categories }
 }

@@ -13,6 +13,12 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             {
+              name: 'pdf-export',
+              includeDependenciesRecursively: false,
+              test: /node_modules[\\/](?:jspdf|jspdf-autotable|html2canvas|canvg|fflate|fast-png|iobuffer|pako|raf|rgbcolor|stackblur-canvas|utrie|text-segmentation|base64-arraybuffer|svg-pathdata)/,
+              priority: 30,
+            },
+            {
               name: 'neon',
               test: /node_modules[\\/]@neondatabase/,
               priority: 20,

@@ -1,0 +1,17 @@
+import { test, expect } from '@playwright/test'
+test('monthly report, category review, dark mode and PDF download', async ({ page }, testInfo) => {
+  await page.goto('/report-preview.html?dark=1')
+  await expect(page.getByText('Kesimpulan periode ini')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('monthly-report-dark.png'), fullPage: true })
+  await page.getByRole('checkbox').check()
+  await expect(page.getByText('1 / 1', { exact: true })).toBeVisible()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Unduh PDF' }).click()
+  expect((await download).suggestedFilename()).toMatch(/^Pocket-Kurogi-Laporan-.*\.pdf$/)
+  await page.getByLabel('Jenis periode').selectOption('all')
+  await expect(page.getByText('Seluruh periode', { exact: false }).last()).toBeVisible()
+  await page.goto('/report-preview.html')
+  await expect(page.getByText('Kesimpulan periode ini')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('monthly-report-light.png'), fullPage: true })
+})

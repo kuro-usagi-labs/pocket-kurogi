@@ -34,6 +34,9 @@ dateText kutipan waktu dari pesan; kosong jika tidak disebut. description ringka
 "barusan keluar 25rb buat ngopi" -> "Kopi". Jangan masukkan kata aku, tolong, yaitu,
 nominal, tanggal atau dompet ke description. Field tidak diketahui isi string kosong.
 reply hanya untuk general_chat/clarify, bahasa Indonesia natural maksimal 100 kata.
+category boleh menyimpulkan kategori dari makna transaksi, tetapi HARUS nama kategori
+dari references.categories dengan type sesuai income/expense atau both. Jika ragu isi
+kosong, jangan mengarang kategori. Kategori bukan perintah untuk mengubah nominal.
 Jangan buat angka saldo/laporan: itu harus query agar dihitung backend.`
 
 // No provider payload, credentials, or raw errors ever leave this module.
@@ -67,7 +70,7 @@ export async function getGeminiReply({ sql, userId, text, context = {}, classify
         signal: AbortSignal.timeout(8000),
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: classify ? CLASSIFIER : SYSTEM }] },
-          contents: [{ role: 'user', parts: [{ text: classify ? JSON.stringify({ message: text.trim(), references: languageContext(structured ? { wallets: context.wallets?.map(w => w.name), goals: context.goals?.map(g => g.name) } : context), ...(structured ? { conversation: context.conversation } : {}) }) : text.trim() }] }],
+          contents: [{ role: 'user', parts: [{ text: classify ? JSON.stringify({ message: text.trim(), references: languageContext(structured ? { wallets: context.wallets?.map(w => w.name), goals: context.goals?.map(g => g.name), categories: context.categories } : context), ...(structured ? { conversation: context.conversation } : {}) }) : text.trim() }] }],
           generationConfig: { maxOutputTokens: 1200, temperature: 0.1,
             ...(classify ? { responseMimeType: 'application/json', responseSchema: LANGUAGE_SCHEMA } : {}),
           },

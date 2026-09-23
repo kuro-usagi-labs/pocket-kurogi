@@ -9,6 +9,7 @@ import {
 } from './_lib/assistantServer.js'
 import { getGeminiReply } from './_lib/geminiAssistant.js'
 import { readOwnedLanguageContext } from './_lib/languageContext.js'
+import { readFinancialReport } from './_lib/financialReport.js'
 
 export default async function handler(req, res) {
   let operation = null
@@ -36,6 +37,11 @@ export default async function handler(req, res) {
     operation = req.method === 'GET'
       ? String(req.query?.operation || 'get_state')
       : String(body.operation || '')
+    if (operation === 'financial_report' && req.method === 'POST') {
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(200).json({ data: await readFinancialReport(sql, userId, body.month) })
+      return
+    }
     if (['language', 'interpret', 'interpret_v2'].includes(operation) && req.method === 'POST') {
       res.setHeader('Cache-Control', 'no-store')
       const structured = operation === 'interpret_v2'

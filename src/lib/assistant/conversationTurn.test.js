@@ -2,6 +2,26 @@ import { expect, it, vi } from 'vitest'
 import { resolveConversationTurn } from './conversationTurn'
 import { runAssistantEngine } from './assistantEngine'
 const wallets = [{ id: '11111111-1111-4111-8111-111111111111', name: 'Tunai', current_balance: 100 }]
+it('enriches an unknown category without changing understood transaction fields', async () => {
+  const text = 'pengeluaran xyzabc 15k tunai'
+  const categories = [{ id: 'food', name: 'Makan', category_type: 'expense' }]
+  const interpret = vi.fn(async () => ({ intent: 'record_expense', category: 'Makan', description: 'Invented description' }))
+  const turn = await resolveConversationTurn({ text, wallets, categories }, { interpret })
+  expect(interpret).toHaveBeenCalledOnce()
+  expect(turn.frame.slots).toMatchObject({ amount: 15000, description: 'Xyzabc', category: { id: 'food', name: 'Makan' } })
+  const result = runAssistantEngine({ text, wallets, categories, userId: 'user-a', semanticFrame: turn.frame })
+  expect(result.pendingAction.status).toBe('pending')
+  expect(result.pendingAction.payload.items[0].categoryId).toBe('food')
+})
+it('keeps known categories and provider-independent recording', async () => {
+  const categories = [{ id: 'food', name: 'Makan', category_type: 'expense' }]
+  const interpret = vi.fn(async () => { throw new Error('quota') })
+  const known = await resolveConversationTurn({ text: 'pengeluaran makan 15k tunai', wallets, categories }, { interpret })
+  expect(interpret).not.toHaveBeenCalled()
+  expect(known.frame.slots.category.name).toBe('Makan')
+  const unknown = await resolveConversationTurn({ text: 'pengeluaran xyzabc 15k tunai', wallets, categories }, { interpret })
+  expect(unknown.frame.slots.amount).toBe(15000)
+})
 it.each(['pengeluaran gorengan 15k', 'pengeluaran gorengan 15k tunai'])(
   'understands terse expense input without Gemini: %s', async text => {
     const turn = await resolveConversationTurn({ text, wallets }, { interpret: async () => null })
