@@ -120,6 +120,16 @@ export async function runAssistantDatabaseOperation({
   operation,
   body = {},
 }) {
+  if (operation === 'correct_action') {
+    // Resolve the immutable action type from the authenticated owner's row.
+    // The correction RPC checks the hash again under a row lock.
+    const rows = await sql`
+      select action_type from public.pending_finance_actions
+      where id = ${body.actionId}::uuid and user_id = ${userId}::uuid
+    `
+    if (!rows[0]) throwRequestError('Pending action tidak ditemukan.', 404)
+    validateActionPayload(rows[0].action_type, body.payload)
+  }
   const claims = JSON.stringify({ sub: userId, role: 'authenticated' })
   // current_user_id() supports both Neon/PostgREST claim formats. Set both in
   // the same transaction because Vercel connects directly as the database
@@ -177,7 +187,7 @@ export async function runAssistantDatabaseOperation({
       where t.user_id = ${userId}::uuid
         and t.occurred_at >= now() - interval '400 days'
       order by t.occurred_at desc
-      limit 5000
+      limit 5001
     `)
     queries.push(sql`
       select b.*, c.name as category
@@ -587,7 +597,8 @@ function normalizeOperationResult(operation, results) {
   }
   if (operation === 'financial_context') {
     return {
-      transactions: results[0] || [],
+      transactions: (results[0] || []).slice(0, 5000),
+      coverage: { truncated: (results[0] || []).length > 5000, lookbackDays: 400, limit: 5000 },
       budgets: results[1] || [],
       goals: results[2] || [],
       wallets: results[3] || [],

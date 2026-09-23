@@ -1,4 +1,5 @@
 import { formatRupiah } from './formatters'
+import { getSmallTalkReply } from './smallTalk'
 import {
   applyResponsePlan,
   planAssistantResponse,
@@ -136,6 +137,7 @@ const ACKNOWLEDGMENTS = Object.freeze({
 })
 
 export function composeAssistantResponse({
+  text = '',
   intent,
   confidence = 0,
   emotion = { emotion: 'neutral' },
@@ -161,7 +163,7 @@ export function composeAssistantResponse({
     hasClarification: Boolean(clarification),
   })
   const components = applyResponsePlan({
-    acknowledgment: selectAcknowledgment(intent, recentAssistantMessages, seed),
+    acknowledgment: (intent === 'general_chat' && getSmallTalkReply(text)) || selectAcknowledgment(intent, recentAssistantMessages, seed),
     empathy: composeEmpathy(emotion, status, recentAssistantMessages, seed),
     interpretation: composeInterpretation(intent, slots),
     details: composeDetails(intent, slots),

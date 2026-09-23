@@ -41,6 +41,7 @@ export function shouldHandleAssistantEngineResult(result, {
   hasPendingAction = false,
 } = {}) {
   if (!result) return false
+  if (result.route?.intent === 'general_chat') return true
   if (hasPendingAction && result.command) return true
   if (
     !hasPendingAction &&
@@ -107,7 +108,7 @@ export function buildAssistantPendingResponse(result, persistedAction = null) {
 
 export function buildAssistantExecutionResponse(action, executionResult) {
   const data = executionResult?.data || executionResult
-  const replayed = Boolean(data?.replayed)
+  const replayed = Boolean(executionResult?.replayed ?? data?.replayed)
   const payload = action?.payload || {}
 
   if (action?.actionType === 'record_transactions') {

@@ -32,8 +32,11 @@ export function useChat() {
   const sessionGenerationRef = useRef(0)
   const automaticRetryCountRef = useRef(0)
   const retryTimerRef = useRef(null)
+  const fetchMessagesRef = useRef(null)
 
-  activeUserIdRef.current = userId
+  useEffect(() => {
+    activeUserIdRef.current = userId
+  }, [userId])
 
   useEffect(() => {
     messagesRef.current = messages
@@ -193,7 +196,7 @@ export function useChat() {
           automaticRetryCountRef.current += 1
           retryTimerRef.current = window.setTimeout(() => {
             if (activeUserIdRef.current === currentUserId) {
-              fetchMessages({ retryAttempt: retryAttempt + 1 }).catch(() => null)
+              fetchMessagesRef.current?.({ retryAttempt: retryAttempt + 1 }).catch(() => null)
             }
           }, AUTO_RETRY_DELAY_MS)
         }
@@ -212,22 +215,26 @@ export function useChat() {
   }, [hydrateMessages, userId])
 
   useEffect(() => {
+    fetchMessagesRef.current = fetchMessages
+  }, [fetchMessages])
+
+  useEffect(() => {
     conversationVersionRef.current += 1
     oldestCursorRef.current = null
     localMutationVersionRef.current += 1
     sessionGenerationRef.current += 1
     automaticRetryCountRef.current = 0
     if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current)
-    setMessages([])
-    setHasMore(false)
-    setError(null)
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
+      setMessages([])
+      setHasMore(false)
+      setError(null)
       fetchMessages().catch(() => null)
     }, 0)
 
     return () => {
-      clearTimeout(timeoutId)
+      window.clearTimeout(timeoutId)
       if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current)
     }
   }, [fetchMessages, userId])

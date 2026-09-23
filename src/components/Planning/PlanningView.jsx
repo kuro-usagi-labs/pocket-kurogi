@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
 import {
   BellRing,
   CalendarDays,
@@ -110,6 +110,7 @@ export default function PlanningView({
             onDelete={onDeleteBudget}
           />
           <IncomeAllocationPlanner
+            key={allocationPlanKey(allocationPlan)}
             plan={allocationPlan}
             formatRupiah={formatRupiah}
             onSave={onSaveAllocationPlan}
@@ -306,7 +307,6 @@ function IncomeAllocationPlanner({ plan, formatRupiah, onSave }) {
   const [form, setForm] = useState(() => allocationDraft(plan))
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState(null)
-  useEffect(() => { setForm(allocationDraft(plan)) }, [plan])
   const calculation = calculateIncomeAllocation(form)
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }))
   const save = async (event) => { event.preventDefault(); if (!calculation.valid) return; setSaving(true); const result = await onSave?.(form); setSaving(false); setFeedback(result?.error ? 'Alokasi belum tersimpan.' : 'Pembagian gaji tersimpan sebagai rencana.') }
@@ -353,5 +353,6 @@ const inputClass = 'min-h-11 w-full rounded-[13px] border border-midnight/10 bg-
 
 function createScheduleDraft() { return { title: '', scheduleType: 'bill', amount: '', cadence: 'monthly', nextDueDate: toDateInputValue(new Date()), goalId: '', walletId: '', categoryId: '', reminderEnabled: true, isActive: true } }
 function allocationDraft(plan) { return { monthlyIncome: plan?.monthly_income || '', needsPercent: plan?.needs_percent ?? 50, savingsPercent: plan?.savings_percent ?? 20, debtPercent: plan?.debt_percent ?? 10, freePercent: plan?.free_percent ?? 20 } }
+function allocationPlanKey(plan) { const draft = allocationDraft(plan); return Object.values(draft).join(':') }
 function toDateInputValue(value) { const date = new Date(value); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
 function formatCadence(value) { return value === 'weekly' ? 'mingguan' : value === 'monthly' ? 'bulanan' : 'sekali' }

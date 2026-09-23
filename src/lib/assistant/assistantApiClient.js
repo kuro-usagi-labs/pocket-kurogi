@@ -7,9 +7,11 @@ async function fetchAssistantApi({
   operation,
   body,
   token,
+  signal,
 }) {
   return fetch(endpoint, {
     method,
+    signal,
     headers: {
       Authorization: `Bearer ${token}`,
       ...(method === 'POST'
@@ -31,6 +33,7 @@ export async function requestAssistantApi({
   operation,
   method = 'POST',
   body = {},
+  signal,
 } = {}) {
   const normalizedMethod = String(method || 'POST').toUpperCase()
   const endpoint = normalizedMethod === 'GET'
@@ -43,6 +46,7 @@ export async function requestAssistantApi({
     operation,
     body,
     token,
+    signal,
   })
 
   if (response.status === 401) {
@@ -53,6 +57,7 @@ export async function requestAssistantApi({
       operation,
       body,
       token,
+      signal,
     })
   }
 

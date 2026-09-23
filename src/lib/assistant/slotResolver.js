@@ -1,11 +1,13 @@
 import { getIntentDefinition } from './intentDefinitions'
 import { sanitizeWalletName } from './walletCreationParser'
+import { resolveQueryPeriod } from './queryPeriod'
 
 export function resolveIntentSlots({
   intent,
   entities = {},
   dialogueState = null,
   text = '',
+  now = new Date(),
 } = {}) {
   const inherited = dialogueState?.activeIntent === intent
     ? dialogueState.collectedSlots || {}
@@ -38,6 +40,7 @@ export function resolveIntentSlots({
     ...inherited,
     ...calculationFollowup,
     ...contextualDerived,
+    ...(intent.startsWith('query_') ? resolveQueryPeriod(text, now) : {}),
   }
   const definition = getIntentDefinition(intent)
   const requiredSlots = [...definition.required]

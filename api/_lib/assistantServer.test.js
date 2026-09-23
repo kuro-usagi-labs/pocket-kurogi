@@ -20,6 +20,30 @@ afterEach(() => {
 })
 
 describe('assistant Vercel API safety', () => {
+  it('validates corrections against the stored action type before writing', async () => {
+    let writes = 0
+    const sql = async () => [{ action_type: 'transfer_money' }]
+    sql.transaction = async () => { writes += 1; return [] }
+    await expect(runAssistantDatabaseOperation({ sql, userId: 'owner', operation: 'correct_action', body: {
+      actionId: 'action', payload: { amount: -10 },
+    } })).rejects.toThrow(/Dompet sumber/)
+    expect(writes).toBe(0)
+  })
+
+  it('rejects a correction when the action is not owned by the caller', async () => {
+    const sql = async () => []
+    await expect(runAssistantDatabaseOperation({ sql, userId: 'owner', operation: 'correct_action', body: {
+      actionId: 'action', payload: {},
+    } })).rejects.toThrow(/tidak ditemukan/)
+  })
+
+  it('reports incomplete financial context instead of hiding truncation', async () => {
+    const sql = () => ({})
+    sql.transaction = async () => [[], Array.from({ length: 5001 }, (_, id) => ({ id })), [], [], [], [], []]
+    const result = await runAssistantDatabaseOperation({ sql, userId: 'owner', operation: 'financial_context' })
+    expect(result.transactions).toHaveLength(5000)
+    expect(result.coverage.truncated).toBe(true)
+  })
   it('allows only configured production origins', () => {
     process.env.NODE_ENV = 'production'
     process.env.ASSISTANT_ALLOWED_ORIGINS = 'https://pocket.kurousagi.web.id'

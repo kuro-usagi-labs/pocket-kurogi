@@ -53,6 +53,7 @@ export function buildAssistantSemanticFrame({
       : dialogueState,
   })
   const slots = resolveIntentSlots({
+    now,
     intent: route.intent,
     entities,
     dialogueState,

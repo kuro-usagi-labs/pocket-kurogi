@@ -7,6 +7,7 @@ import {
   sendAssistantError,
   validateAssistantOperationRequest,
 } from './_lib/assistantServer.js'
+import { getGeminiReply } from './_lib/geminiAssistant.js'
 
 export default async function handler(req, res) {
   let operation = null
@@ -34,6 +35,12 @@ export default async function handler(req, res) {
     operation = req.method === 'GET'
       ? String(req.query?.operation || 'get_state')
       : String(body.operation || '')
+    if (operation === 'language' && req.method === 'POST') {
+      res.setHeader('Cache-Control', 'no-store')
+      const data = await getGeminiReply({ sql, text: body.text })
+      res.status(200).json({ data })
+      return
+    }
     validateAssistantOperationRequest(operation, body, req.method)
     const data = await runAssistantDatabaseOperation({
       sql,

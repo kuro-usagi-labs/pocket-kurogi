@@ -63,6 +63,11 @@ export function useDeterministicAssistant({
       reminderPreferences,
     }
 
+    if (semanticFrame?.intent === 'general_chat') {
+      const result = runAssistantEngine(commonInput)
+      return { handled: true, response: buildAssistantPendingResponse(result) }
+    }
+
     if (stateSnapshot.pendingAction) {
       const engineResult = runAssistantEngine({
         ...commonInput,
@@ -93,6 +98,15 @@ export function useDeterministicAssistant({
       const contextResult = await assistantState.fetchFinancialContext()
       if (contextResult.error) throw contextResult.error
       const databaseContext = contextResult.data || {}
+      if (databaseContext.coverage?.truncated) {
+        return {
+          handled: true,
+          response: {
+            text: 'Riwayatmu melebihi batas 5.000 transaksi untuk analisis ini. Aku belum bisa memberikan total atau saran yang lengkap dari data yang tersedia.',
+            metadata: { conversationStatus: 'incomplete_data', coverage: databaseContext.coverage },
+          },
+        }
+      }
       const databaseWallets = databaseContext.wallets || wallets
       engineResult = runAssistantEngine({
         ...commonInput,

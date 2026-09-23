@@ -41,6 +41,7 @@ import {
   getPendingMemoryProposal,
 } from '../../lib/assistant/memoryProposal'
 import { lazyWithRecovery } from '../../lib/lazyWithRecovery'
+import { canUseLanguageAssistant, requestLanguageReply } from '../../lib/assistant/languageAssistant'
 import { getCurrentTimeLabel, getWelcomeMessage } from '../../lib/appShellChatHelpers'
 
 const loadHistoryView = () => import('../History/HistoryView')
@@ -491,12 +492,25 @@ export default function AppShell() {
           } else {
             actualEngine = 'canonical-pipeline'
             response = {
-              text: 'Maaf, permintaan ini belum dapat diproses melalui jalur yang aman. Tidak ada data yang diubah.',
+              text: 'Aku belum menangkap maksudnya. Mau mencatat transaksi, mengecek keuangan, atau menghitung rencana tabungan? Coba misalnya “catat makan 25rb dari BCA” atau “pengeluaran kemarin berapa?”. Belum ada data yang diubah.',
               metadata: {
                 conversationStatus: 'pipeline_invariant_blocked',
                 assistantDecisionReason: orchestration.decision.reason,
               },
             }
+          }
+        }
+
+        if (actualEngine === 'canonical-pipeline' && !response?.card && canUseLanguageAssistant({
+          frame: orchestration.frame,
+          pendingAction: assistantSnapshot.pendingAction,
+          pendingMemoryProposal,
+          imageFile,
+        })) {
+          const languageResponse = await requestLanguageReply(userMessageText)
+          if (languageResponse) {
+            response = languageResponse
+            actualEngine = 'gemini-conversation'
           }
         }
 

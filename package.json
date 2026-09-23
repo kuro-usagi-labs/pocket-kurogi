@@ -15,7 +15,7 @@
   "dependencies": {
     "@fontsource-variable/manrope": "^5.3.0",
     "@fontsource-variable/space-grotesk": "^5.3.0",
-    "@neondatabase/neon-js": "^0.6.2-beta",
+    "@neondatabase/neon-js": "^0.7.0-beta",
     "@neondatabase/serverless": "^1.1.0",
     "jose": "^6.2.4",
     "lucide-react": "^1.8.0",

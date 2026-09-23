@@ -62,6 +62,7 @@ export function runAssistantEngine({
   const slotResult = !routeChanged && prepared?.slotResult
     ? prepared.slotResult
     : resolveIntentSlots({
+    now,
     intent: route.intent,
     entities,
     dialogueState: context,
@@ -116,6 +117,7 @@ export function runAssistantEngine({
   })
   const memoryInfluence = describeMemoryInfluence(entities)
   const response = composeAssistantResponse({
+    text,
     intent: route.intent,
     confidence: route.score,
     emotion,

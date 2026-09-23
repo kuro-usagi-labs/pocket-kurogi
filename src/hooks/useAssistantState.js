@@ -17,7 +17,9 @@ export function useAssistantState() {
   const pendingActionRef = useRef(null)
   const memoriesRef = useRef([])
 
-  activeUserIdRef.current = userId
+  useEffect(() => {
+    activeUserIdRef.current = userId
+  }, [userId])
 
   const fetchAssistantState = useCallback(async () => {
     const currentUserId = userId

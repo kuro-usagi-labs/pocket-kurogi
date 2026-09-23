@@ -1,5 +1,6 @@
 import { ASSISTANT_INTENTS } from './intentDefinitions'
 import { clampNumber } from './formatters'
+import { getSmallTalkReply } from './smallTalk'
 
 const SIGNALS = Object.freeze({
   recordVerb: /\b(?:catat|simpan|rekam|input|masukkan|tambahkan)\b/iu,
@@ -335,7 +336,7 @@ function scoreSupport(scores, text, entities) {
       add(scores, 'emotional_support', 0.15, 'financial_concern')
     }
   }
-  if (SIGNALS.greeting.test(text)) {
+  if (getSmallTalkReply(text) || SIGNALS.greeting.test(text)) {
     add(scores, 'general_chat', 0.78, 'greeting')
   }
   if (

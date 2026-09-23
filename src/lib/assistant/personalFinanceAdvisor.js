@@ -181,7 +181,7 @@ function composeWeeklySummary(snapshot, now) {
     ],
     estimates: [change === null
       ? 'Data minggu sebelumnya belum cukup untuk perbandingan.'
-      : `Pengeluaran ${change >= 0 ? 'naik' : 'turun'} ${formatPercentage(Math.abs(change))} dibanding minggu sebelumnya.`],
+      : `Pengeluaran ${change >= 0 ? 'naik' : 'turun'} ${formatPercentage(Math.abs(change))} dibanding durasi yang sama minggu sebelumnya.`],
     opinions: [snapshot.currentWeek.netCashflow < 0
       ? 'Jaga belanja fleksibel sampai arus kas mingguan kembali positif.'
       : 'Arus kas mingguan positif; pertimbangkan mengarahkan sebagian surplus ke target aktif.'],

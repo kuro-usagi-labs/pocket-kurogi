@@ -1,6 +1,7 @@
 import { formatDateTime, formatPercentage, formatRupiah } from './formatters'
 import { reasonAboutFinancialHealth } from './financeReasoningEngine'
 import { composePersonalFinancialAdvice } from './personalFinanceAdvisor'
+import { resolveQueryPeriod } from './queryPeriod'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -17,10 +18,13 @@ export function buildFinancialInsightSnapshot({
   const todayStart = startOfDay(current)
   const monthStart = new Date(current.getFullYear(), current.getMonth(), 1)
   const previousMonthStart = new Date(current.getFullYear(), current.getMonth() - 1, 1)
-  const previousMonthEnd = new Date(monthStart.getTime() - 1)
+  const previousMonthEnd = new Date(current.getFullYear(), current.getMonth() - 1,
+    Math.min(current.getDate(), new Date(current.getFullYear(), current.getMonth(), 0).getDate()),
+    current.getHours(), current.getMinutes(), current.getSeconds(), current.getMilliseconds())
   const weekStart = startOfWeek(current)
   const previousWeekStart = new Date(weekStart.getTime() - 7 * DAY_MS)
-  const previousWeekEnd = new Date(weekStart.getTime() - 1)
+  const previousWeekEnd = new Date(current)
+  previousWeekEnd.setDate(previousWeekEnd.getDate() - 7)
   const currentMonth = within(normalized, monthStart, current)
   const previousMonth = within(normalized, previousMonthStart, previousMonthEnd)
   const currentWeek = within(normalized, weekStart, current)
@@ -110,7 +114,7 @@ export function composeFinancialInsight(snapshot, {
     const weeklyChange = snapshot.comparison.weeklyExpenseChangePercent
     const comparison = weeklyChange === null
       ? 'Belum ada data minggu lalu yang cukup untuk pembanding.'
-      : `Nilainya ${Math.abs(weeklyChange).toFixed(1)}% ${weeklyChange >= 0 ? 'lebih tinggi' : 'lebih rendah'} dibanding minggu lalu.`
+      : `Nilainya ${Math.abs(weeklyChange).toFixed(1)}% ${weeklyChange >= 0 ? 'lebih tinggi' : 'lebih rendah'} dibanding durasi yang sama minggu lalu.`
     return {
       available: true,
       text: `Pengeluaran minggu ini ${formatRupiah(snapshot.currentWeek.expense)} dari ${snapshot.currentWeek.transactionCount} transaksi. ${comparison}`,
@@ -123,7 +127,7 @@ export function composeFinancialInsight(snapshot, {
   const change = snapshot.comparison.expenseChangePercent
   const comparison = change === null
     ? 'Belum ada data bulan sebelumnya yang cukup untuk pembanding.'
-    : `Dibanding bulan sebelumnya, pengeluaran ${change >= 0 ? 'naik' : 'turun'} ${formatPercentage(Math.abs(change))}.`
+    : `Dibanding periode sampai tanggal yang sama bulan sebelumnya, pengeluaran ${change >= 0 ? 'naik' : 'turun'} ${formatPercentage(Math.abs(change))}.`
 
   return {
     available: true,
@@ -150,6 +154,29 @@ export function composeFinancialQueryResult({
   now = new Date(),
   focus = 'overview',
 } = {}) {
+  const period = resolveQueryPeriod(text, now)
+  if (period?.invalid) return unavailableInsight('Rentang tanggal belum valid. Gunakan misalnya “2026-09-01 sampai 2026-09-23” atau “7 hari terakhir”.')
+  const querySlots = { ...slots, ...(period || {}) }
+  if (['query_income', 'query_expenses', 'query_category_summary', 'query_spending_summary'].includes(intent)) {
+    const selectedPeriod = period || (slots.startAt && slots.endAt ? slots : resolveQueryPeriod('bulan ini', now))
+    const scoped = filterTransactions(transactions, { ...querySlots, ...selectedPeriod })
+    if (intent === 'query_income' || intent === 'query_expenses') {
+      const type = intent === 'query_income' ? 'income' : 'expense'
+      const total = scoped.filter((item) => normalizeTransaction(item).type === type)
+        .reduce((sum, item) => sum + Number(item.amount), 0)
+      return createQueryInsight(`${type === 'income' ? 'Pemasukan' : 'Pengeluaran'} ${selectedPeriod.periodLabel} ${formatRupiah(total)}.`, [
+        `Dihitung dari transaksi ${selectedPeriod.periodLabel || 'pada periode yang diminta'}${slots.wallet?.name ? ` di ${slots.wallet.name}` : ''}${slots.category?.name ? `, kategori ${slots.category.name}` : ''}.`,
+      ])
+    }
+    if (intent === 'query_category_summary') {
+      const categories = groupAmounts(scoped.map(normalizeTransaction).filter(isExpense), (item) => item.category || 'Lainnya')
+      return categories.length ? createQueryInsight(`Pengeluaran per kategori ${selectedPeriod.periodLabel}.`, categories.map((item) => `${item.name}: ${formatRupiah(item.amount)} (${formatPercentage(item.percentage)})`)) : unavailableInsight(`Belum ada pengeluaran kategori yang cocok ${selectedPeriod.periodLabel}.`)
+    }
+    if (period && focus !== 'week') {
+      const summary = summarizePeriod(scoped.map(normalizeTransaction))
+      return createQueryInsight(`Ringkasan ${period.periodLabel}: pemasukan ${formatRupiah(summary.income)}, pengeluaran ${formatRupiah(summary.expense)}, arus kas bersih ${formatRupiah(summary.netCashflow)}.`)
+    }
+  }
   if (intent === 'query_balance') {
     const activeWallets = wallets.filter((wallet) => !wallet.is_archived)
     const selected = slots.wallet?.id
@@ -177,7 +204,7 @@ export function composeFinancialQueryResult({
   }
 
   if (intent === 'query_transactions') {
-    const filtered = filterTransactions(transactions, slots)
+    const filtered = filterTransactions(transactions, querySlots)
     if (filtered.length === 0) {
       return unavailableInsight('Tidak ada transaksi yang cocok dengan permintaan itu.')
     }
@@ -193,32 +220,11 @@ export function composeFinancialQueryResult({
     )
   }
 
-  if (intent === 'query_income') {
-    return snapshot?.sourceTransactionCount
-      ? createQueryInsight(
-          `Pemasukan bulan ini ${formatRupiah(snapshot.currentMonth.income)}.`,
-          [`Arus kas bersih bulan ini ${formatRupiah(snapshot.currentMonth.netCashflow)}.`]
-        )
-      : unavailableInsight('Data transaksi belum cukup untuk menghitung pemasukan.')
-  }
-
-  if (intent === 'query_expenses') {
-    return snapshot?.sourceTransactionCount
-      ? createQueryInsight(
-          `Pengeluaran bulan ini ${formatRupiah(snapshot.currentMonth.expense)}.`,
-          [
-            `Rata-rata harian ${formatRupiah(snapshot.currentMonth.dailyAverage)}.`,
-            ...buildTopCategoryDetail(snapshot),
-          ]
-        )
-      : unavailableInsight('Data transaksi belum cukup untuk menghitung pengeluaran.')
-  }
-
   if (intent === 'query_wallet') {
     const wallet = wallets.find((entry) => entry.id === slots.wallet?.id)
     if (!wallet) return unavailableInsight('Dompet yang dimaksud tidak ditemukan.')
     const walletTransactions = filterTransactions(transactions, {
-      wallet: { id: wallet.id },
+      ...querySlots, wallet: { id: wallet.id },
     })
     return createQueryInsight(
       `Saldo ${wallet.name} ${formatRupiah(wallet.current_balance)} dengan ${walletTransactions.length} transaksi pada data yang tersedia.`,
@@ -256,24 +262,6 @@ export function composeFinancialQueryResult({
         : `Ada ${progress.length} target tabungan pada akunmu.`,
       progress.map((entry) =>
         `${entry.name}: ${formatRupiah(entry.current)} dari ${formatRupiah(entry.target)}, kurang ${formatRupiah(entry.remaining)}`
-      )
-    )
-  }
-
-  if (intent === 'query_category_summary') {
-    const categoryName = slots.category?.name
-    const entries = categoryName
-      ? (snapshot?.topCategories || []).filter((entry) =>
-          entry.name.toLowerCase() === categoryName.toLowerCase()
-        )
-      : snapshot?.topCategories || []
-    if (entries.length === 0) return unavailableInsight('Belum ada pengeluaran kategori yang cocok bulan ini.')
-    return createQueryInsight(
-      categoryName
-        ? `Pengeluaran ${entries[0].name} bulan ini ${formatRupiah(entries[0].amount)}.`
-        : `Kategori pengeluaran terbesar bulan ini adalah ${entries[0].name} sebesar ${formatRupiah(entries[0].amount)}.`,
-      entries.slice(0, 5).map((entry) =>
-        `${entry.name}: ${formatRupiah(entry.amount)} (${formatPercentage(entry.percentage)})`
       )
     )
   }
@@ -499,6 +487,8 @@ function filterTransactions(transactions, slots) {
       normalized: normalizeTransaction(transaction),
     }))
     .filter(({ raw, normalized }) => {
+      if (slots.startAt && !(normalized.occurredAt >= new Date(slots.startAt))) return false
+      if (slots.endAt && !(normalized.occurredAt < new Date(slots.endAt))) return false
       if (slots.wallet?.id && String(raw.wallet_id || raw.walletId) !== slots.wallet.id) {
         return false
       }
