@@ -68,8 +68,8 @@ export default function PlanningView({
   )
 
   return (
-    <div className="app-scrollbar h-full overflow-y-auto px-4 pb-7 pt-5 sm:px-6 sm:pt-6 lg:px-0 lg:pb-8 lg:pt-0">
-      <div className="page-view space-y-4">
+    <div className="app-scrollbar h-full overflow-y-auto px-4 pb-7 pt-5 sm:px-6 sm:pt-6 lg:px-2 lg:pb-8 lg:pt-2">
+      <div className="mx-auto max-w-[1440px] space-y-5">
         <PlanningHero summary={summary} formatRupiah={formatRupiah} />
 
         {error ? (
@@ -127,21 +127,21 @@ function PlanningHero({ summary, formatRupiah }) {
   return (
     <section className="relative overflow-hidden rounded-[22px] bg-midnight p-5 text-white shadow-[0_26px_70px_-36px_rgba(22,24,28,0.62)] sm:p-7">
       <div aria-hidden="true" className="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[38px] border-orange-400/10" />
-      <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+      <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] xl:items-center">
         <div>
           <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-white/10 text-orange-300">
             <CalendarDays size={21} />
           </div>
           <p className="mt-4 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/50">30 hari mendatang</p>
-          <h2 className="mt-1.5 max-w-xl font-jakarta text-[26px] font-extrabold tracking-[-0.045em] sm:text-[32px]">Lihat arah uang sebelum tanggalnya tiba.</h2>
+          <h2 className="mt-2 max-w-xl font-jakarta text-[24px] font-bold leading-tight tracking-[-0.03em] sm:text-[28px]">Lihat arah uang sebelum tanggalnya tiba.</h2>
           <p className="mt-2 max-w-2xl text-[12px] font-medium leading-relaxed text-white/60 sm:text-[13px]">
             Semua angka di halaman ini adalah rencana. Tidak ada transaksi atau saldo yang berubah otomatis.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+        <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
           <HeroMetric label="Akan masuk" value={formatRupiah(summary.income)} tone="text-emerald-300" />
           <HeroMetric label="Akan keluar" value={formatRupiah(summary.outflow)} tone="text-red-300" />
-          <HeroMetric label="Selisih rencana" value={formatRupiah(summary.net)} tone={summary.net >= 0 ? 'text-orange-200' : 'text-red-300'} />
+          <HeroMetric label="Selisih rencana" value={formatRupiah(summary.net)} tone={summary.net >= 0 ? 'text-white' : 'text-red-300'} />
           <HeroMetric label="Pengingat aktif" value={`${summary.activeReminders}`} tone="text-white" />
         </div>
       </div>
@@ -176,8 +176,8 @@ function UpcomingReminders({ calendar, formatRupiah }) {
 function HeroMetric({ label, value, tone }) {
   return (
     <div className="rounded-[15px] border border-white/10 bg-white/[0.06] p-3 backdrop-blur-sm">
-      <p className="text-[9px] font-bold text-white/45">{label}</p>
-      <p className={`money-number mt-1 truncate text-[13px] font-bold ${tone}`}>{value}</p>
+      <p className="text-[11px] font-semibold text-white/70">{label}</p>
+      <p className={`money-number mt-1 break-all text-[15px] font-bold ${tone}`}>{value}</p>
     </div>
   )
 }

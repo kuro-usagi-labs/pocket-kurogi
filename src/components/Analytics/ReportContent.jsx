@@ -11,7 +11,7 @@ import EditTransactionModal from '../History/EditTransactionModal'
 const panel =
   'rounded-2xl border border-[var(--line)] bg-[var(--surface-strong)] p-5'
 const button =
-  'rounded-xl border border-[var(--line)] px-4 py-2 text-sm font-semibold disabled:opacity-50'
+  'min-h-11 min-w-0 rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold disabled:opacity-50'
 
 export default function ReportContent({
   ownerId,
@@ -106,7 +106,7 @@ export default function ReportContent({
           }}
         />
       )}
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="report-heading space-y-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-ink)]">
             Pocket Kurogi / Laporan
@@ -118,8 +118,8 @@ export default function ReportContent({
             Berdasarkan transaksi tersimpan. Periode menggunakan WIB.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="text-sm">
+        <div className="report-toolbar flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-strong)] p-3 sm:p-4">
+          <label className="flex items-center gap-3 text-sm font-medium">
             Periode{' '}
             <select
               aria-label="Jenis periode"

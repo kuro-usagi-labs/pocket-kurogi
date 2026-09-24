@@ -809,7 +809,7 @@ function WalletActionMenu({ walletName, onRename, onDelete, onAdjustBalance, onA
           role="menu"
           aria-label={`Aksi untuk ${walletName}`}
           style={{ left: menuPosition?.left ?? 0, top: menuPosition?.top ?? 0 }}
-          className={`fixed z-[110] w-36 overflow-hidden rounded-[12px] border border-midnight/10 bg-white p-1.5 text-left shadow-[0_14px_34px_rgba(15,23,42,0.16)] ${
+          className={`wallet-action-menu fixed z-[110] w-60 max-w-[calc(100vw-24px)] overflow-hidden rounded-[16px] border border-midnight/10 bg-white p-2 text-left shadow-[0_14px_34px_rgba(15,23,42,0.16)] ${
             menuPosition ? 'visible animate-scale-in' : 'invisible'
           }`}
         >

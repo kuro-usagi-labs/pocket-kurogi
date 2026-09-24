@@ -15,6 +15,8 @@ import WalletsView from '../components/Wallets/WalletsView'
 import AnalyticsView from '../components/Analytics/AnalyticsView'
 import DesktopRightPanel from '../components/Layout/DesktopRightPanel'
 import WalletAdjustmentHistory from '../components/Wallets/WalletAdjustmentHistory'
+import PlanningView from '../components/Planning/PlanningView'
+import EditTransactionModal from '../components/History/EditTransactionModal'
 import { formatMoney as rupiah } from '../lib/formatMoney'
 
 const initialWallets = [{ id: 'demo', name: 'Tunai', wallet_type: 'cash', balance: 8450000, current_balance: 8450000 }]
@@ -64,4 +66,15 @@ function DesignReview() {
   </div>
 }
 
-if (import.meta.env.DEV) createRoot(document.getElementById('root')).render(<ThemeProvider><DesignReview /></ThemeProvider>)
+function LayoutReview() {
+  const [editing, setEditing] = useState(false)
+  const [saved, setSaved] = useState(null)
+  return <div className="app-shell h-dvh flex flex-col p-4 text-midnight">
+    <div className="mb-4 flex items-center justify-between"><button onClick={() => setEditing(true)}>Koreksi contoh</button><ThemeToggle /></div>
+    {saved !== null && <output>Nominal tersimpan: {saved}</output>}
+    <div className="min-h-0 flex-1"><PlanningView wallets={initialWallets} goals={goals} formatRupiah={rupiah} /></div>
+    {editing && <EditTransactionModal transaction={{ id: 'example', amount: 8000, type: 'expense', walletId: 'demo', categoryId: 'food', merchant: 'Good day', date: 'Hari ini', time: '01.45' }} wallets={initialWallets} categories={[{ id: 'food', name: 'Makan', category_type: 'expense' }]} formatRupiah={rupiah} onClose={() => setEditing(false)} onSubmit={async value => { setSaved(value.amount); return { error: null } }} />}
+  </div>
+}
+
+if (import.meta.env.DEV) createRoot(document.getElementById('root')).render(<ThemeProvider>{new URLSearchParams(location.search).has('layout') ? <LayoutReview /> : <DesignReview />}</ThemeProvider>)

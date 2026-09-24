@@ -45,13 +45,13 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --canvas: #0d1913;
-  --surface: #13231b;
-  --surface-strong: #192d22;
-  --ink: #e9f3ec;
-  --muted-ink: #a5bbad;
-  --line: #304b3b;
-  --control: #123c2a;
+  --canvas: #0c0c0e;
+  --surface: #171719;
+  --surface-strong: #202023;
+  --ink: #f5f5f6;
+  --muted-ink: #a8a8b0;
+  --line: #36363b;
+  --control: #161618;
   --accent: #278656;
   --accent-hover: #31945f;
   --accent-soft: #1e3829;

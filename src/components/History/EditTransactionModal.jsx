@@ -1,34 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, LoaderCircle, PencilLine, X } from 'lucide-react'
 import OverlayPortal from '../shared/OverlayPortal'
-
-function parseAmountInput(value = '') {
-  const normalized = String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/^rp\s*/, '')
-    .replace(/\s+/g, '')
-
-  if (!normalized) {
-    return 0
-  }
-
-  const suffixMatch = normalized.match(/^(\d+(?:[.,]\d+)?)(k|rb|ribu|jt|juta|m)?$/i)
-  if (!suffixMatch) {
-    const plainValue = normalized.replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.')
-    const plainNumber = Number(plainValue)
-    return Number.isFinite(plainNumber) ? plainNumber : 0
-  }
-
-  let amount = Number(String(suffixMatch[1] || '').replace(',', '.'))
-  const multiplier = String(suffixMatch[2] || '').toLowerCase()
-
-  if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
-  else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-  else if (multiplier === 'm') amount *= 1000000000
-
-  return Number.isFinite(amount) ? amount : 0
-}
+import { parseAmountInput } from '../../lib/transactionAmountInput'
 
 function formatAmountInput(value = 0) {
   const amount = Number(value || 0)
@@ -148,7 +121,7 @@ export default function EditTransactionModal({
     <OverlayPortal>
     <div className="fixed inset-0 z-[130] flex items-end justify-center p-3 sm:items-center sm:p-4">
       <div
-        className="absolute inset-0 bg-midnight/30 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={submitting ? undefined : onClose}
       />
 
@@ -156,7 +129,7 @@ export default function EditTransactionModal({
         role="dialog"
         aria-modal="true"
         aria-label="Koreksi transaksi"
-        className="relative z-10 max-h-[calc(100dvh-24px)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-[20px] bg-white shadow-2xl animate-scale-in"
+        className="transaction-edit-dialog relative z-10 max-h-[calc(100dvh-24px)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-[20px] border border-[var(--line)] bg-white shadow-2xl animate-scale-in"
       >
         <div className="p-5 md:p-6">
           <div className="mb-6 flex items-start justify-between gap-4">
@@ -174,6 +147,7 @@ export default function EditTransactionModal({
               </div>
             </div>
             <button
+              aria-label="Tutup koreksi transaksi"
               onClick={onClose}
               disabled={submitting}
               className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-champagne text-muted transition-colors hover:text-midnight disabled:cursor-not-allowed disabled:opacity-60"
@@ -183,7 +157,7 @@ export default function EditTransactionModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="ml-1 font-jakarta text-[12px] font-extrabold  text-muted">
                   Jenis
@@ -206,6 +180,8 @@ export default function EditTransactionModal({
 
               <FieldWrap label="Nominal">
                 <input
+                  aria-label="Nominal"
+                  inputMode="decimal"
                   autoFocus
                   type="text"
                   value={amountText}
@@ -219,9 +195,10 @@ export default function EditTransactionModal({
               </FieldWrap>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FieldWrap label="Dompet">
                 <select
+                  aria-label="Dompet"
                   value={walletId}
                   onChange={(event) => setWalletId(event.target.value)}
                   className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3 text-[15px] font-semibold text-midnight outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
@@ -236,6 +213,7 @@ export default function EditTransactionModal({
 
               <FieldWrap label="Kategori">
                 <select
+                  aria-label="Kategori"
                   value={categoryId}
                   onChange={(event) => setCategoryId(event.target.value)}
                   className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-3 text-[15px] font-semibold text-midnight outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
@@ -251,6 +229,7 @@ export default function EditTransactionModal({
 
             <FieldWrap label="Catatan">
               <input
+                aria-label="Catatan"
                 type="text"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
