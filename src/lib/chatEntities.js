@@ -82,15 +82,10 @@ export function parseMoneyMatch(match) {
   if (normalizedNumber === null) return null
   let amount = Number(normalizedNumber)
   const multiplier = String(match[2] || '').toLowerCase()
-  const hasCurrencyPrefix = Boolean(match.currencyPrefix) ||
-    /^\s*rp\b/iu.test(String(match[0] || ''))
 
   if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
   else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
   else if (['m', 'miliar'].includes(multiplier)) amount *= 1000000000
-  else if (!['rupiah', 'perak'].includes(multiplier) && !hasCurrencyPrefix && amount > 0 && amount < 1000) {
-    amount *= 1000
-  }
 
   return amount
 }

@@ -105,6 +105,10 @@ export function manageAssistantDialogue({
       dialogueState: updateDialogueState(dialogueState, {
         activeIntent: route.intent === 'unknown' ? null : route.intent,
         lastAssistantQuestion: clarification?.question || null,
+        ...(safety.errors.length > 0 && safety.errors.every(error => ['THIRD_PARTY_OWNERSHIP', 'AMBIGUOUS_INTENT'].includes(error.code)) && entities.thirdParty ? {
+          collectedSlots: { ownershipText: entities.originalText || entities.normalizedText },
+          missingSlots: ['payer'],
+        } : {}),
       }, now),
     }
   }

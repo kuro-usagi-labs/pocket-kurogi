@@ -199,7 +199,7 @@ function deriveSlots(intent, entities, text) {
     if (entities.bulkLines) {
       const items = entities.bulkLines.map(({ text: line, entities: lineEntities, validLabel }, index) => {
         if (!validLabel || lineEntities.amounts.length !== 1) return null
-        const transactionType = /^pemasukan\b/iu.test(line) ? 'income' : 'expense'
+        const transactionType = /^pemasukan\b/iu.test(line) || lineEntities.transactionTypes?.[0]?.value === 'income' ? 'income' : 'expense'
         const item = deriveSlots(transactionType === 'income' ? 'record_income' : 'record_expense', lineEntities, line)
         if (!item.description || !(item.amount > 0)) return null
         return { clientItemId: `item-${index + 1}`, transactionType, amount: item.amount,
@@ -313,7 +313,8 @@ function deriveDescription(text, entities) {
   }
 
   let cleaned = String(text || '')
-    .replace(/(?:rp\s*)?\d+(?:[.,]\d+)*\s*(?:(?:ribu|rb|k|juta|jt|miliar)\b)?/giu, ' ')
+    .replace(/^\s*(?:uang|duit|dana)\s+(?:saya|aku|gue|gw|sendiri)\s*[,;:]?\s*/iu, '')
+    .replace(/(?:rp\s*)?\d+(?:[.,]\d+)*\s*(?:(?:rupiah|perak|ribu|rb|k|juta|jt|miliar)\b)?/giu, ' ')
     .replace(/\b(?:aku|saya|gue|gw|baru|barusan|mendapatkan|mendapat|menerima|yaitu|yakni|sebesar|senilai|dong|deh|nih)\b/giu, ' ')
     .replace(/\b(?:tolong|mohon|catat|masukan|masukkan|simpan|rekam|input|tambahkan|tambah|tadi|hari ini|kemarin|pakai|pake|dari|ke|via|pada|untuk|sebagai|dengan|catatan|dompet|wallet|rekening|pemasukan|pendapatan|pengeluaran|income|expense|masuk|keluar|cash|tunai|kontan|uang fisik|uang kontan)\b/giu, ' ')
 

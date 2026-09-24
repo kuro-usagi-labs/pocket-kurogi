@@ -1,6 +1,7 @@
 import { ASSISTANT_INTENTS } from './intentDefinitions'
 import { clampNumber } from './formatters'
 import { getSmallTalkReply } from './smallTalk'
+import { CONFIRMATION_PATTERN } from './confirmationLanguage'
 
 const SIGNALS = Object.freeze({
   recordVerb: /\b(?:catat|simpan|rekam|input|masukkan|tambahkan)\b/iu,
@@ -33,7 +34,7 @@ const SIGNALS = Object.freeze({
   unusualSpending: /\b(?:pengeluaran|belanja)\b.{0,35}\b(?:tidak biasa|nggak biasa|naik|melonjak|boros)\b|\b(?:boros|lonjakan)\b.{0,35}\b(?:pengeluaran|belanja)\b/iu,
   planningCalendar: /\b(?:jadwal|tagihan|gajian|setoran)\b.{0,45}\b(?:mendatang|berikutnya|dekat|jatuh tempo|kapan)\b|\b(?:apa|yang)\s+(?:akan|bakal)\s+(?:masuk|keluar|jatuh tempo)\b/iu,
   correction: /\b(?:koreksi|revisi|ubah|ganti|harusnya|seharusnya|yang tadi)\b/iu,
-  confirm: /^(?:ya|iya|yup|betul|benar|oke|ok|sip|setuju|konfirmasi|lanjut|gas)(?:\s+(?:boleh|catat|konfirmasi|setujui|lanjut(?:kan)?|saja|aja|sekarang))?$/iu,
+  confirm: CONFIRMATION_PATTERN,
   contextualConfirm: /^(?:(?:ya|iya|oke|sip)\s+)?(?:catat|simpan|rekam)(?:\s+(?:transaksi|catatan|draft))?\s+(?:(?:yang\s+)?(?:tadi|itu|tersebut|barusan))$/iu,
   contextualCorrection: /^(?:jadi|harusnya|seharusnya)\s+(?:rp\s*)?\d+(?:[.,]\d+)?\s*(?:rb|ribu|k|jt|juta)?$/iu,
   cancel: /\b(?:batal|batalkan|jangan jadi|tidak jadi|urungkan|cancel|lupakan)\b/iu,

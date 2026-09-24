@@ -3,9 +3,22 @@ import { ASSISTANT_DECISION_HANDLERS } from './assistantDecisionPolicy'
 import { detectThemeRequest } from './languageAssistant'
 import { splitWalletProvisionRequest } from './walletProvisionFlow'
 import { validateLanguageProposal } from './languageProposal'
+import { isDialogueStateActive } from './conversationContext'
 
 export async function resolveConversationTurn(input, { interpret }) {
+  // Resume only a real, unexpired ownership clarification, never a model's
+  // conversational promise or arbitrary history. Restage for confirmation.
+  const ownershipText = input.dialogueState?.collectedSlots?.ownershipText
+  if (!input.pendingAction && input.dialogueState?.missingSlots?.includes('payer') &&
+      ownershipText && isDialogueStateActive(input.dialogueState, input.now) &&
+      /^(?:(?:ya|iya)[,\s]+)?(?:(?:uang|duit|dana)\s+(?:saya|aku|gue|gw)|(?:saya|aku|gue|gw)(?:\s+yang)?(?:\s+(?:bayar|membayar))?)(?:\s+(?:lah|sendiri|kok))?[.!]*$/iu.test(input.text.trim())) {
+    return orchestrateAssistantMessage({ ...input, text: ownershipText.split(/\r?\n/).map(line => `uang saya, ${line}`).join('\n'), dialogueState: null })
+  }
   const baseline = orchestrateAssistantMessage(input)
+  if (!input.pendingAction && !input.dialogueState?.missingSlots?.length &&
+      /^(?:catat|simpan|rekam)\s+semua(?:nya)?[.!]?$/iu.test(input.text.trim())) {
+    return { ...baseline, languageResponse: { text: 'Belum ada daftar transaksi aktif untuk dikonfirmasi. Kirim ulang daftar transaksi dalam satu pesan; aku akan menampilkan satu konfirmasi untuk semuanya.', metadata: { responseSource: 'local', conversationStatus: 'clarification' } } }
+  }
   // A model proposal for a single transaction must not replace a bulk draft.
   if (baseline.frame.intent === 'record_multiple_transactions') return baseline
   // Persisted drafts, confirmations, cancellation, OCR and provisioning retain

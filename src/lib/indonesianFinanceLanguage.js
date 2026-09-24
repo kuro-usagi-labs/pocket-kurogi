@@ -75,7 +75,7 @@ const NUMBER_WORD_TOKEN = [
 ].join('|')
 
 const CURRENCY_WORD_PATTERN = new RegExp(
-  `\\b(?:${NUMBER_WORD_TOKEN})(?:\\s+(?:${NUMBER_WORD_TOKEN}))*(?:\\s+rupiah)?\\b`,
+  `\\b(?:${NUMBER_WORD_TOKEN})(?:\\s+(?:${NUMBER_WORD_TOKEN}))*(?:\\s+(?:rupiah|perak))?\\b`,
   'giu'
 )
 
@@ -143,7 +143,7 @@ export function normalizeIndonesianFinanceText(value = '') {
   )
 
   normalized = normalized.replace(CURRENCY_WORD_PATTERN, (phrase) => {
-    const withoutCurrency = phrase.replace(/\s+rupiah$/iu, '').trim()
+    const withoutCurrency = phrase.replace(/\s+(?:rupiah|perak)$/iu, '').trim()
     const words = withoutCurrency.split(/\s+/u)
     if (words.length === 1 && ['ribu', 'juta'].includes(words[0])) {
       return phrase
@@ -152,7 +152,7 @@ export function normalizeIndonesianFinanceText(value = '') {
       ['ribu', 'juta', 'seribu', 'sejuta'].includes(word)
     )
 
-    if (!hasCurrencyScale) return phrase
+    if (!hasCurrencyScale && !/\s+(?:rupiah|perak)$/iu.test(phrase)) return phrase
 
     const amount = parseIndonesianCurrencyWords(words)
     return Number.isSafeInteger(amount) && amount > 0 ? `${amount} rupiah` : phrase
@@ -676,12 +676,13 @@ function hasUnmodeledInitialFunding(text, mentions) {
     creationWithFundingPattern.test(text)
 }
 
-function hasAmbiguousThirdPartyOwnership(text) {
+export function hasAmbiguousThirdPartyOwnership(text) {
   const reportedSpeech = new RegExp(
     `(?:\\b(?:kata|menurut)\\s+${THIRD_PARTY_WORD}\\b|\\b${THIRD_PARTY_WORD}\\b.{0,20}\\b(?:bilang|cerita)\\b)`,
     'iu'
   ).test(text)
   if (reportedSpeech || THIRD_PARTY_MONEY_PATTERN.test(text)) return true
+  if (/\b(?:uang|duit|dana)\s+(?:saya|aku|gue|gw|sendiri)\b|\b(?:saya|aku|gue|gw)\s+(?:yang\s+)?(?:bayar|membayar)\b/iu.test(text)) return false
   if (!THIRD_PARTY_SUBJECT_PATTERN.test(text)) return false
   return !CLEAR_INCOMING_THIRD_PARTY_PATTERN.test(text)
 }

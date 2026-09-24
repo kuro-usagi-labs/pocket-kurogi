@@ -2,7 +2,7 @@ import { normalizeIndonesianFinanceText } from '../indonesianFinanceLanguage'
 import { normalizeMoneyNumber } from '../moneyNumber'
 
 const MONEY_PATTERN =
-  /(?:(?<currency>rp)\s*)?(?<number>\d+(?:[.,]\d+)*)\s*(?<unit>ribu|rb|k|juta|jt|miliar)?\b/giu
+  /(?:(?<currency>rp)\s*)?(?<number>\d+(?:[.,]\d+)*)\s*(?<unit>rupiah|perak|ribu|rb|k|juta|jt|miliar)?\b/giu
 const FOREIGN_CURRENCY_PATTERN =
   /(?:us\$|\$|€|¥|£|₹|₩|฿|₱|₽|₫|₺)|\b(?:usd|dolar|dollar|eur|euro|sgd|yen|jpy|ringgit|myr|baht|won|krw|gbp|pound|yuan|cny|cad|aud|nzd|chf|hkd|twd|inr|rupee|peso|php|vnd|rub|try|btc|bitcoin|eth|ethereum|usdt|usdc)\b|\brm\s*(?=\d)/giu
 const NON_MONEY_PRECEDING_PATTERN =
@@ -42,14 +42,9 @@ export function extractMoneyEntities(text = '') {
     }
 
     const parsedValue = parseMoneyValue(match.groups?.number, unit)
-    const inferredUnit =
-      !explicitCurrency &&
-      !explicitUnit &&
-      parsedValue > 0 &&
-      parsedValue < 1_000
-        ? 'ribu'
-        : null
-    const value = inferredUnit === 'ribu' ? parsedValue * 1_000 : parsedValue
+    // Never invent a magnitude. 500 means Rp500; thousands require k/rb/ribu.
+    const inferredUnit = null
+    const value = parsedValue
     if (!Number.isFinite(value) || value <= 0) continue
 
     entities.push({

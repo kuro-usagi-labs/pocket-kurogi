@@ -37,7 +37,6 @@ export function extractAmountFromText(text = '') {
   if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
   else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
   else if (multiplier === 'm') amount *= 1000000000
-  else if (amount > 0 && amount < 1000) amount *= 1000
 
   return Number.isFinite(amount) ? amount : 0
 }

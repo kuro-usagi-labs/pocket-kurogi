@@ -62,11 +62,11 @@ describe('deterministic assistant modules', () => {
     expect(extractMoneyEntities('iPhone 15 panjangnya 5 meter')).toEqual([])
   })
 
-  it('understands colloquial bare thousands without treating item quantities as money', () => {
+  it('keeps bare amounts literal without treating item quantities as money', () => {
     expect(extractMoneyEntities('beli kopi 20')).toEqual([
       expect.objectContaining({
-        value: 20_000,
-        inferredUnit: 'ribu',
+        value: 20,
+        inferredUnit: null,
       }),
     ])
     expect(extractMoneyEntities('beli 2 roti seharga 20rb')).toEqual([
