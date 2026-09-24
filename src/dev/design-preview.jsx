@@ -17,6 +17,7 @@ import DesktopRightPanel from '../components/Layout/DesktopRightPanel'
 import WalletAdjustmentHistory from '../components/Wallets/WalletAdjustmentHistory'
 import PlanningView from '../components/Planning/PlanningView'
 import EditTransactionModal from '../components/History/EditTransactionModal'
+import DraftEditorModal from '../components/Chat/DraftEditorModal'
 import { formatMoney as rupiah } from '../lib/formatMoney'
 
 const initialWallets = [{ id: 'demo', name: 'Tunai', wallet_type: 'cash', balance: 8450000, current_balance: 8450000 }]
@@ -77,4 +78,15 @@ function LayoutReview() {
   </div>
 }
 
-if (import.meta.env.DEV) createRoot(document.getElementById('root')).render(<ThemeProvider>{new URLSearchParams(location.search).has('layout') ? <LayoutReview /> : <DesignReview />}</ThemeProvider>)
+function DraftReview() {
+  const [open, setOpen] = useState(true)
+  const [saved, setSaved] = useState(null)
+  const categories = [{ id: 'food', name: 'Makan', category_type: 'expense' }, { id: 'salary', name: 'Gaji', category_type: 'income' }]
+  const action = { id: 'draft', actionType: 'record_transactions', status: 'pending', expiresAt: '2099-01-01', payload: { items: [
+    { clientItemId: 'a', amount: 500, transactionType: 'expense', walletId: 'demo', categoryId: 'food', description: 'Plastik' },
+    { clientItemId: 'b', amount: 10000, transactionType: 'income', walletId: 'demo', categoryId: 'salary', description: 'Kerja sapu' },
+  ] } }
+  return <div className="p-5 text-midnight"><ThemeToggle /><p>Belum ada transaksi dicatat.</p>{saved && <output>{JSON.stringify(saved)}</output>}{open && <DraftEditorModal action={action} wallets={initialWallets} categories={categories} onClose={() => setOpen(false)} onSave={async (_, payload) => setSaved(payload)} />}</div>
+}
+
+if (import.meta.env.DEV) createRoot(document.getElementById('root')).render(<ThemeProvider>{new URLSearchParams(location.search).has('draft') ? <DraftReview /> : new URLSearchParams(location.search).has('layout') ? <LayoutReview /> : <DesignReview />}</ThemeProvider>)

@@ -1,5 +1,5 @@
 import { normalizeIndonesianFinanceText } from '../indonesianFinanceLanguage'
-import { normalizeMoneyNumber } from '../moneyNumber'
+import { parseRupiahAmount } from '../moneyNumber'
 
 const MONEY_PATTERN =
   /(?:(?<currency>rp)\s*)?(?<number>\d+(?:[.,]\d+)*)\s*(?<unit>rupiah|perak|ribu|rb|k|juta|jt|miliar)?\b/giu
@@ -84,17 +84,7 @@ export function extractForeignCurrencyEntities(text = '') {
 }
 
 export function parseMoneyValue(numberText = '', unit = '') {
-  const normalizedNumber = normalizeMoneyNumber(numberText)
-  if (normalizedNumber === null) return 0
-
-  const numeric = Number(normalizedNumber)
-  if (!Number.isFinite(numeric)) return 0
-
-  const normalizedUnit = String(unit || '').toLowerCase()
-  if (['k', 'rb', 'ribu'].includes(normalizedUnit)) return numeric * 1_000
-  if (['jt', 'juta'].includes(normalizedUnit)) return numeric * 1_000_000
-  if (normalizedUnit === 'miliar') return numeric * 1_000_000_000
-  return numeric
+  return parseRupiahAmount(numberText, unit) ?? 0
 }
 
 function hasMoneyContext(text, start, end) {

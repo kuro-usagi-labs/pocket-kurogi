@@ -12,6 +12,8 @@ import DesktopRightPanel from './DesktopRightPanel'
 import DesktopSidebar from './DesktopSidebar'
 import AppHeader from './AppHeader'
 import ActionConfirmModal from '../shared/ActionConfirmModal'
+import DraftEditorModal from '../Chat/DraftEditorModal'
+import { buildAssistantCorrectionResponse } from '../../lib/assistant/assistantChatBridge'
 import StatusToast from '../shared/StatusToast'
 import ChatView from '../Chat/ChatView'
 import { CHAT_SYNC_STATUS } from '../../lib/chat/chatSyncState'
@@ -149,6 +151,7 @@ export default function AppShell() {
   const sendInFlightRef = useRef(false)
   const [actionDialog, setActionDialog] = useState(null)
   const [chatEditorTransaction, setChatEditorTransaction] = useState(null)
+  const [editingDraft, setEditingDraft] = useState(null)
   const [dialogSubmitting, setDialogSubmitting] = useState(false)
   const [notice, setNotice] = useState(null)
 
@@ -526,10 +529,11 @@ export default function AppShell() {
         )
         return true
       } catch (error) {
-        console.error('Chat Error:', error)
+        console.error('Chat processing failed', { requestId: error?.requestId || null, status: error?.status || null })
         try {
           await persistBotResponse({
             text: `Maaf, ${mapDomainError(error)}`,
+            metadata: { diagnosticId: error?.requestId || null },
           })
         } catch {
           showNotice('Pesan gagal diproses dan balasan belum tersimpan. Coba lagi.', 'error')
@@ -560,6 +564,18 @@ export default function AppShell() {
   )
 
   const handleChatCardAction = useCallback((action, card = {}) => {
+    if (action.startsWith('assistant-')) {
+      const current = deterministicAssistant.getSnapshot().pendingAction
+      if (sendInFlightRef.current || editingDraft) return
+      if (!current || current.id !== card.id || current.payloadHash !== card.payloadHash) {
+        showNotice('Draft sudah berubah. Gunakan kartu konfirmasi terbaru.', 'info')
+        return
+      }
+      if (action === 'assistant-edit' && current.actionType === 'record_transactions') {
+        setEditingDraft(current)
+        return
+      }
+    }
     if (action === 'sync-message') {
       retryMessage(card)
       return
@@ -605,7 +621,23 @@ export default function AppShell() {
       setActiveTab('history')
       showNotice('Transaksi ini bisa dikoreksi dari Histori.', 'info')
     }
-  }, [handleSend, handleUndoLastTransaction, handleUndoTransaction, showNotice, transactions, retryMessage])
+  }, [handleSend, handleUndoLastTransaction, handleUndoTransaction, showNotice, transactions, retryMessage, deterministicAssistant, editingDraft])
+
+  const saveEditedDraft = async (action, payload) => {
+    const current = deterministicAssistant.getSnapshot().pendingAction
+    if (sendInFlightRef.current || !current || current.id !== action.id || current.payloadHash !== action.payloadHash) throw new Error('Draft sudah berubah. Tutup editor dan gunakan kartu terbaru.')
+    sendInFlightRef.current = true
+    setIsTyping(true)
+    try {
+      const result = await deterministicAssistant.correctPendingAction({ action, payload })
+      if (result.error) throw result.error
+      setEditingDraft(result.data)
+      await persistBotResponse(buildAssistantCorrectionResponse(result.data))
+    } finally {
+      sendInFlightRef.current = false
+      setIsTyping(false)
+    }
+  }
 
   const handleAddGoal = useCallback(async (goalData) => {
     const result = await addGoal(goalData)
@@ -836,6 +868,7 @@ export default function AppShell() {
                 loading={chatLoading}
                 syncStatus={chatSyncStatus}
                 activePendingActionId={deterministicAssistant.pendingAction?.id || null}
+                activePendingActionHash={deterministicAssistant.pendingAction?.payloadHash || null}
               />
               </div>
             ) : null}
@@ -960,6 +993,7 @@ export default function AppShell() {
         <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
       </main>
 
+      {editingDraft && <DraftEditorModal action={editingDraft} wallets={wallets} categories={categories} onClose={() => setEditingDraft(null)} onSave={saveEditedDraft} />}
       {chatEditorTransaction ? (
         <Suspense fallback={null}>
           <EditTransactionModal

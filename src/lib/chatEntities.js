@@ -1,4 +1,4 @@
-import { normalizeMoneyNumber } from './moneyNumber'
+import { normalizeMoneyNumber, parseRupiahAmount } from './moneyNumber'
 
 export function normalizeEntityName(value = '') {
   return String(value || '')
@@ -78,16 +78,7 @@ export function parseMoneyMatch(match) {
     return null
   }
 
-  const normalizedNumber = normalizeMoneyNumber(match[1])
-  if (normalizedNumber === null) return null
-  let amount = Number(normalizedNumber)
-  const multiplier = String(match[2] || '').toLowerCase()
-
-  if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
-  else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-  else if (['m', 'miliar'].includes(multiplier)) amount *= 1000000000
-
-  return amount
+  return parseRupiahAmount(match[1], match[2])
 }
 
 export function resolveOptionReference({

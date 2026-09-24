@@ -69,6 +69,8 @@ export async function requestAssistantApi({
       'Layanan assistant tidak dapat memproses request.'
     )
     error.status = response.status
+    error.code = payload?.error?.code
+    error.requestId = response.headers?.get?.('X-Request-Id') || null
     throw error
   }
 

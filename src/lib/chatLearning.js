@@ -5,9 +5,9 @@ import {
   normalizeCategoryLookup,
   resolveExistingCategory,
 } from './categoryCatalog'
-import { normalizeMoneyNumber } from './moneyNumber'
+import { parseRupiahAmount } from './moneyNumber'
 
-const MONEY_REGEX = /(?:rp\s*)?(\d+(?:[.,]\d+)*)\s*(k|rb|ribu|jt|juta|m)?/i
+const MONEY_REGEX = /(?:rp\s*)?(\d+(?:[.,]\d+)*)\s*(k|rb|ribu|jt|juta|miliar|m|rupiah|perak)?(?![\p{L}\p{N}])/iu
 
 const INCOME_KEYWORDS = /\b(gaji|bonus|dapat|terima|masuk|topup|cashback|refund|komisi|fee|pendapatan|income|dividen|bunga)\b/i
 const COMMAND_WORDS = /\b(beli|bayar|buat|dari|terima|dapat|masuk|untuk|pakai|pake|di|ke|gaji|bonus|tabung|transfer|cairkan|cairin|tarik|ambil)\b/gi
@@ -29,16 +29,7 @@ export function extractAmountFromText(text = '') {
     return 0
   }
 
-  const normalizedNumber = normalizeMoneyNumber(match[1])
-  if (normalizedNumber === null) return 0
-  let amount = Number(normalizedNumber)
-  const multiplier = String(match[2] || '').toLowerCase()
-
-  if (['k', 'rb', 'ribu'].includes(multiplier)) amount *= 1000
-  else if (['jt', 'juta'].includes(multiplier)) amount *= 1000000
-  else if (multiplier === 'm') amount *= 1000000000
-
-  return Number.isFinite(amount) ? amount : 0
+  return parseRupiahAmount(match[1], match[2]) ?? 0
 }
 
 export function detectTransactionTypeFromText(text = '') {

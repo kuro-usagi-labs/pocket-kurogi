@@ -60,6 +60,7 @@ export default function ChatView({
   loading = false,
   syncStatus = 'idle',
   activePendingActionId = null,
+  activePendingActionHash = null,
 }) {
   const containerRef = useRef(null)
   const contentRef = useRef(null)
@@ -257,7 +258,7 @@ export default function ChatView({
                 disabled={isTyping}
                 pendingActionActive={
                   message.card?.type !== 'pending_action' ||
-                  message.card?.id === activePendingActionId
+                  (message.card?.id === activePendingActionId && (!activePendingActionHash || message.card.payloadHash === activePendingActionHash))
                 }
                 isFirstInGroup={previousMessage?.sender !== message.sender}
                 isLastInGroup={nextMessage?.sender !== message.sender}

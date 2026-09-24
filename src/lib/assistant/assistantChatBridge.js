@@ -231,7 +231,7 @@ export function buildAssistantCorrectionResponse(action) {
   return {
     text: action?.actionType === 'set_wallet_balance'
       ? `Periksa penyesuaian saldo ${payload.walletName}: ${formatWalletAdjustmentBalance(payload.expectedBalance)} → ${formatWalletAdjustmentBalance(payload.targetBalance)}. Ini penyesuaian saldo, bukan pemasukan atau pengeluaran. Konfirmasikan kembali untuk menyimpan.`
-      : 'Rincian pending action sudah diperbarui. Periksa lagi sebelum mengonfirmasi.',
+      : 'Draft transaksi sudah diperbarui. Periksa lagi sebelum mengonfirmasi pencatatan.',
     card: {
       type: 'pending_action',
       id: action?.id,
@@ -258,6 +258,8 @@ export function buildAssistantCorrectionResponse(action) {
         description: item.description || item.merchant || `Transaksi ${index + 1}`,
         amount: item.amount,
         category: item.category || null,
+        wallet: item.wallet || null,
+        transactionType: item.transactionType,
       })),
       missingFields: [],
       actions: ['confirm', 'edit', 'cancel'],

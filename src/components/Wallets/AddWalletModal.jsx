@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import OverlayPortal from '../shared/OverlayPortal'
+import { parseAmountInput } from '../../lib/transactionAmountInput'
 
 export default function AddWalletModal({ onClose, onSubmit }) {
   const [name, setName] = useState('')
@@ -14,7 +15,13 @@ export default function AddWalletModal({ onClose, onSubmit }) {
 
     setSubmitting(true)
     setErrorMessage('')
-    const result = await onSubmit(name.trim(), parseFloat(balance) || 0)
+    const amount = parseAmountInput(balance)
+    if (!amount && !/^0(?:[.,]0{1,2})?$/.test(balance.trim())) {
+      setErrorMessage('Isi saldo awal yang valid, misalnya 500.000 atau 0.')
+      setSubmitting(false)
+      return
+    }
+    const result = await onSubmit(name.trim(), amount)
 
     if (result?.error) {
       setErrorMessage(result.error.message || 'Dompet belum bisa dibuat.')
@@ -68,7 +75,8 @@ export default function AddWalletModal({ onClose, onSubmit }) {
             </label>
             <input
               required
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="500000"
               className="w-full rounded-[16px] border border-midnight/10 bg-champagne px-4 py-4 font-inter text-[16px] font-medium text-midnight transition-all placeholder:text-muted/50 focus:border-orange-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
               value={balance}
