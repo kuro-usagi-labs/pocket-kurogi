@@ -169,7 +169,7 @@ export function buildFinancialReport(
   const largest = categories.find((group) => group.type === 'expense')
   const insights = [
     rows.length
-      ? `Arus kas operasional ${totals.operatingNet >= 0 ? 'surplus' : 'defisit'} ${reportMoney(Math.abs(totals.operatingNet))}.`
+      ? `Setelah uang masuk dan keluar, kamu ${totals.operatingNet >= 0 ? 'masih punya sisa' : 'mengeluarkan lebih banyak'} ${reportMoney(Math.abs(totals.operatingNet))}.`
       : 'Belum ada transaksi pada periode ini.',
     ...(largest
       ? [

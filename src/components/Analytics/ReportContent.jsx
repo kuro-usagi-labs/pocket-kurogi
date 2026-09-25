@@ -109,7 +109,7 @@ export default function ReportContent({
       <header className="report-heading space-y-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-ink)]">
-            Pocket Kurogi / Laporan
+            Pocket Kurogi / Ringkasan keuangan
           </p>
           <h2 className="mt-2 text-2xl font-bold">
             Uangmu, dalam gambaran utuh.
@@ -208,8 +208,8 @@ export default function ReportContent({
             {[
               ['Pemasukan', report.totals.income],
               ['Pengeluaran', report.totals.expense],
-              ['Surplus / defisit operasional', report.totals.operatingNet],
-              ['Alokasi tabungan neto', report.totals.savingsNet],
+              ['Sisa uang setelah pengeluaran', report.totals.operatingNet],
+              ['Perubahan tabungan', report.totals.savingsNet],
             ].map(([label, amount]) => (
               <section key={label} className={panel}>
                 <p className="text-sm text-[var(--muted-ink)]">{label}</p>
@@ -231,17 +231,17 @@ export default function ReportContent({
           </section>
           <div className="grid gap-5 xl:grid-cols-2">
             <section className={panel}>
-              <h3 className="font-bold">Arus kas tercatat</h3>
+              <h3 className="font-bold">Ringkasan uangmu</h3>
               <dl className="mt-4 space-y-3 text-sm">
                 {[
-                  ['Pemasukan operasional', report.totals.income],
-                  ['Pengeluaran operasional (-)', report.totals.expense],
-                  ['Surplus / defisit operasional', report.totals.operatingNet],
-                  ['Setoran tabungan (-)', report.totals.savingIn],
-                  ['Penarikan tabungan (+)', report.totals.savingOut],
-                  ['Arus neto setelah tabungan', report.totals.afterSavings],
-                  ['Transfer antar-dompet (informasi)', report.totals.transfer],
-                  ['Saldo awal tercatat (informasi)', report.totals.opening],
+                  ['Uang masuk', report.totals.income],
+                  ['Uang keluar (-)', report.totals.expense],
+                  ['Sisa setelah pengeluaran', report.totals.operatingNet],
+                  ['Masuk ke tabungan (-)', report.totals.savingIn],
+                  ['Diambil dari tabungan (+)', report.totals.savingOut],
+                  ['Sisa setelah tabungan', report.totals.afterSavings],
+                  ['Pindah antar dompet', report.totals.transfer],
+                  ['Saldo awal yang dicatat', report.totals.opening],
                 ].map(([label, amount]) => (
                   <div
                     key={label}
@@ -255,10 +255,10 @@ export default function ReportContent({
                 ))}
               </dl>
               <p className="mt-4 text-xs leading-relaxed text-[var(--muted-ink)]">
-                Arus neto bukan saldo dompet. Transfer internal, saldo awal, dan
-                koreksi saldo tidak dihitung sebagai pemasukan/pengeluaran
-                operasional. Laporan pribadi berbasis kas tercatat, bukan
-                laporan akuntansi perusahaan yang diaudit.
+                Sisa uang bukan berarti saldo dompet. Pindah antar dompet,
+                saldo awal, dan koreksi saldo tidak dihitung sebagai uang masuk
+                atau keluar. Ringkasan ini membantu kamu melihat catatan pribadi,
+                bukan laporan akuntansi perusahaan.
               </p>
             </section>
             <section className={panel}>
@@ -298,7 +298,7 @@ export default function ReportContent({
           <section className={panel}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="font-bold">Buku transaksi</h3>
+                <h3 className="font-bold">Daftar catatanmu</h3>
                 <p className="mt-1 text-xs text-[var(--muted-ink)]">
                   Kategori mengikuti data tersimpan. Gunakan Koreksi untuk
                   meninjau kategori dan rincian transaksi.

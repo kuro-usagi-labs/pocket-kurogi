@@ -72,7 +72,7 @@ function AnalyticsContent({ analytics, budgets, formatRupiah }) {
 
         <section className="rounded-[18px] border border-midnight/[0.08] bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.025)]">
           <p className="font-jakarta text-[14px] font-semibold text-muted">
-            Arus kas
+            Sisa uang bulan ini
           </p>
           <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
@@ -85,7 +85,7 @@ function AnalyticsContent({ analytics, budgets, formatRupiah }) {
                 {formatRupiah(Math.abs(netCashflow))}
               </p>
               <p className="mt-1.5 text-[14px] font-semibold text-muted">
-                {netCashflowPositive ? 'Masih positif.' : 'Perlu ditahan.'}
+                {netCashflowPositive ? 'Masih ada ruang untuk ditabung.' : 'Pengeluaran lebih besar dari pemasukan.'}
               </p>
             </div>
             <div className="accent-soft rounded-[12px] px-3.5 py-2 font-jakarta text-[12px] font-bold">
@@ -149,7 +149,7 @@ function AnalyticsContent({ analytics, budgets, formatRupiah }) {
                   Ringkasan bulan ini
                 </p>
                 <h2 className="mt-3 font-jakarta text-[32px] font-extrabold tracking-tight text-midnight">
-                  Arus kas
+                  Sisa uang bulan ini
                 </h2>
                 <p
                   className={`mt-3 break-words font-jakarta text-[42px] font-extrabold leading-none tracking-tight ${
@@ -289,7 +289,7 @@ function ExpenseCategoryList({ topExpenseCategories, budgets, formatRupiah, desk
         })
       ) : (
         <div className="rounded-[16px] border border-dashed border-midnight/15 bg-champagne px-5 py-8 text-center">
-          <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada arus kas.</p>
+          <p className="font-jakarta text-[13px] font-bold text-midnight">Belum ada catatan uang masuk atau keluar.</p>
           <p className="mt-1 text-[12px] font-medium text-muted">Catat dari chat.</p>
         </div>
       )}

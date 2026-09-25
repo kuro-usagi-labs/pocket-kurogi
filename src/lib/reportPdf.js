@@ -23,7 +23,7 @@ export async function createReportPdf(report) {
     .setTextColor(20)
     .setFontSize(10)
     .text('POCKET KUROGI / LAPORAN KEUANGAN PRIBADI', 16, 14)
-  doc.setFontSize(23).text('Laporan arus kas', 16, 25)
+  doc.setFontSize(23).text('Ringkasan uang pribadi', 16, 25)
   doc
     .setFontSize(10)
     .text(clean(`${report.period.label} | Zona waktu WIB`), 16, 33)
@@ -55,19 +55,19 @@ export async function createReportPdf(report) {
       ...options,
     })
   table(
-    ['ARUS KAS OPERASIONAL', 'IDR'],
+    ['RINGKASAN UANGMU', 'IDR'],
     [
       ['Pemasukan', money(report.totals.income)],
       ['Pengeluaran (-)', money(report.totals.expense)],
-      ['Surplus / defisit operasional', money(report.totals.operatingNet)],
-      ['Setoran tabungan (-)', money(report.totals.savingIn)],
-      ['Penarikan tabungan (+)', money(report.totals.savingOut)],
-      ['Arus neto setelah tabungan', money(report.totals.afterSavings)],
+      ['Sisa setelah pengeluaran', money(report.totals.operatingNet)],
+      ['Masuk ke tabungan (-)', money(report.totals.savingIn)],
+      ['Diambil dari tabungan (+)', money(report.totals.savingOut)],
+      ['Sisa setelah tabungan', money(report.totals.afterSavings)],
       [
-        'Transfer internal (informasi, tidak menambah arus neto)',
+        'Pindah antar dompet',
         money(report.totals.transfer),
       ],
-      ['Saldo awal tercatat (informasi)', money(report.totals.opening)],
+      ['Saldo awal yang dicatat', money(report.totals.opening)],
     ],
     55,
     { columnStyles: { 1: { halign: 'right', cellWidth: 55 } } }
@@ -77,10 +77,10 @@ export async function createReportPdf(report) {
     [
       ...report.insights.map((text) => [text]),
       [
-        'Arus neto bukan saldo akhir dompet. Transfer internal, saldo awal dan koreksi saldo tidak dihitung sebagai pemasukan/pengeluaran operasional. Tabungan disajikan terpisah.',
+        'Sisa uang bukan saldo akhir dompet. Pindah antar dompet, saldo awal, dan koreksi saldo tidak dihitung sebagai uang masuk atau keluar. Tabungan ditampilkan terpisah.',
       ],
       [
-        'Kategori mengikuti catatan tersimpan. Belum dikategorikan tetap masuk total. Laporan ini berbasis kas pribadi, bukan laporan perusahaan yang diaudit.',
+        'Kategori mengikuti catatan tersimpan. Catatan tanpa kategori tetap dihitung. Ini adalah ringkasan keuangan pribadimu, bukan laporan perusahaan.',
       ],
     ],
     doc.lastAutoTable.finalY + 8
