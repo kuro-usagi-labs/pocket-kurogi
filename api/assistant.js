@@ -10,6 +10,7 @@ import {
 import { getGeminiReply } from './_lib/geminiAssistant.js'
 import { readOwnedLanguageContext } from './_lib/languageContext.js'
 import { readFinancialReport } from './_lib/financialReport.js'
+import { readTransactionHistory } from './_lib/transactionHistory.js'
 import { randomUUID } from 'node:crypto'
 import { assistantDiagnostic } from './_lib/assistantTelemetry.js'
 
@@ -45,6 +46,13 @@ export default async function handler(req, res) {
     operation = req.method === 'GET'
       ? String(req.query?.operation || 'get_state')
       : String(body.operation || '')
+    if (operation === 'transaction_history' && req.method === 'POST') {
+      stage = 'database'
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(200).json({ data: await readTransactionHistory(sql, userId, body.cursor ?? null) })
+      record('success')
+      return
+    }
     if (operation === 'financial_report' && req.method === 'POST') {
       stage = 'report'
       res.setHeader('Cache-Control', 'no-store')

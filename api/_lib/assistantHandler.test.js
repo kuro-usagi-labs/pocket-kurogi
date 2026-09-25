@@ -9,6 +9,8 @@ vi.mock('./assistantServer.js', () => ({
   validateAssistantOperationRequest: vi.fn(),
 }))
 vi.mock('./geminiAssistant.js', () => ({ getGeminiReply: vi.fn() }))
+vi.mock('./transactionHistory.js', () => ({ readTransactionHistory: vi.fn() }))
+import { readTransactionHistory } from './transactionHistory.js'
 import handler from '../assistant'
 import { authenticateAssistantRequest, runAssistantDatabaseOperation, sendAssistantError } from './assistantServer'
 import { getGeminiReply } from './geminiAssistant'
@@ -20,6 +22,20 @@ describe('assistant language operation authentication', () => {
     getGeminiReply.mockResolvedValue({ mode: 'fallback', reason: 'cooldown' })
   })
   const response = () => ({ setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn(), end: vi.fn() })
+  it('reads history only for the verified identity, not an owner supplied in the body', async () => {
+    readTransactionHistory.mockResolvedValue({ transactions: [] })
+    const res = response()
+    await handler({ method: 'POST', body: { operation: 'transaction_history', userId: 'foreign-owner' } }, res)
+    expect(readTransactionHistory).toHaveBeenCalledWith(undefined, 'owner', null)
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
+    expect(res.json).toHaveBeenCalledWith({ data: { transactions: [] } })
+  })
+  it('does not read history if authentication fails', async () => {
+    authenticateAssistantRequest.mockRejectedValueOnce(new Error('unauthorized'))
+    await handler({ method: 'POST', body: { operation: 'transaction_history' } }, response())
+    expect(readTransactionHistory).not.toHaveBeenCalled()
+    expect(sendAssistantError).toHaveBeenCalledOnce()
+  })
   it('returns fallback successfully without dispatching financial operations', async () => {
     const res = response()
     await handler({ method: 'POST', body: { operation: 'language', text: 'hi' } }, res)

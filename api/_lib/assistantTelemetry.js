@@ -1,4 +1,4 @@
-const OPERATIONS = new Set(['get_state', 'stage_action', 'confirm_action', 'correct_action', 'cancel_action', 'financial_report', 'language', 'interpret', 'interpret_v2', 'save_dialogue', 'supersede_actions', 'remember', 'forget_memory', 'forget_all_memory', 'financial_context'])
+const OPERATIONS = new Set(['get_state', 'stage_action', 'confirm_action', 'correct_action', 'cancel_action', 'financial_report', 'transaction_history', 'language', 'interpret', 'interpret_v2', 'save_dialogue', 'supersede_actions', 'remember', 'forget_memory', 'forget_all_memory', 'financial_context'])
 const REASONS = new Set(['disabled', 'invalid_input', 'unauthenticated', 'configuration', 'cooldown', 'busy', 'daily_quota', 'rate_limit', 'invalid_response', 'cooldown_store_unavailable', 'timeout', 'provider_error', 'unavailable'])
 const STAGES = new Set(['authentication', 'validation', 'language_context', 'provider', 'database', 'report'])
 

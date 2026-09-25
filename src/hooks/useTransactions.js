@@ -3,7 +3,8 @@ import { neon } from '../lib/neon'
 import { useAuth } from '../contexts/AuthContext'
 import { buildHistoryPresentation } from '../lib/historyPresentation'
 import { inferCategoryFromText } from '../lib/categoryCatalog'
-import { transactionCursor, transactionCursorFilter } from '../lib/transactionCursor'
+import { transactionCursor } from '../lib/transactionCursor'
+import { requestAssistantApi } from '../lib/assistant/assistantApiClient'
 
 const TRANSACTION_SELECT = `
   *,
@@ -112,27 +113,23 @@ export function useTransactions() {
       oldestCursorRef.current = null
     }
 
-    let query = neon
-      .from('transactions')
-      .select(TRANSACTION_SELECT)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(PAGE_SIZE)
-
-    if (loadMore && oldestCursorRef.current) {
-      query = query.or(transactionCursorFilter(oldestCursorRef.current))
-    }
-
     let result
-    try { result = await query } catch (error) { result = { data: null, error } }
+    try {
+      const payload = await requestAssistantApi({
+        operation: 'transaction_history',
+        body: { cursor: loadMore ? oldestCursorRef.current : null },
+      })
+      if (!Array.isArray(payload?.transactions)) throw new Error('Respons riwayat tidak valid. Coba muat ulang.')
+      // Mapping errors must be visible failures, not a swallowed empty history.
+      result = { data: payload.transactions, mapped: payload.transactions.map(mapTransactionRow) }
+    } catch (error) { result = { data: null, error } }
     if (generation !== requestGenerationRef.current) return
     const { data, error } = result
     setDataOwner(user.id)
     setError(error || null)
 
     if (!error && data) {
-      const nextTransactions = data.map(mapTransactionRow)
+      const nextTransactions = result.mapped
       oldestCursorRef.current = transactionCursor(data.at(-1))
       setHasMore(nextTransactions.length === PAGE_SIZE)
 

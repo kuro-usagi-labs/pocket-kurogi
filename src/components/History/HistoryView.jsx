@@ -152,6 +152,7 @@ export default function HistoryView({
 
   return (
     <div className="page-view px-4 pb-7 pt-4 sm:px-6 lg:px-0 lg:pb-0 lg:pt-0">
+      {onRetry && <div className="mb-3 flex justify-end"><button type="button" onClick={() => onRetry()} disabled={loading} className="rounded-xl border border-midnight/10 bg-white px-4 py-2 text-sm font-bold text-midnight disabled:opacity-50">{loading ? 'Memuat…' : 'Muat ulang riwayat'}</button></div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-amber-200 p-4 text-sm text-midnight">Riwayat belum berhasil diperbarui. Data yang sudah tampil tetap disimpan. <button onClick={onRetry} className="font-bold underline">Coba lagi</button></div>}
       {loading && <p role="status" className="mb-4 text-sm text-muted">Memuat riwayat…</p>}
       <div className="lg:hidden">
