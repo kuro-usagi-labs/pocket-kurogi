@@ -11,6 +11,11 @@ function AppContent() {
   const { user, loading } = useAuth()
   const [page, setPage] = useState(() => getPublicPage(window.location.search))
   useEffect(() => {
+    const isPublic = !user && page === 'home'
+    document.title = user ? 'Ruang Keuangan | Pocket Kurogi' : page === 'login' ? 'Masuk | Pocket Kurogi' : page === 'register' ? 'Daftar | Pocket Kurogi' : 'Pocket Kurogi — Catat Keuangan Lewat Chat'
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', isPublic ? 'index, follow, max-image-preview:large' : 'noindex, nofollow')
+  }, [page, user])
+  useEffect(() => {
     const update = () => setPage(getPublicPage(window.location.search))
     window.addEventListener('popstate', update)
     return () => window.removeEventListener('popstate', update)

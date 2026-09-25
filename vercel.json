@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    { "source": "/api/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/", "has": [{ "type": "query", "key": "page", "value": "(login|register)" }], "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/", "has": [{ "type": "query", "key": "token" }], "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/", "has": [{ "type": "query", "key": "auth" }], "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/", "has": [{ "type": "query", "key": "error" }], "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/(.*)", "has": [{ "type": "host", "value": ".*\\.vercel\\.app" }], "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }
+  ]
+}
